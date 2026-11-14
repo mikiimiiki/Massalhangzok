@@ -82,8 +82,8 @@
   .b-jly { background: linear-gradient(135deg, #f97316, #ea580c); }
   .b-gap { background: linear-gradient(135deg, #eab308, #ca8a04); }
   .b-tiles { background: linear-gradient(135deg, #22c55e, #0d9488); }
-  .b-pairs { grid-column: 1 / -1; background: linear-gradient(135deg, #ec4899, #be185d); }
-  .b-mistakes { grid-column: 1 / -1; background: linear-gradient(135deg, #ef4444, #b91c1c); }
+  .b-pairs { background: linear-gradient(135deg, #ec4899, #be185d); }
+  .b-mistakes { background: linear-gradient(135deg, #ef4444, #b91c1c); }
 
   /* --- Profilválasztó --- */
   .namebox {
@@ -239,13 +239,12 @@
     .monitor-inner { flex-wrap: wrap; justify-content: center; gap: 6px 14px; }
   }
 
-.sync-badge {
+  .sync-badge {
     padding: 3px 9px; border-radius: 8px; font-weight: 800; font-size: 13px;
     background: #334155; color: #94a3b8; cursor: pointer; border: 0;
   }
   .sync-badge.online { background: #064e3b; color: #34d399; }
   .sync-badge.err { background: #7f1d1d; color: #fca5a5; }
-
 </style>
 </head>
 <body>
@@ -301,31 +300,28 @@
       Betűkirakó
       <small>Rakd ki a szót 3 választható segítséggel!</small>
     </button>
-    <button class="big b-pairs" id="btn-pairs">
-      <span class="ic">⚖️</span>
-      Jelentéskülönbségek
-      <small>fejjel–fejel, hal–hall, helység–helyiség...</small>
-    </button>
-    <button class="big b-mistakes" id="btn-mistakes" style="display:none">
-      <span class="ic">🩹</span>
-      Hibajavító kör (<span id="mistake-cnt">0</span> szó)
-      <small>Gyakorold újra, amit elrontottál!</small>
-    </button>
-	 
-  </div>
 
-  <div class="footer">
-    <button class="ghost" id="btn-switch-user">👤 Játékos váltása</button>
+    <!-- Alsó sor: Jelentéskülönbségek és Hibajavító kör egymás mellett, kisebb csempékben -->
+    <button class="big b-pairs" id="btn-pairs" style="font-size: 16px; padding: 14px 10px;">
+      <span class="ic" style="font-size: 24px;">⚖️</span>
+      Jelentéskülönbségek
+      <small style="font-size: 11px;">fejjel–fejel, hal–hall...</small>
+    </button>
+    <button class="big b-mistakes" id="btn-mistakes" style="font-size: 16px; padding: 14px 10px; display:none;">
+      <span class="ic" style="font-size: 24px;">🩹</span>
+      Hibajavító kör (<span id="mistake-cnt">0</span> szó)
+      <small style="font-size: 11px;">Gyakorold újra!</small>
+    </button>
   </div>
 </section>
 
 <!-- 2. KÉPERNYŐ: JÁTÉKOS PROFILVÁLASZTÓ -->
 <section id="scr-users" class="screen">
   <div class="namebox">
-    <div style="font-size:56px">🦉</div>
+    <div style="font-size:56px" class="mascot">🦉</div>
     <h2>Ki játszik most?</h2>
     <div class="plist" id="user-list"></div>
-	<div id="avatar-picker" style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:10px 0;"></div>
+    <div id="avatar-picker" style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:10px 0;"></div>
     <input type="text" id="new-user-inp" placeholder="Új név beírása..." maxlength="18">
     <button class="primary" style="width:100%" id="btn-add-user">Hozzáadás és indítás</button>
   </div>
@@ -377,8 +373,8 @@
     <div class="mon-item">📚 Összes szó: <span class="mon-val" id="mon-total">0</span></div>
     <div class="mon-item">🎯 Már gyakorolva: <span class="mon-val gold" id="mon-practiced">0</span></div>
     <div class="mon-item">✅ Mai hibátlan: <span class="mon-val ok" id="mon-today-ok">0</span></div>
-	<div class="mon-item">
-      	<button id="mon-sync" class="sync-badge" title="Kattints a felhő kód beállításához">☁️ Helyi mód</button>
+    <div class="mon-item">
+      <button id="mon-sync" class="sync-badge" title="Kattints a felhő kód beállításához">☁️ Helyi mód</button>
     </div>
   </div>
 </footer>
@@ -412,7 +408,6 @@ try {
 }
 
 // --- 3.1. SZINONIMA ÉS ROKON ÉRTELMŰ KIFEJEZÉSEK SZÓTÁRA ---
-// A Betűkirakó "1. Szinonimák" segítség gombja innen keresi ki a szó rokon értelmű párjait.
 const WORD_SYNONYMS = {
   "Nelli": "Kornélia (lánynév)",
   "loccsan": "csapódik, fröccsen, csobban",
@@ -934,7 +929,6 @@ const WORD_SYNONYMS = {
   "petty": "pötty, folt, pontocska",
   "pettyes": "pöttyös, foltos, tarkabarka",
   "potyog": "hullik, esik, potyogtat, záporozik",
-  // --- j - ly lista kiegészítő szinonimái ---
   "ajak": "száj, ajkak, szájszél",
   "ajándék": "meglepetés, adomány, jutalom",
   "ajánl": "javasol, tanácsol, felkínál",
@@ -994,7 +988,7 @@ const WORD_SYNONYMS = {
   "félpálya": "a pálya fele, felezővonal",
   "felkiáltójel": "írásjel (!), felkiáltás jele",
   "férj": "hitves, házastárs, ura",
-  "fészekalja": "egy fészekben kikelt fiókák, ivadékok",
+  "fészekalja": "az anyamadárnak egyszerre költött összes tojása, ivadéka",
   "foglyul": "rabként, fogságba ejtve",
   "fogoly": "rab, fogvatartott, mezei madár",
   "fojtogat": "szorongat, fojt, elszorítja a torkát",
@@ -1078,16 +1072,21 @@ const WORD_SYNONYMS = {
   "jég": "fagyott víz, jégkocka, jégtábla",
   "jégpálya": "korcsolyapálya, jégcsarnok",
   "jegy": "belépőjegy, osztályzat, jegyzet",
+  "jelvény": "kitűző, embléma, jelkép",
   "jó": "kiváló, rendes, kedves, megfelelő",
+  "jobb": "kiválóbb, ügyesebb, megfelelőbb",
   "joghurt": "savanyított tejtermék",
   "jól": "helyesen, kiválóan, nagyszerűen",
   "jöjjön": "érkezzen, fáradjon be, lépjen be",
+  "jön": "érkezik, közeledik, megjön",
   "jövő": "elkövetkező idő, holnap, jövendő",
   "Judit": "lánynév (Jutka)",
+  "Jolán": "lánynév (Joli)",
   "jós": "jövőbelátó, látnok, jósnő",
   "juh": "birka, kos, bárány",
   "juhar": "juharfa, lombhullató fa",
-  "június": "nyár első hónapja (6. hónap)",
+  "Júlia": "lánynév",
+  "június": "nyári hónap (6. hónap)",
   "kajszibarack": "sárgabarack, csonthéjas gyümölcs",
   "kályha": "fűtőtest, cserépkályha, kandalló",
   "karabély": "rövid csövű puska, lőfegyver",
@@ -1098,6 +1097,7 @@ const WORD_SYNONYMS = {
   "keselyű": "nagy testű dögevő madár",
   "kijelent": "közöl, állít, nyilatkozik, bejelent",
   "kifejez": "megfogalmaz, érzékeltet, elmond",
+  "kijjebb": "kintebb, kifelé, távolabb",
   "király": "uralkodó, fejedelem, felség",
   "komoly": "ünnepélyes, szigorú, jelentős, nem vicces",
   "kopja": "lándzsa, dárda, régi szúrófegyver",
@@ -1113,6 +1113,7 @@ const WORD_SYNONYMS = {
   "lajtorja": "létra, falétra, hágcsó",
   "lapály": "síkság, alföld, lapos terület",
   "lebújik": "elbújik, lehajol, elrejtőzik",
+  "lejjebb": "alacsonyabbra, lentebb, lefelé",
   "lejtő": "lejtős út, lanka, domboldal",
   "Lujza": "lánynév",
   "máglya": "tűzrakás, farakás, máglyatűz",
@@ -1122,6 +1123,7 @@ const WORD_SYNONYMS = {
   "május": "tavaszi hónap (az év ötödik hónapja)",
   "mely": "melyik, amely, micsoda",
   "mély": "feneketlen, alacsonyan fekvő, alapos",
+  "Mihály": "fiúnév (Misi)",
   "milyen": "miféle, minő, mekkora",
   "moly": "ruhamoly, éjjeli lepke",
   "mordály": "régi pisztoly, lőfegyver",
@@ -1185,6 +1187,7 @@ const WORD_SYNONYMS = {
   "selejt": "hibás termék, hulladék, ócska",
   "selyem": "finom szövet, hernyóselyem",
   "seregély": "fekete tollú énekesmadár",
+  "sikoly": "kiáltás, sikoltás, ordítás, visítás",
   "sirály": "tengeri vagy tavi fehér madár",
   "skatulya": "dobozka, kis doboz, tok",
   "sóhaj": "sóhajtás, mély lélegzetvétel",
@@ -1193,6 +1196,7 @@ const WORD_SYNONYMS = {
   "lesújt": "lecsap, megüt, elszomorít",
   "sujtás": "ruhára varrt díszítő zsinór, paszomány",
   "súly": "teher, nehézség, tömeg",
+  "süllyed": "merül, lesüllyed, süpped, alászáll",
   "szabály": "előírás, törvény, rendszabály",
   "szabályjáték": "szabályokhoz kötött társas- vagy sportjáték",
   "szablya": "görbe kard, lovassági kard",
@@ -1224,8 +1228,10 @@ const WORD_SYNONYMS = {
   "tutaj": "vízi jármű, összekötözött fatörzsek",
   "tűzhely": "tűzhely, kályha, sütő-főző berendezés",
   "tyuhaj": "csuhaj, vidám kurjantás",
+  "ujj": "kézujj, lábujj, hüvelykujj",
   "ujjong": "örül, éljenez, örömködik, kiáltozik",
   "ujjú": "ujjakkal rendelkező (pl. ötujjú)",
+  "új": "friss, vadonatúj, modern, újszerű",
   "újra": "ismét, megint, újból, elölről",
   "újság": "napilap, folyóirat, hír, újdonság",
   "üdülőhely": "nyaralóhely, üdülőfalu, pihenőhely",
@@ -1235,6 +1241,7 @@ const WORD_SYNONYMS = {
   "vályú": "etetővályú, itatóvályú, vájat",
   "varjú": "fekete madár, károgó madár",
   "veszély": "veszedelem, kockázat, fenyegetés",
+  "vijjog": "sikít, rikácsol, élesen kiált (pl. sas)",
   "viszály": "ellenségeskedés, viszálykodás, veszekedés",
   "vőfély": "lakodalmi ceremóniamester",
   "zaj": "lárma, zörej, hangzavar, robaj",
@@ -1244,137 +1251,6 @@ const WORD_SYNONYMS = {
   "zsindely": "tetőfedő falemez, tetőcserép",
   "zsivaj": "hangzavar, lárma, gyerekzsivaj",
   "zsöllye": "színházi vagy mozis ülőhely"
-};
-
-// --- 3.2. MÁSSALHANGZÓS SZAVAK LISTÁJA ---
-const M_LIST = Array.from(new Set([
-  "Nelli","loccsan","csepp","hipp-hopp","kipp-kopp","hullám","duzzad","durran",
-  "fullad","hullik","futtat","cuppan","juttat","csusszan","szunnyad","könny",
-  "fönn","több","pöttöm","masszőr","kettőz","könnyít","szünnap","küllem",
-  "süpped","fülledt","dülled","züllik","csügged","fütty","bükk","tüll",
-  "puff","csügg","benn","bumm","ballag","billeg","jobbít","ballon",
-  "meddő","dinnye","haddelhadd","durr","hordd","szedd","vedd","kedd",
-  "szállás","szaggat","passzol","szusszan","tüsszög","zsuppol","csillag","csillár",
-  "csökken","reccsen","parittya","szivattyú","dugattyú","pörgettyű","billentyű","csengettyű",
-  "poggyász","faggyú","keggyel","fonnyad","gennyes","dollár","gallér","zeller",
-  "puttony","dallam","ketten","kattan","úttörő","öttusa","pattan","asszony",
-  "holló","hull","suttog","dünnyög","csüccs","függöny","surran","summáz",
-  "mellőz","semmi","merre","billen","sakk","kassza","zubbony","csattog",
-  "saccol","hattyú","szebb","jobb","fillér","nyugtat","fortyog","gyullad",
-  "pottyan","nyaggat","tárgyal","tárggyal","szárnyal","szárnnyal","satnyul","szennyez",
-  "buggyan","nyikkan","gyorsul","nyekken","pettyez","görnyed","lenyel","langyos",
-  "abban","ablak","beljebb","ebbe","feljebb","görbül","később","kijjebb",
-  "kisebb","klubhelyiség","lejjebb","lobog","lobban","nagyobb","próba","rabol",
-  "dobol","tabletta","zsibbad","tovább","bicikli","gombócot","gombóccal","kocog",
-  "koccan","mocorog","moccan","viccel","adós","addig","eddig","kedves",
-  "láda","radír","csenget","drága","elég","függ","függőleges","gőgös",
-  "guggol","léggömb","magas","nyűgös","rágó","régen","reggel","zug",
-  "zúg","ahhoz","dühös","ehhez","huhog","méh","puha","bújj el",
-  "éjfél","éjjel","fájjon","héja","ujj","új","újonc","vijjog",
-  "akar","akkor","bakancs","bokor","bukkanó","bükkfa","ekkor","fióka",
-  "hupikék","kakukk","lakkfesték","lakás","lyukas","lyukkal","makk","mikor",
-  "móka","október","okos","oka","okkal","oké","órakor","pakol",
-  "pókot","pukkan","rekedt","sikál","sikoly","szakáll","szakkör","szökken",
-  "szükség","zökken","állj","álarc","alul","állás","állat","állomás",
-  "bal","bámul","belső","bólint","bölcső","csalán","Csilla","cseles",
-  "csaló","elem","ellenség","ellenőrző","előtt","felleg","felnőtt","galamb",
-  "Gabriella","Göncölszekér","Gellért","gyalu","hallotta","hol","halk","háló",
-  "halpikkely","hüllő","illat","Ilona","illik","istálló","jelez","jellemző",
-  "jelmez","jelvény","Jolán","Júlia","július","kamilla","kalap","kapcsoló",
-  "karol","kell","kellemes","kiáltás","kiállítás","kilenc","kilogramm","kolbász",
-  "költő","különben","Lilla","lila","madártoll","malom","megálló","meleg",
-  "mellett","mellény","nulla","nyílik","nyúlik","olló","palota","pillangó",
-  "pillanat","roller","szalag","szálló","szálloda","szitál","tollbamondás","tolvaj",
-  "váll","válogat","vasal","vélemény","világ","villa","villám","villog",
-  "víziló","zálog","ülés","cammog","dekagramm","Emma","fogkrém","hamis",
-  "Mónika","Mihály","zúzmara","zümmög","Adrienn","Anna","azonban","Benő",
-  "ennivaló","ennek","fenn van","inkább","inni","jobban","jön","kanna",
-  "kín","kinn","kínzás","lenn van","Mariann","nini","szalonna","utána",
-  "uzsonna","ünnep","vannak","Vivien","Zsuzsanna","apu","apró","csapda",
-  "csipke","épít","hoppá","kapkod","képzeld","kompót","koppan","kopott",
-  "köpeny","nappal","repül","röppen","szappan","szépen","színpad","arrafelé",
-  "berreg","csörög","csörren","csurran","dicséret","erős","errefelé","ferde",
-  "forr","forrás","forró","fúr","hurrá","korrepetálás","morgó","nyírfa",
-  "orr","orrszarvú","sorrend","varrónő","virrad","zsíros","biztos","csinos",
-  "csípős","csipás","eső","friss","fuss","hőség","kisasszony","kísér",
-  "Kossuth","közös","lassan","lassú","mos","más","óriási","orvos",
-  "orvosság","takarékos","tessék","ügyes","ügyesebb","ügyesen","alatt","Attila",
-  "azóta","befőtt","bútor","délelőtt","előtte","együtt","fegyelmezett","fizet",
-  "fölött","fűtés","füzet","itt","kattog","kazetta","kerítés","kettő",
-  "kitűnő","között","látszik","lett","liter","lottó","matt","miatt",
-  "otthon","öt","pattog","retteg","rút","segít","sőt","utca",
-  "aztán","bezzeg","búza","duzzog","ezer","ezért","ezzel","Győző",
-  "haza","izzó","izzik","laza","mozdul","múzeum","rezeg","rezzen",
-  "tűzzel-vassal","őzike","zizeg","zizzen","fröcsög","fröccsen","locsog","öccse",
-  "öcsém","recseg","eggyel több","egyik","megy","meggyfa","gally","helyes",
-  "súlyos","süllyed","szabályos","anya","annyi","ennyi","fényes","könnyen",
-  "könnyes","könnyű","könyököl","mennyi","bosszú","csúszda","egészen","először",
-  "hiszi","hosszan","hosszú","iszik","jössz","koszos","lesz","meszel",
-  "messze","ősz","őszies","össze","összeg","összesen","ősszel","rossz",
-  "sziszeg","szisszen","tavasz","tavasszal","teszi","tüsszent","vesz","vessző",
-  "viszket","vissza","bátyja","fütyül","füttyent","petty","pettyes","potyog"
-]));
-
-// --- 3.3. J - LY SZAVAK LISTÁJA ---
-const JLY_RAW = [
-  ["ajak",""],["ajándék",""],["ajánl",""],["ajtó",""],["akadály",""],["amely",""],
-  ["amilyen",""],["amolyan",""],["baj",""],["bajnok",""],["bajusz",""],["Benjámin",""],
-  ["bélyeg",""],["bélyeggyűjtés",""],["bivaly",""],["boly",""],["bolygó",""],["borjú",""],
-  ["bújócska",""],["bujkál",""],["bújj el",""],["bűbájos",""],["csekély",""],["csáklya",""],
-  ["cserje","bokor"],["csuklya",""],["datolya",""],["derelye",""],["díj",""],["dölyfös",""],
-  ["dörej",""],["egyfolytában",""],["egyhelyben",""],["egyjegyű",""],["ej",""],["ejnye",""],
-  ["éjjel",""],["éjszaka",""],["eleje",""],["életveszély",""],["elseje",""],["éljen",""],
-  ["engedély",""],["eredj",""],["erkély",""],["esély",""],["estély",""],["észjárás",""],
-  ["évfolyam",""],["fahéj",""],["faj",""],["fáj",""],["fájjon",""],["fajta",""],
-  ["fáklya",""],["fej",""],["fejedelem",""],["fejfájás",""],["felejt",""],["félpálya",""],
-  ["felkiáltójel",""],["férj",""],["fészekalja","az anyamadárnak egyszerre költött összes tojása, ivadéka"],
-  ["foglyul",""],["fogoly",""],["fojtogat",""],["folyó",""],["folyik",""],["folyam",""],
-  ["folyadék",""],["folydogál",""],["folyosó",""],["folyjon",""],["fortély",""],["fennhéjázó",""],
-  ["fújjon",""],["furulya",""],["fürj",""],["gabalyodik","kuszálódik"],["gally",""],["gereblye",""],
-  ["gerely",""],["Gergely",""],["gólya",""],["golyó",""],["gomolyog",""],["gombolyag",""],
-  ["gombolyít",""],["gomolyfelhő",""],["gömbölyded",""],["gömbölyít",""],["gömbölyű",""],
-  ["gulya","marhacsorda"],["gulyás","marhapásztor"],["gyapjú",""],["gyújt",""],["gyűjt",""],
-  ["hadjárat",""],["hagyjon",""],["haj",""],["háj",""],["hajcsár","aki állatokat hajt"],
-  ["hajlik",""],["hajlékony",""],["hajlong",""],["hajnal",""],["hajol",""],["hajsza",""],
-  ["hajszol",""],["hályog","betegség"],["harkály",""],["hej",""],["héj",""],["héja",""],
-  ["hejehuja",""],["hely",""],["helyes",""],["helyett",""],["helység","valamilyen település"],
-  ["helyiség","épületrész"],["hellyel-közzel",""],["hólyag",""],["homály",""],["hónalj",""],
-  ["hömpölyög",""],["hüvelyk","hosszmérték"],["hüvelykujj",""],["ibolya",""],["Ibolya",""],
-  ["ideje",""],["időjárás",""],["ifjú",""],["íj",""],["ijed",""],["ilyen",""],
-  ["imbolyog",""],["Ipoly",""],["jaj",""],["jaguár",""],["jácint",""],["jár",""],
-  ["jászol",""],["játék",""],["játszik",""],["javít",""],["jávorszarvas",""],["jég",""],
-  ["jégpálya",""],["jegy",""],["jelvény",""],["jó",""],["jobb",""],["joghurt",""],
-  ["jól",""],["jöjjön",""],["jön",""],["jövő",""],["Judit",""],["Jolán",""],["jós",""],
-  ["juh",""],["juhar","faféle"],["Júlia",""],["június",""],["kajszibarack",""],["kályha",""],
-  ["karabély","fegyver"],["Károly",""],["karvaly",""],["kastély",""],["kehely",""],["keselyű",""],
-  ["kijelent",""],["kifejez",""],["kijjebb",""],["király",""],["komoly",""],["kopja","fegyver"],
-  ["korcsolya",""],["kóvályog",""],["kölyök",""],["kőolaj",""],["krajcár","régi pénz"],
-  ["kristály",""],["kurjant","nagyot kiált"],["lajhár",""],["Lajos",""],["lajtorja","létra"],
-  ["lapály","lapos"],["lebújik",""],["lejjebb",""],["lejtő",""],["Lujza",""],["máglya",""],
-  ["máj",""],["majom",""],["majonéz",""],["május",""],["mely",""],["mély",""],["Mihály",""],
-  ["milyen",""],["moly",""],["mordály","fegyver"],["mosoly",""],["mulya","mafla, ügyetlen"],
-  ["muszáj",""],["műhely",""],["nápolyi",""],["nefelejcs",""],["nejlon",""],["nyáj",""],
-  ["óhaj",""],["olaj",""],["olajkályha",""],["oly",""],["olyan",""],["Orsolya",""],
-  ["osztály",""],["ölyv",""],["őrjöng",""],["páholy",""],["pajta",""],["pajtás",""],["pajzs",""],
-  ["pálya",""],["papagáj",""],["paraj","növény"],["párbaj",""],["paréj","gyom"],["paszuly","bab"],
-  ["pehely",""],["pej","barnás ló"],["persely",""],["pfuj",""],["pikkely",""],["pisztoly",""],
-  ["pólya",""],["pulya","gyerek"],["pulyka",""],["raj",""],["rajong",""],["rajt",""],
-  ["rajta",""],["rajz",""],["rejt",""],["rejtekhely",""],["rejtély",""],["rejtvény",""],
-  ["ricsaj",""],["rigolya","rossz szokás"],["rojt",""],["röhej",""],["saját",""],["sajnál",""],
-  ["sajog",""],["sajt",""],["sebaj",""],["sej",""],["sejt",""],["sekély",""],["selejt",""],
-  ["selyem",""],["seregély",""],["sikoly",""],["sirály",""],["skatulya","doboz"],["sóhaj",""],
-  ["sólyom",""],["somolyog",""],["lesújt",""],["sujtás","ruhára varrt zsinór"],["súly",""],
-  ["süllyed",""],["szabály",""],["szabályjáték",""],["szablya","fegyver"],["szabja","a ruhát"],
-  ["száj",""],["szegély",""],["személy",""],["szenvedély",""],["szíj",""],["szomjas",""],
-  ["táj",""],["talaj",""],["támolyog",""],["taréj",""],["tarsoly",""],["tartály",""],
-  ["tavaly",""],["tégely","csészeforma kis edényke"],["tej",""],["tekintély",""],["teljes",""],
-  ["tengely",""],["terebélyes",""],["terjeszt",""],["tojás",""],["Tokaj",""],["tolvaj",""],
-  ["tuja","növény"],["tulajdon",""],["tutaj",""],["tűzhely",""],["tyuhaj",""],["ujj",""],
-  ["ujjong",""],["ujjú",""],["új",""],["újonc",""],["újra",""],["újság",""],
-  ["üdülőhely",""],["ünnepély",""],["vaj",""],["vajda","fejedelem"],["vályú",""],["varjú",""],
-  ["veszély",""],["vijjog",""],["viszály","ellenségeskedés"],
-  ["vőfély","a lakodalom menetét irányító férfi"],["zaj",""],["zörej",""],["zsálya",""],
-  ["zsámoly",""],["zsindely","tetőfedésre használt falemez"],["zsivaj",""],["zsöllye","nézőtéri ülőhely"]
 ];
 
 const JLY_LIST = JLY_RAW.map(x => ({ w: x[0], hint: x[1] }));
@@ -1468,17 +1344,16 @@ function analyzeJlyWord(word) {
   return null;
 }
 
-// --- 3.6. SZINONIMA LEKÉRŐ FÜGGVÉNY A BETŰKIRAKÓHOZ ---
-// Kizárólag a szó szinonimáit / rokon értelmű alakjait adja vissza, hangtani utalás nélkül.
+// --- 3.6. SZINONIMA LEKÉRŐ FÜGGVÉNY ---
 function getSynonymsForWord(word) {
   if (WORD_SYNONYMS[word]) {
-    return "Szinonimái / jelentése: " + WORD_SYNONYMS[word];
+    return WORD_SYNONYMS[word];
   }
   const jlyObj = JLY_LIST.find(x => x.w === word);
   if (jlyObj && jlyObj.hint) {
-    return "Szinonimái / jelentése: " + jlyObj.hint;
+    return jlyObj.hint;
   }
-  return "Rokon értelmű alak: keresd meg a betűkből összeálló magyar szót!";
+  return "Keresd meg a betűkből összeálló magyar szót!";
 }
 
 // --- 3.7. ÁLLAPOTKEZELÉS ÉS MENTÉS (localStorage) ---
@@ -1491,7 +1366,7 @@ const STORE_KEY = "helyesiras_kaland_v4";
 let state = JSON.parse(localStorage.getItem(STORE_KEY) || "null") || {
   familyCode: "",
   current: "Játékos",
-  users: { "Játékos": { pts: 0, mastered: [], practiced: [], mistakes: [], daily: {} } }
+  users: { "Játékos": { pts: 0, avatar: "🦉", mastered: [], practiced: [], mistakes: [], daily: {} } }
 };
 
 function setSyncStatus(text, cls) {
@@ -1537,6 +1412,7 @@ function connectCloud() {
     if (document.getElementById("scr-home").classList.contains("on")) updateHome();
     if (document.getElementById("scr-users").classList.contains("on")) renderUsers();
     updateMonitorBar();
+    syncMascots();
     isApplyingRemote = false;
   }, () => {
     setSyncStatus("⚠️ Hozzáférés megtagadva", "err");
@@ -1545,7 +1421,7 @@ function connectCloud() {
 
 document.getElementById("mon-sync").addEventListener("click", () => {
   const next = prompt(
-    "Add meg a közös családi szinkronkódot (min. 6 karakter, pl. gyorcsalad26).\nUgyanezt a kódot írd be a többi eszközön is:",
+    "Add meg a közös családi szinkronkódot (min. 6 karakter, pl. gyorcsalad26):\nUgyanezt a kódot írd be a többi eszközön is:",
     state.familyCode || ""
   );
   if (next === null) return;
@@ -1554,10 +1430,9 @@ document.getElementById("mon-sync").addEventListener("click", () => {
   connectCloud();
 });
 
-
 function curUser() {
   if (!state.users[state.current]) {
-    state.users[state.current] = { pts: 0, avatar: selectedAvatar, mastered: [], practiced: [], mistakes: [], daily: {} };
+    state.users[state.current] = { pts: 0, avatar: "🦉", mastered: [], practiced: [], mistakes: [], daily: {} };
   }
   const u = state.users[state.current];
   u.pts = u.pts || 0;
@@ -1690,7 +1565,7 @@ function addUser() {
   const name = inp.value.trim();
   if (!name) return;
   if (!state.users[name]) {
-    state.users[name] = { pts: 0, mastered: [], practiced: [], mistakes: [], daily: {} };
+    state.users[name] = { pts: 0, avatar: selectedAvatar, mastered: [], practiced: [], mistakes: [], daily: {} };
   }
   state.current = name;
   inp.value = "";
@@ -1838,6 +1713,13 @@ function renderQuestion() {
     tag.textContent = "Betűpótló";
     tag.style.background = "#ca8a04";
     title.textContent = "Melyik betűkapcsolat hiányzik a szóból?";
+    
+    // Szinonima kiírása a Betűpótlónál is segitségként
+    const clueBox = document.createElement("div");
+    clueBox.className = "clue-box";
+    clueBox.textContent = "💡 Jelentése / Szinonima: " + getSynonymsForWord(word);
+    body.appendChild(clueBox);
+
     const correctOpt = info.hasLong ? info.longPart : info.shortPart;
     const wrongOpt = info.hasLong ? info.shortPart : info.longPart;
     const disp = document.createElement("div");
@@ -1866,24 +1748,26 @@ function checkChoice(btn, chosen, correct, fullWord) {
   finishAnswer(chosen === correct, fullWord);
 }
 
-// --- 3.9. BETŰKIRAKÓ LOGIKA (SZINONIMÁK + 2 BETŰSEGÍTSÉG) ---
+// --- 3.9. BETŰKIRAKÓ LOGIKA (MAX 2 SEGÍTSÉG + SZINONIMÁK) ---
 let tileTarget = "";
 let tileSlots = [];
 let tilePoolItems = [];
 const VOWELS = "aáeéiíoóöőuúüűAÁEÉIÍOÓÖŐUÚÜŰ";
+let helpUsedCount = 0; // Segítségek számlálója ebben a körben
 
 function renderTilePuzzle(word, container) {
   tileTarget = word;
   tileSlots = new Array(word.length).fill(null);
+  helpUsedCount = 0; // Új szó indításakor nullázzuk a segítségeket
   const chars = word.split("");
   tilePoolItems = shuffle(chars.map((c, idx) => ({ c, idx })));
 
-  // 1. segítség doboza: a szó szinonimáit jeleníti meg kattintásra
+  // Szinonima / jelentés doboz
   const clueBox = document.createElement("div");
   clueBox.className = "clue-box";
   clueBox.id = "puzzle-clue";
   clueBox.style.display = "none";
-  clueBox.textContent = "💡 " + getSynonymsForWord(word);
+  clueBox.textContent = "💡 Szinonimák / jelentés: " + getSynonymsForWord(word);
   container.appendChild(clueBox);
 
   // Felső rekeszsor
@@ -1910,34 +1794,37 @@ function renderTilePuzzle(word, container) {
   const helpBar = document.createElement("div");
   helpBar.className = "help-bar";
 
-  // 1. segítség: Szinonimák megjelenítése
   const h1 = document.createElement("button");
   h1.className = "help-btn";
   h1.id = "help-clue";
   h1.textContent = "💡 1. Szinonimák";
   h1.addEventListener("click", () => {
+    if (helpUsedCount >= 2 && !h1.disabled) return;
     clueBox.style.display = "block";
     h1.disabled = true;
+    registerHelpUse();
   });
 
-  // 2. segítség: Magánhangzók elhelyezése
   const h2 = document.createElement("button");
   h2.className = "help-btn";
   h2.id = "help-vowels";
   h2.textContent = "🅰️ 2. Magánhangzók";
   h2.addEventListener("click", () => {
+    if (helpUsedCount >= 2 && !h2.disabled) return;
     placeMatchingPositions(pos => VOWELS.includes(tileTarget[pos]));
     h2.disabled = true;
+    registerHelpUse();
   });
 
-  // 3. segítség: Első és utolsó betű elhelyezése
   const h3 = document.createElement("button");
   h3.className = "help-btn";
   h3.id = "help-edges";
   h3.textContent = "↔️ 3. Első és utolsó betű";
   h3.addEventListener("click", () => {
+    if (helpUsedCount >= 2 && !h3.disabled) return;
     placeMatchingPositions(pos => pos === 0 || pos === tileTarget.length - 1);
     h3.disabled = true;
+    registerHelpUse();
   });
 
   helpBar.appendChild(h1);
@@ -1956,6 +1843,18 @@ function renderTilePuzzle(word, container) {
   container.appendChild(resetWrap);
 
   updateSlots();
+}
+
+function registerHelpUse() {
+  helpUsedCount++;
+  // Ha elértük a 2 segítséget, a még nem használt segítség gombokat letiltjuk
+  if (helpUsedCount >= 2) {
+    document.querySelectorAll(".help-btn").forEach(btn => {
+      if (!btn.disabled) {
+        btn.disabled = true;
+      }
+    });
+  }
 }
 
 function placeMatchingPositions(predicate) {
@@ -2017,6 +1916,7 @@ function checkTileCompletion() {
 
 function updateSlots() {
   const row = document.getElementById("slot-row");
+  if (!row) return;
   row.innerHTML = "";
   tileSlots.forEach((slot, pos) => {
     if (slot === null) {
