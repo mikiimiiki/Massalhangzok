@@ -1559,13 +1559,12 @@ function curUser() {
     state.users[state.current] = { pts: 0, mastered: [], practiced: [], mistakes: [], daily: {} };
   }
   const u = state.users[state.current];
-  return {
-    pts: u.pts || 0,
-    mastered: new Set(Array.isArray(u.mastered) ? u.mastered : Object.values(u.mastered || {})),
-    practiced: new Set(Array.isArray(u.practiced) ? u.practiced : Object.values(u.practiced || {})),
-    mistakes: new Set(Array.isArray(u.mistakes) ? u.mistakes : Object.values(u.mistakes || {})),
-    daily: u.daily || {}
-  };
+  u.pts = u.pts || 0;
+  u.mastered = Array.isArray(u.mastered) ? u.mastered : Object.values(u.mastered || {});
+  u.practiced = Array.isArray(u.practiced) ? u.practiced : Object.values(u.practiced || {});
+  u.mistakes = Array.isArray(u.mistakes) ? u.mistakes : Object.values(u.mistakes || {});
+  u.daily = u.daily || {};
+  return u;
 }
 
 function updateMonitorBar() {
