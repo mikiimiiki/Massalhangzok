@@ -1549,9 +1549,6 @@ document.getElementById("mon-sync").addEventListener("click", () => {
   connectCloud();
 });
 
-function saveState() {
-  localStorage.setItem(STORE_KEY, JSON.stringify(state));
-}
 
 function curUser() {
   if (!state.users[state.current]) {
