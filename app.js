@@ -17,7 +17,7 @@ const firebaseConfig = {
   appId: "1:346262937393:web:b256094d9a777aa6d69a10"
 };
 const FB_BASE = "https://www.gstatic.com/firebasejs/13.2.0/";
-let db = null, fb = null, unsub = null, applyingRemote = false, firstSync = true;
+let db = null, fb = null, unsub = null, unsubP = null, applyingRemote = false, firstSync = true;
 
 async function initFirebase() {
   try {
@@ -174,9 +174,16 @@ function saveState(touch = true) {
 
 function connectCloud() {
   if (unsub) { unsub(); unsub = null; }
+  if (unsubP) { unsubP(); unsubP = null; }
   const c = famCode();
   if (!fb || c.length < 6) { setSync(fb ? "☁️ Helyi mód (kód beállítása)" : "☁️ Offline mód", ""); return; }
   setSync("⏳ Kapcsolódás…", ""); firstSync = true;
+  // Szülői PIN (sózott hash): a legújabb felhős érték minden eszközre eljut
+  unsubP = fb.onValue(fb.ref(db, `families/${c}/parent`), snap => {
+    const r = snap.val();
+    if (r && r.hash && r.salt) { if (!state.parent || r.hash !== state.parent.hash) { state.parent = { salt: r.salt, hash: r.hash }; persist(); } }
+    else if (state.parent) pushParent();
+  });
   unsub = fb.onValue(fb.ref(db, `families/${c}/users`), snap => {
     const remote = snap.val() || {};
     let changed = false;
@@ -749,16 +756,40 @@ document.addEventListener("keydown", e => {
 const ALL_TOPICS = ["jly", "hosszu", "pair", "tiles"];
 let parentUser = null;
 
+// --- PIN: PBKDF2-SHA256 sózott hash, a Firebase-ben tárolva ---
+const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
+async function hashPin(pin, saltHex) {
+  const salt = saltHex ? Uint8Array.from(saltHex.match(/../g).map(h => parseInt(h, 16))) : crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 150000, hash: "SHA-256" }, key, 256);
+  return { salt: hex(salt), hash: hex(bits) };
+}
+function pushParent() {
+  const c = famCode();
+  if (!fb || !db || c.length < 6 || !state.parent) return;
+  fb.set(fb.ref(db, `families/${c}/parent`), state.parent).catch(() => setSync("⚠️ Szinkron hiba", "err"));
+}
+async function setPin(pin) { state.parent = await hashPin(pin); delete state.parentPin; persist(); pushParent(); }
+async function checkPin(pin) { const p = state.parent; return !!p && (await hashPin(pin, p.salt)).hash === p.hash; }
+const PIN_OK = /^\d{6,10}$/;
+
 async function openParent() {
-  if (!state.parentPin) {
-    const p = await modal({ title: "Szülői PIN beállítása", text: "Adj meg egy 4–8 számjegyű PIN-kódot. Ezt kell beírni a szülői nézethez (eszközönként külön kell beállítani).", value: "", ok: "Mentés", secret: true });
+  if (!(window.crypto && crypto.subtle)) { toast("A PIN-hez biztonságos (https) kapcsolat kell."); return; }
+  // új eszközön először megnézzük, van-e már PIN a felhőben
+  if (!state.parent && fb && db && famCode().length >= 6) {
+    try { const r = (await fb.get(fb.ref(db, `families/${famCode()}/parent`))).val(); if (r && r.hash && r.salt) { state.parent = { salt: r.salt, hash: r.hash }; persist(); } } catch (e) { /* offline */ }
+  }
+  // régi, helyi PIN átalakítása hash-sé
+  if (!state.parent && state.parentPin) await setPin(state.parentPin);
+  if (!state.parent) {
+    const p = await modal({ title: "Szülői PIN beállítása", text: "6–10 számjegy. Szinkronkóddal minden eszközön ugyanez a PIN érvényes.", value: "", ok: "Mentés", secret: true });
     if (p === null) return;
-    if (!/^\d{4,8}$/.test(p.trim())) { toast("A PIN 4–8 számjegy legyen."); return; }
-    state.parentPin = p.trim(); persist();
+    if (!PIN_OK.test(p.trim())) { toast("A PIN 6–10 számjegy legyen."); return; }
+    await setPin(p.trim());
   } else {
     const p = await modal({ title: "Szülői nézet", text: "Írd be a PIN-kódot.", value: "", ok: "Belépés", secret: true });
     if (p === null) return;
-    if (p.trim() !== state.parentPin) { toast("Hibás PIN."); return; }
+    if (!(await checkPin(p.trim()))) { toast("Hibás PIN."); return; }
   }
   if (!parentUser || !state.users[parentUser]) parentUser = state.current;
   showScreen("scr-parent");
@@ -826,10 +857,13 @@ function renderParent() {
 
   const fr = el("div", "btnrow");
   fr.append(btn("secondary", "🔑 PIN módosítása", async () => {
-    const p = await modal({ title: "Új PIN", value: "", ok: "Mentés", secret: true });
+    const old = await modal({ title: "Jelenlegi PIN", value: "", ok: "Tovább", secret: true });
+    if (old === null) return;
+    if (!(await checkPin(old.trim()))) { toast("Hibás PIN."); return; }
+    const p = await modal({ title: "Új PIN", text: "6–10 számjegy.", value: "", ok: "Mentés", secret: true });
     if (p === null) return;
-    if (!/^\d{4,8}$/.test(p.trim())) { toast("A PIN 4–8 számjegy legyen."); return; }
-    state.parentPin = p.trim(); persist(); toast("PIN módosítva.");
+    if (!PIN_OK.test(p.trim())) { toast("A PIN 6–10 számjegy legyen."); return; }
+    await setPin(p.trim()); toast("PIN módosítva.");
   }));
   box.append(fr);
 }
