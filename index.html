@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Mássalhangzó és j-ly Kaland</title>
+<title>Helyesírás Kaland</title>
 <style>
   :root {
     --bg1: #fff7ed; --bg2: #e0f2fe;
@@ -12,7 +12,6 @@
     --pri: #7c3aed; --pri2: #a78bfa;
     --ok: #16a34a; --okbg: #dcfce7;
     --bad: #dc2626; --badbg: #fee2e2;
-    --gold: #f59e0b;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; }
@@ -24,13 +23,12 @@
     user-select: none; -webkit-user-select: none;
     touch-action: manipulation;
     overflow-x: hidden;
-    padding-bottom: 64px; /* hely az alsó monitorozó sávnak */
+    padding-bottom: 64px;
   }
   button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
   .screen { display: none; min-height: calc(100vh - 64px); padding: 16px; max-width: 960px; margin: 0 auto; flex-direction: column; }
   .screen.on { display: flex; }
 
-  /* Kezdőképernyő */
   .hero { text-align: center; margin-top: 6px; }
   .mascot { font-size: 72px; line-height: 1; display: inline-block; animation: bob 2.6s ease-in-out infinite; }
   @keyframes bob { 50% { transform: translateY(-8px) rotate(-4deg); } }
@@ -71,7 +69,6 @@
   .b-pairs { grid-column: 1 / -1; background: linear-gradient(135deg, #ec4899, #be185d); }
   .b-mistakes { grid-column: 1 / -1; background: linear-gradient(135deg, #ef4444, #b91c1c); }
 
-  /* Profilválasztó */
   .namebox {
     max-width: 480px; margin: 30px auto; background: var(--card); border-radius: 28px;
     padding: 26px; text-align: center; box-shadow: 0 6px 0 var(--line); width: 100%;
@@ -89,7 +86,6 @@
   }
   .profile.cur { border-color: var(--pri2); background: #f5f3ff; }
 
-  /* Kvíz felület */
   .topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
   .iconbtn {
     width: 50px; height: 50px; border-radius: 16px; border: 0; background: var(--card);
@@ -134,7 +130,6 @@
   .opt.dim { opacity: .45; }
   @keyframes shake { 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }
 
-  /* Betűkirakó */
   .slotrow {
     display: flex; flex-wrap: wrap; gap: 8px; min-height: 68px; padding: 10px;
     margin-top: 14px; border-radius: 20px; background: #f8fafc; border: 3px dashed var(--line);
@@ -149,7 +144,6 @@
   .tile.used { visibility: hidden; }
   .tile.placed { background: #fff; border-color: var(--pri2); box-shadow: 0 4px 0 var(--pri2); }
 
-  /* Visszajelző sáv */
   .sheet {
     position: fixed; left: 0; right: 0; bottom: 52px; padding: 16px 16px 18px;
     transform: translateY(150%); transition: transform .28s cubic-bezier(.2,1.3,.4,1); z-index: 20;
@@ -173,13 +167,11 @@
     background: #f1f5f9; box-shadow: 0 4px 0 var(--line);
   }
 
-  /* Eredmény */
   .result { text-align: center; margin-top: 20px; }
   .stars { font-size: 64px; letter-spacing: 6px; margin: 10px 0; }
   .footer { text-align: center; margin-top: 16px; }
   .ghost { background: rgba(255,255,255,.75); border: 0; border-radius: 14px; padding: 9px 15px; font-size: 14px; font-weight: 700; color: var(--soft); }
 
-  /* ALSÓ FIX MONITOROZÓ SÁV */
   .monitor-bar {
     position: fixed; left: 0; right: 0; bottom: 0; height: 52px;
     background: #1e293b; color: #f8fafc; z-index: 30;
@@ -210,7 +202,6 @@
 </head>
 <body>
 
-<!-- KEZDŐKÉPERNYŐ -->
 <section id="scr-home" class="screen on">
   <div class="hero">
     <div class="mascot">🦉</div>
@@ -223,42 +214,42 @@
     <div class="rankbox">
       <div class="rankname" id="rank-name">Kezdő Betűvadász</div>
       <div class="bar"><i id="rank-bar"></i></div>
-      <div class="barlabel"><span id="rank-cur">0 pont</span><span id="rank-next">Következő szint: 100 pont</span></div>
+      <div class="barlabel"><span id="rank-cur">0 pont</span><span id="rank-next">Következő szint: 150 pont</span></div>
     </div>
   </div>
 
   <div class="menu">
-    <button class="big b-main" onclick="startQuiz('mixed')">
+    <button class="big b-main" id="btn-mixed">
       <span class="ic">🚀</span>
       Vegyes kaland (10 feladat)
       <small>Hosszú mássalhangzók, j–ly, betűpótlás és szókirakó</small>
     </button>
-    <button class="big b-choice" onclick="startQuiz('choice')">
+    <button class="big b-choice" id="btn-choice">
       <span class="ic">🎯</span>
       Rövid vagy hosszú?
       <small>Válaszd ki a helyes mássalhangzót!</small>
     </button>
-    <button class="big b-jly" onclick="startQuiz('jly')">
+    <button class="big b-jly" id="btn-jly">
       <span class="ic">✍️</span>
       j vagy ly gyakorló
       <small>Döntsd el: pontos j vagy ly!</small>
     </button>
-    <button class="big b-gap" onclick="startQuiz('gap')">
+    <button class="big b-gap" id="btn-gap">
       <span class="ic">🧩</span>
       Betűpótló
       <small>Pótold a hiányzó mássalhangzót!</small>
     </button>
-    <button class="big b-tiles" onclick="startQuiz('tiles')">
+    <button class="big b-tiles" id="btn-tiles">
       <span class="ic">🔤</span>
       Betűkirakó
       <small>Rakd ki a szót a betűcsempékből!</small>
     </button>
-    <button class="big b-pairs" onclick="startQuiz('pairs')">
+    <button class="big b-pairs" id="btn-pairs">
       <span class="ic">⚖️</span>
       Jelentéskülönbségek
       <small>fejjel–fejel, hal–hall, helység–helyiség...</small>
     </button>
-    <button class="big b-mistakes" id="btn-mistakes" style="display:none" onclick="startQuiz('mistakes')">
+    <button class="big b-mistakes" id="btn-mistakes" style="display:none">
       <span class="ic">🩹</span>
       Hibajavító kör (<span id="mistake-cnt">0</span> szó)
       <small>Gyakorold újra, amit elrontottál!</small>
@@ -266,25 +257,23 @@
   </div>
 
   <div class="footer">
-    <button class="ghost" onclick="showScreen('scr-users')">👤 Játékos váltása</button>
+    <button class="ghost" id="btn-switch-user">👤 Játékos váltása</button>
   </div>
 </section>
 
-<!-- JÁTÉKOS VÁLASZTÓ -->
 <section id="scr-users" class="screen">
   <div class="namebox">
     <div style="font-size:56px">🦉</div>
     <h2>Ki játszik most?</h2>
     <div class="plist" id="user-list"></div>
     <input type="text" id="new-user-inp" placeholder="Új név beírása..." maxlength="18">
-    <button class="primary" style="width:100%" onclick="addUser()">Hozzáadás és indítás</button>
+    <button class="primary" style="width:100%" id="btn-add-user">Hozzáadás és indítás</button>
   </div>
 </section>
 
-<!-- KVÍZ KÉPERNYŐ -->
 <section id="scr-quiz" class="screen">
   <div class="topbar">
-    <button class="iconbtn" onclick="quitQuiz()">🏠</button>
+    <button class="iconbtn" id="btn-quit">🏠</button>
     <div class="progress"><i id="q-prog"></i></div>
     <div class="combo" id="q-combo"></div>
     <div class="score" id="q-score">0 p</div>
@@ -297,31 +286,28 @@
   </div>
 </section>
 
-<!-- EREDMÉNY KÉPERNYŐ -->
 <section id="scr-res" class="screen">
   <div class="card result">
     <div class="stars" id="res-stars">⭐⭐⭐</div>
     <h2 id="res-head" style="font-size:30px;margin:6px 0">Szép munka!</h2>
     <p id="res-sub" style="font-size:19px;color:var(--soft);font-weight:700"></p>
     <div style="display:flex;gap:12px;justify-content:center;margin-top:20px;flex-wrap:wrap">
-      <button class="primary" onclick="startQuiz(lastMode)">Újabb kör</button>
-      <button class="secondary" onclick="goHome()">Kezdőlap</button>
+      <button class="primary" id="btn-again">Újabb kör</button>
+      <button class="secondary" id="btn-home">Kezdőlap</button>
     </div>
   </div>
 </section>
 
-<!-- VISSZAJELZÉS ALSÓ SÁV -->
 <div class="sheet" id="sheet">
   <div class="in">
     <div>
       <div class="head" id="sh-head">Helyes!</div>
       <div class="full" id="sh-full"></div>
     </div>
-    <button class="primary" id="sh-next" onclick="nextQuestion()">Tovább ➔</button>
+    <button class="primary" id="sh-next">Tovább ➔</button>
   </div>
 </div>
 
-<!-- FIX MONITOROZÓ SÁV -->
 <footer class="monitor-bar">
   <div class="monitor-inner">
     <div class="mon-item">📚 Összes szó: <span class="mon-val" id="mon-total">0</span></div>
@@ -331,7 +317,6 @@
 </footer>
 
 <script>
-// 1. KIEMELT KÖRÜLÍRÁSOK
 const CUSTOM_CLUES = {
   "Nelli": "Lánynév, a Kornélia rövidített alakja.",
   "loccsan": "A víz hirtelen csapódva ilyen hangot ad.",
@@ -369,7 +354,6 @@ const CUSTOM_CLUES = {
   "függöny": "Az ablak elé húzható, fényt szűrő textil.",
   "sakk": "Kétszemélyes táblás játék királyokkal, bástyákkal, huszárokkal.",
   "hattyú": "Hosszú nyakú, hófehér vízimadár.",
-  "clubhelyiség": "Közösségi összejövetelekre használt terem.",
   "klubhelyiség": "Közösségi összejövetelekre használt terem.",
   "gombócot": "Kerekre formált étel (pl. szilvás gombóc) tárgyesetben.",
   "gombóccal": "Kerekre formált étellel (gombóc + -val).",
@@ -401,84 +385,674 @@ const CUSTOM_CLUES = {
   "meszel": "Fehér mésztejjel befesti a falat."
 };
 
-// 2. ÖSSZES MÁSSALHANGZÓS SZÓ (deduplikálva)
-const RAW_M_WORDS = [
-  "Nelli", "loccsan", "csepp", "hipp-hopp", "kipp-kopp", "hullám", "duzzad", "durran",
-  "fullad", "hullik", "futtat", "cuppan", "juttat", "csusszan", "szunnyad", "könny",
-  "fönn", "több", "pöttöm", "masszőr", "kettőz", "könnyít", "szünnap", "küllem",
-  "süpped", "fülledt", "dülled", "züllik", "csügged", "fütty", "bükk", "tüll",
-  "puff", "csügg", "benn", "bumm", "ballag", "billeg", "jobbít", "ballon",
-  "meddő", "dinnye", "haddelhadd", "durr", "hordd", "szedd", "vedd", "kedd",
-  "szállás", "szaggat", "passzol", "szusszan", "tüsszög", "zsuppol", "csillag", "csillár",
-  "csökken", "reccsen", "parittya", "szivattyú", "dugattyú", "pörgettyű", "billentyű", "csengettyű",
-  "poggyász", "faggyú", "keggyel", "fonnyad", "gennyes", "dollár", "gallér", "zeller",
-  "puttony", "dallam", "ketten", "kattan", "úttörő", "öttusa", "pattan", "asszony",
-  "holló", "hull", "suttog", "dünnyög", "csüccs", "függöny", "surran", "summáz",
-  "mellőz", "semmi", "merre", "billen", "sakk", "kassza", "zubbony", "csattog",
-  "saccol", "hattyú", "szebb", "jobb", "fillér", "nyugtat", "fortyog", "gyullad",
-  "pottyan", "nyaggat", "tárgyal", "tárggyal", "szárnyal", "szárnnyal", "satnyul", "szennyez",
-  "buggyan", "nyikkan", "gyorsul", "nyekken", "pettyez", "görnyed", "lenyel", "langyos",
-  "abban", "ablak", "beljebb", "ebbe", "feljebb", "görbül", "később", "kijjebb",
-  "kisebb", "klubhelyiség", "lejjebb", "lobog", "lobban", "nagyobb", "próba", "rabol",
-  "dobol", "tabletta", "zsibbad", "tovább", "bicikli", "gombócot", "gombóccal", "kocog",
-  "koccan", "mocorog", "moccan", "viccel", "adós", "addig", "eddig", "kedves",
-  "láda", "radír", "csenget", "drága", "elég", "függ", "függőleges", "gőgös",
-  "guggol", "léggömb", "magas", "nyűgös", "rágó", "régen", "reggel", "zug",
-  "zúg", "ahhoz", "dühös", "ehhez", "huhog", "méh", "puha", "bújj el",
-  "éjfél", "éjjel", "fájjon", "héja", "ujj", "új", "újonc", "vijjog",
-  "akar", "akkor", "bakancs", "bokor", "bukkanó", "bükkfa", "ekkor", "fióka",
-  "hupikék", "kakukk", "lakkfesték", "lakás", "lyukas", "lyukkal", "makk", "mikor",
-  "móka", "október", "okos", "oka", "okkal", "oké", "órakor", "pakol",
-  "pókot", "pukkan", "rekedt", "sikál", "sikoly", "szakáll", "szakkör", "szökken",
-  "szükség", "zökken", "állj", "álarc", "alul", "állás", "állat", "állomás",
-  "bal", "bámul", "belső", "bólint", "bölcső", "csalán", "Csilla", "cseles",
-  "csaló", "elem", "ellenség", "ellenőrző", "előtt", "felleg", "felnőtt", "galamb",
-  "Gabriella", "Göncölszekér", "Gellért", "gyalu", "hallotta", "hol", "halk", "háló",
-  "halpikkely", "hüllő", "illat", "Ilona", "illik", "istálló", "jelez", "jellemző",
-  "jelmez", "jelvény", "Jolán", "Júlia", "július", "kamilla", "kalap", "kapcsoló",
-  "karol", "kell", "kellemes", "kiáltás", "kiállítás", "kilenc", "kilogramm", "kolbász",
-  "költő", "különben", "Lilla", "lila", "madártoll", "malom", "megálló", "meleg",
-  "mellett", "mellény", "nulla", "nyílik", "nyúlik", "olló", "palota", "pillangó",
-  "pillanat", "roller", "szalag", "szálló", "szálloda", "szitál", "tollbamondás", "tolvaj",
-  "váll", "válogat", "vasal", "vélemény", "világ", "villa", "villám", "villog",
-  "víziló", "zálog", "ülés", "cammog", "dekagramm", "Emma", "fogkrém", "hamis",
-  "Mónika", "Mihály", "zúzmara", "zümmög", "Adrienn", "Anna", "azonban", "Benő",
-  "ennivaló", "ennek", "fenn van", "inkább", "inni", "jobban", "jön", "kanna",
-  "kín", "kinn", "kínzás", "lenn van", "Mariann", "nini", "szalonna", "utána",
-  "uzsonna", "ünnep", "vannak", "Vivien", "Zsuzsanna", "apu", "apró", "csapda",
-  "csipke", "épít", "hoppá", "kapkod", "képzeld", "kompót", "koppan", "kopott",
-  "köpeny", "nappal", "repül", "röppen", "szappan", "szépen", "színpad", "arrafelé",
-  "berreg", "csörög", "csörren", "csurran", "dicséret", "erős", "errefelé", "ferde",
-  "forr", "forrás", "forró", "fúr", "hurrá", "korrepetálás", "morgó", "nyírfa",
-  "orr", "orrszarvú", "sorrend", "varrónő", "virrad", "zsíros", "biztos", "csinos",
-  "csípős", "csipás", "eső", "friss", "fuss", "hőség", "kisasszony", "kísér",
-  "Kossuth", "közös", "lassan", "lassú", "mos", "más", "óriási", "orvos",
-  "orvosság", "takarékos", "tessék", "ügyes", "ügyesebb", "ügyesen", "alatt", "Attila",
-  "azóta", "befőtt", "bútor", "délelőtt", "előtte", "együtt", "fegyelmezett", "fizet",
-  "fölött", "fűtés", "füzet", "itt", "kattog", "kazetta", "kerítés", "kettő",
-  "kitűnő", "között", "látszik", "lett", "liter", "lottó", "matt", "miatt",
-  "otthon", "öt", "pattog", "retteg", "rút", "segít", "sőt", "utca",
-  "aztán", "bezzeg", "búza", "duzzog", "ezer", "ezért", "ezzel", "Győző",
-  "haza", "izzó", "izzik", "laza", "mozdul", "múzeum", "rezeg", "rezzen",
-  "tűzzel-vassal", "őzike", "zizeg", "zizzen", "fröcsög", "fröccsen", "locsog", "öccse",
-  "öcsém", "recseg", "eggyel több", "egyik", "megy", "meggyfa", "gally", "helyes",
-  "súlyos", "süllyed", "szabályos", "anya", "annyi", "ennyi", "fényes", "könnyen",
-  "könnyes", "könnyű", "könyököl", "mennyi", "bosszú", "csúszda", "egészen", "először",
-  "hiszi", "hosszan", "hosszú", "iszik", "jössz", "koszos", "lesz", "meszel",
-  "messze", "ősz", "őszies", "össze", "összeg", "összesen", "ősszel", "rossz",
-  "sziszeg", "szisszen", "tavasz", "tavasszal", "teszi", "tüsszent", "vesz", "vessző",
-  "viszket", "vissza", "bátyja", "fütyül", "füttyent", "petty", "pettyes", "potyog"
+const M_LIST = Array.from(new Set([
+  "Nelli","loccsan","csepp","hipp-hopp","kipp-kopp","hullám","duzzad","durran",
+  "fullad","hullik","futtat","cuppan","juttat","csusszan","szunnyad","könny",
+  "fönn","több","pöttöm","masszőr","kettőz","könnyít","szünnap","küllem",
+  "süpped","fülledt","dülled","züllik","csügged","fütty","bükk","tüll",
+  "puff","csügg","benn","bumm","ballag","billeg","jobbít","ballon",
+  "meddő","dinnye","haddelhadd","durr","hordd","szedd","vedd","kedd",
+  "szállás","szaggat","passzol","szusszan","tüsszög","zsuppol","csillag","csillár",
+  "csökken","reccsen","parittya","szivattyú","dugattyú","pörgettyű","billentyű","csengettyű",
+  "poggyász","faggyú","keggyel","fonnyad","gennyes","dollár","gallér","zeller",
+  "puttony","dallam","ketten","kattan","úttörő","öttusa","pattan","asszony",
+  "holló","hull","suttog","dünnyög","csüccs","függöny","surran","summáz",
+  "mellőz","semmi","merre","billen","sakk","kassza","zubbony","csattog",
+  "saccol","hattyú","szebb","jobb","fillér","nyugtat","fortyog","gyullad",
+  "pottyan","nyaggat","tárgyal","tárggyal","szárnyal","szárnnyal","satnyul","szennyez",
+  "buggyan","nyikkan","gyorsul","nyekken","pettyez","görnyed","lenyel","langyos",
+  "abban","ablak","beljebb","ebbe","feljebb","görbül","később","kijjebb",
+  "kisebb","klubhelyiség","lejjebb","lobog","lobban","nagyobb","próba","rabol",
+  "dobol","tabletta","zsibbad","tovább","bicikli","gombócot","gombóccal","kocog",
+  "koccan","mocorog","moccan","viccel","adós","addig","eddig","kedves",
+  "láda","radír","csenget","drága","elég","függ","függőleges","gőgös",
+  "guggol","léggömb","magas","nyűgös","rágó","régen","reggel","zug",
+  "zúg","ahhoz","dühös","ehhez","huhog","méh","puha","bújj el",
+  "éjfél","éjjel","fájjon","héja","ujj","új","újonc","vijjog",
+  "akar","akkor","bakancs","bokor","bukkanó","bükkfa","ekkor","fióka",
+  "hupikék","kakukk","lakkfesték","lakás","lyukas","lyukkal","makk","mikor",
+  "móka","október","okos","oka","okkal","oké","órakor","pakol",
+  "pókot","pukkan","rekedt","sikál","sikoly","szakáll","szakkör","szökken",
+  "szükség","zökken","állj","álarc","alul","állás","állat","állomás",
+  "bal","bámul","belső","bólint","bölcső","csalán","Csilla","cseles",
+  "csaló","elem","ellenség","ellenőrző","előtt","felleg","felnőtt","galamb",
+  "Gabriella","Göncölszekér","Gellért","gyalu","hallotta","hol","halk","háló",
+  "halpikkely","hüllő","illat","Ilona","illik","istálló","jelez","jellemző",
+  "jelmez","jelvény","Jolán","Júlia","július","kamilla","kalap","kapcsoló",
+  "karol","kell","kellemes","kiáltás","kiállítás","kilenc","kilogramm","kolbász",
+  "költő","különben","Lilla","lila","madártoll","malom","megálló","meleg",
+  "mellett","mellény","nulla","nyílik","nyúlik","olló","palota","pillangó",
+  "pillanat","roller","szalag","szálló","szálloda","szitál","tollbamondás","tolvaj",
+  "váll","válogat","vasal","vélemény","világ","villa","villám","villog",
+  "víziló","zálog","ülés","cammog","dekagramm","Emma","fogkrém","hamis",
+  "Mónika","Mihály","zúzmara","zümmög","Adrienn","Anna","azonban","Benő",
+  "ennivaló","ennek","fenn van","inkább","inni","jobban","jön","kanna",
+  "kín","kinn","kínzás","lenn van","Mariann","nini","szalonna","utána",
+  "uzsonna","ünnep","vannak","Vivien","Zsuzsanna","apu","apró","csapda",
+  "csipke","épít","hoppá","kapkod","képzeld","kompót","koppan","kopott",
+  "köpeny","nappal","repül","röppen","szappan","szépen","színpad","arrafelé",
+  "berreg","csörög","csörren","csurran","dicséret","erős","errefelé","ferde",
+  "forr","forrás","forró","fúr","hurrá","korrepetálás","morgó","nyírfa",
+  "orr","orrszarvú","sorrend","varrónő","virrad","zsíros","biztos","csinos",
+  "csípős","csipás","eső","friss","fuss","hőség","kisasszony","kísér",
+  "Kossuth","közös","lassan","lassú","mos","más","óriási","orvos",
+  "orvosság","takarékos","tessék","ügyes","ügyesebb","ügyesen","alatt","Attila",
+  "azóta","befőtt","bútor","délelőtt","előtte","együtt","fegyelmezett","fizet",
+  "fölött","fűtés","füzet","itt","kattog","kazetta","kerítés","kettő",
+  "kitűnő","között","látszik","lett","liter","lottó","matt","miatt",
+  "otthon","öt","pattog","retteg","rút","segít","sőt","utca",
+  "aztán","bezzeg","búza","duzzog","ezer","ezért","ezzel","Győző",
+  "haza","izzó","izzik","laza","mozdul","múzeum","rezeg","rezzen",
+  "tűzzel-vassal","őzike","zizeg","zizzen","fröcsög","fröccsen","locsog","öccse",
+  "öcsém","recseg","eggyel több","egyik","megy","meggyfa","gally","helyes",
+  "súlyos","süllyed","szabályos","anya","annyi","ennyi","fényes","könnyen",
+  "könnyes","könnyű","könyököl","mennyi","bosszú","csúszda","egészen","először",
+  "hiszi","hosszan","hosszú","iszik","jössz","koszos","lesz","meszel",
+  "messze","ősz","őszies","össze","összeg","összesen","ősszel","rossz",
+  "sziszeg","szisszen","tavasz","tavasszal","teszi","tüsszent","vesz","vessző",
+  "viszket","vissza","bátyja","fütyül","füttyent","petty","pettyes","potyog"
+]));
+
+const JLY_RAW = [
+  ["ajak",""],["ajándék",""],["ajánl",""],["ajtó",""],["akadály",""],["amely",""],
+  ["amilyen",""],["amolyan",""],["baj",""],["bajnok",""],["bajusz",""],["Benjámin",""],
+  ["bélyeg",""],["bélyeggyűjtés",""],["bivaly",""],["boly",""],["bolygó",""],["borjú",""],
+  ["bújócska",""],["bujkál",""],["bújj el",""],["bűbájos",""],["csekély",""],["csáklya",""],
+  ["cserje","bokor"],["csuklya",""],["datolya",""],["derelye",""],["díj",""],["dölyfös",""],
+  ["dörej",""],["egyfolytában",""],["egyhelyben",""],["egyjegyű",""],["ej",""],["ejnye",""],
+  ["éjjel",""],["éjszaka",""],["eleje",""],["életveszély",""],["elseje",""],["éljen",""],
+  ["engedély",""],["eredj",""],["erkély",""],["esély",""],["estély",""],["észjárás",""],
+  ["évfolyam",""],["fahéj",""],["faj",""],["fáj",""],["fájjon",""],["fajta",""],
+  ["fáklya",""],["fej",""],["fejedelem",""],["fejfájás",""],["felejt",""],["félpálya",""],
+  ["felkiáltójel",""],["férj",""],["fészekalja","az anyamadárnak egyszerre költött összes tojása, ivadéka"],
+  ["foglyul",""],["fogoly",""],["fojtogat",""],["folyó",""],["folyik",""],["folyam",""],
+  ["folyadék",""],["folydogál",""],["folyosó",""],["folyjon",""],["fortély",""],["fennhéjázó",""],
+  ["fújjon",""],["furulya",""],["fürj",""],["gabalyodik","kuszálódik"],["gally",""],["gereblye",""],
+  ["gerely",""],["Gergely",""],["gólya",""],["golyó",""],["gomolyog",""],["gombolyag",""],
+  ["gombolyít",""],["gomolyfelhő",""],["gömbölyded",""],["gömbölyít",""],["gömbölyű",""],
+  ["gulya","marhacsorda"],["gulyás","marhapásztor"],["gyapjú",""],["gyújt",""],["gyűjt",""],
+  ["hadjárat",""],["hagyjon",""],["haj",""],["háj",""],["hajcsár","aki állatokat hajt"],
+  ["hajlik",""],["hajlékony",""],["hajlong",""],["hajnal",""],["hajol",""],["hajsza",""],
+  ["hajszol",""],["hályog","betegség"],["harkály",""],["hej",""],["héj",""],["héja",""],
+  ["hejehuja",""],["hely",""],["helyes",""],["helyett",""],["helység","valamilyen település"],
+  ["helyiség","épületrész"],["hellyel-közzel",""],["hólyag",""],["homály",""],["hónalj",""],
+  ["hömpölyög",""],["hüvelyk","hosszmérték"],["hüvelykujj",""],["ibolya",""],["Ibolya",""],
+  ["ideje",""],["időjárás",""],["ifjú",""],["íj",""],["ijed",""],["ilyen",""],
+  ["imbolyog",""],["Ipoly",""],["jaj",""],["jaguár",""],["jácint",""],["jár",""],
+  ["jászol",""],["játék",""],["játszik",""],["javít",""],["jávorszarvas",""],["jég",""],
+  ["jégpálya",""],["jegy",""],["jelvény",""],["jó",""],["jobb",""],["joghurt",""],
+  ["jól",""],["jöjjön",""],["jön",""],["jövő",""],["Judit",""],["Jolán",""],["jós",""],
+  ["juh",""],["juhar","faféle"],["Júlia",""],["június",""],["kajszibarack",""],["kályha",""],
+  ["karabély","fegyver"],["Károly",""],["karvaly",""],["kastély",""],["kehely",""],["keselyű",""],
+  ["kijelent",""],["kifejez",""],["kijjebb",""],["király",""],["komoly",""],["kopja","fegyver"],
+  ["korcsolya",""],["kóvályog",""],["kölyök",""],["kőolaj",""],["krajcár","régi pénz"],
+  ["kristály",""],["kurjant","nagyot kiált"],["lajhár",""],["Lajos",""],["lajtorja","létra"],
+  ["lapály","lapos"],["lebújik",""],["lejjebb",""],["lejtő",""],["Lujza",""],["máglya",""],
+  ["máj",""],["majom",""],["majonéz",""],["május",""],["mely",""],["mély",""],["Mihály",""],
+  ["milyen",""],["moly",""],["mordály","fegyver"],["mosoly",""],["mulya","mafla, ügyetlen"],
+  ["muszáj",""],["műhely",""],["nápolyi",""],["nefelejcs",""],["nejlon",""],["nyáj",""],
+  ["óhaj",""],["olaj",""],["olajkályha",""],["oly",""],["olyan",""],["Orsolya",""],
+  ["osztály",""],["ölyv",""],["őrjöng",""],["páholy",""],["pajta",""],["pajtás",""],["pajzs",""],
+  ["pálya",""],["papagáj",""],["paraj","növény"],["párbaj",""],["paréj","gyom"],["paszuly","bab"],
+  ["pehely",""],["pej","barnás ló"],["persely",""],["pfuj",""],["pikkely",""],["pisztoly",""],
+  ["pólya",""],["pulya","gyerek"],["pulyka",""],["raj",""],["rajong",""],["rajt",""],
+  ["rajta",""],["rajz",""],["rejt",""],["rejtekhely",""],["rejtély",""],["rejtvény",""],
+  ["ricsaj",""],["rigolya","rossz szokás"],["rojt",""],["röhej",""],["saját",""],["sajnál",""],
+  ["sajog",""],["sajt",""],["sebaj",""],["sej",""],["sejt",""],["sekély",""],["selejt",""],
+  ["selyem",""],["seregély",""],["sikoly",""],["sirály",""],["skatulya","doboz"],["sóhaj",""],
+  ["sólyom",""],["somolyog",""],["lesújt",""],["sujtás","ruhára varrt zsinór"],["súly",""],
+  ["süllyed",""],["szabály",""],["szabályjáték",""],["szablya","fegyver"],["szabja","a ruhát"],
+  ["száj",""],["szegély",""],["személy",""],["szenvedély",""],["szíj",""],["szomjas",""],
+  ["táj",""],["talaj",""],["támolyog",""],["taréj",""],["tarsoly",""],["tartály",""],
+  ["tavaly",""],["tégely","csészeforma kis edényke"],["tej",""],["tekintély",""],["teljes",""],
+  ["tengely",""],["terebélyes",""],["terjeszt",""],["tojás",""],["Tokaj",""],["tolvaj",""],
+  ["tuja","növény"],["tulajdon",""],["tutaj",""],["tűzhely",""],["tyuhaj",""],["ujj",""],
+  ["ujjong",""],["ujjú",""],["új",""],["újonc",""],["újra",""],["újság",""],
+  ["üdülőhely",""],["ünnepély",""],["vaj",""],["vajda","fejedelem"],["vályú",""],["varjú",""],
+  ["veszély",""],["vijjog",""],["viszály","ellenségeskedés"],
+  ["vőfély","a lakodalom menetét irányító férfi"],["zaj",""],["zörej",""],["zsálya",""],
+  ["zsámoly",""],["zsindely","tetőfedésre használt falemez"],["zsivaj",""],["zsöllye","nézőtéri ülőhely"]
 ];
 
-// 3. J - LY SZÓGYŰJTEMÉNY (nyers szövegből automatikusan feldolgozva)
-const RAW_JLY_TEXT = `
-ajak, ajándék, ajánl, ajtó, akadály, amely, amilyen, amolyan, baj, bajnok, bajusz, Benjámin, bélyeg, bélyeggyűjtés, bivaly, boly, bolygó, borjú, bújócska, bujkál, bújj el, bűbájos, csekély, csáklya, cserje (bokor), csuklya, datolya, derelye, díj, dölyfös, dörej, egyfolytában, egyhelyben, egyjegyű, ej, ejnye, éjjel, éjszaka, eleje, életveszély, elseje, éljen, engedély, eredj, erkély, esély, estély, észjárás, évfolyam, fahéj, faj, fáj, fájjon, fajta, fáklya, fej, fejedelem, fejfájás, felejt, félpálya, felkiáltójel, férj, fészekalja (az anyamadárnak egyszerre költött összes tojása, ivadéka), foglyul, fogoly, fojtogat, folyó, folyik, folyam, folyadék, folydogál, folyosó, folyjon, fortély, fennhéjázó, fújjon, furulya, fürj, gabalyodik (kuszálódik), gally, gereblye, gerely, Gergely, gólya, golyó, gomolyog, gombolyag, gombolyít, gomolyfelhő, gömbölyded, gömbölyít, gömbölyű, gulya (marhacsorda), gulyás (marhapásztor), gyapjú, gyújt, gyűjt, hadjárat, hagyjon, haj, háj, hajcsár (aki állatokat hajt), hajlik, hajlékony, hajlong, hajnal, hajol, hajsza, hajszol, hályog (betegség), harkály, hej, héj, héja, hejehuja, hely, helyes, helyett, helység (valamilyen település), helyiség (épületrész), hellyel-közzel, hólyag, homály, hónalj, hömpölyög, hüvelyk (hosszmérték), hüvelykujj, ibolya, Ibolya, ideje, időjárás, ifjú, íj, ijed, ilyen, imbolyog, Ipoly, jaj, jaguár, jácint, jár, jászol, játék, játszik, javít, jávorszarvas, jég, jégpálya, jegy, jelvény, jó, jobb, joghurt, jól, jöjjön, jön, jövő, Judit, Jolán, jós, juh, juhar (faféle), Júlia, június, kajszibarack, kályha, karabély (fegyver), Károly, karvaly, kastély, kehely, keselyű, kijelent, kifejez, kijjebb, király, komoly, kopja (fegyver), korcsolya, kóvályog, kölyök, kőolaj, krajcár (régi pénz), kristály, kurjant (nagyot kiált), lajhár, Lajos, lajtorja (létra), lapály (lapos), lebújik, lejjebb, lejtő, Lujza, máglya, máj, majom, majonéz, május, mely, mély, Mihály, milyen, moly, mordály (fegyver), mosoly, mulya (mafla, ügyetlen), muszáj, műhely, nápolyi, nefelejcs, nejlon, nyáj, óhaj, olaj, olajkályha, oly, olyan, Orsolya, osztály, ölyv, őrjöng, páholy, pajta, pajtás, pajzs, pálya, papagáj, paraj (növény), párbaj, paréj (gyom), paszuly (bab), pehely, pej (barnás ló), persely, pfuj, pikkely, pisztoly, pólya, pulya (gyerek), pulyka, raj, rajong, rajt, rajta, rajz, rejt, rejtekhely, rejtély, rejtvény, ricsaj, rigolya (rossz szokás), rojt, röhej, saját, sajnál, sajog, sajt, sebaj, sej, sejt, sekély, selejt, selyem, seregély, sikoly, sirály, skatulya (doboz), sóhaj, sólyom, somolyog, lesújt, sujtás (ruhára varrt zsinór), súly, süllyed, szabály, szabályjáték, szablya (fegyver), szabja (a ruhát), száj, szegély, személy, szenvedély, szíj, szomjas, táj, talaj, támolyog, taréj, tarsoly, tartály, tavaly, tégely (csészeforma kis edényke), tej, tekintély, teljes, tengely, terebélyes, terjeszt, tojás, Tokaj, tolvaj, tuja (növény), tulajdon, tutaj, tűzhely, tyuhaj, ujj, ujjong, ujjú, új, újonc, újra, újság, üdülőhely, ünnepély, vaj, vajda (fejedelem), vályú, varjú, veszély, vijjog, viszály (ellenségeskedés), vőfély (a lakodalom menetét irányító férfi), zaj, zörej, zsálya, zsámoly, zsindely (tetőfedésre használt falemez), zsivaj, zsöllye (nézőtéri ülőhely)
-`;
+const JLY_LIST = JLY_RAW.map(x => ({ w: x[0], hint: x[1] }));
+const ALL_UNIQUE_WORDS = new Set([...M_LIST, ...JLY_LIST.map(x => x.w)]);
 
-// J-LY lista feldolgozása objektumokká
-const JLY_LIST = [];
-const seenJly = new Set();
-RAW_JLY_TEXT.split(/,\s*(?![^()]*\))/).forEach(raw => {
-  const clean = raw.trim();
-  if (!clean) return;
-  const match = clean.match(/^([^(]+?
+const PAIR_TASKS = [
+  { s: "A focista ___ talált a kapuba.", ok: "fejjel", bad: "fejel", hint: "Mivel? (eszközhatározó: fej + -vel)" },
+  { s: "A csatár jól ___ a szögleteknél.", ok: "fejel", bad: "fejjel", hint: "Mit csinál? (cselekvés)" },
+  { s: "Kakaót főzök friss ___.", ok: "tejjel", bad: "tejel", hint: "Mivel? (tej + -vel)" },
+  { s: "A tehén sok tejet ___.", ok: "tejel", bad: "tejjel", hint: "Mit csinál? (ige)" },
+  { s: "A kedvenc színem a ___.", ok: "lila", bad: "Lilla", hint: "Színnév (kisbetű, rövid l)" },
+  { s: "Az osztálytársam neve ___.", ok: "Lilla", bad: "lila", hint: "Lánynév (nagybetű, hosszú ll)" },
+  { s: "Budapestet kettészeli a ___.", ok: "Duna", bad: "dunna", hint: "Folyónév (nagybetű, rövid n)" },
+  { s: "A nagymama meleg tollas ___ alatt alszik.", ok: "dunna", bad: "Duna", hint: "Vastag takaró (kisbetű, hosszú nn)" },
+  { s: "A tóban egy nagy ___ úszik.", ok: "hal", bad: "hall", hint: "Vízi állat (rövid l)" },
+  { s: "A bagoly a sötétben is jól ___.", ok: "hall", bad: "hal", hint: "Fülével érzékel (hosszú ll)" },
+  { s: "A menyasszony régi neve: ___.", ok: "ara", bad: "arra", hint: "Menyasszony (rövid r)" },
+  { s: "Ne menj ___, mert vizes a fű!", ok: "arra", bad: "ara", hint: "Irányt mutat (hosszú rr)" },
+  { s: "A kisfiú játékautót ___ a szőnyegen.", ok: "tol", bad: "toll", hint: "Mozgat maga előtt (rövid l)" },
+  { s: "A madár szárnyából kihullott egy ___.", ok: "toll", bad: "tol", hint: "Íróeszköz vagy madártoll (hosszú ll)" },
+  { s: "Győr egy gyönyörű magyar ___.", ok: "helység", bad: "helyiség", hint: "Település, város vagy falu" },
+  { s: "Az osztályterem egy tágas ___.", ok: "helyiség", bad: "helység", hint: "Épületrész, szoba" }
+];
+
+const LONG_PATTERNS = [
+  { long: "ccs", short: "cs" }, { long: "ggy", short: "gy" }, { long: "lly", short: "ly" },
+  { long: "nny", short: "ny" }, { long: "ssz", short: "sz" }, { long: "tty", short: "ty" },
+  { long: "zzs", short: "zs" }, { long: "bb", short: "b" },  { long: "cc", short: "c" },
+  { long: "dd", short: "d" },   { long: "ff", short: "f" },  { long: "gg", short: "g" },
+  { long: "hh", short: "h" },   { long: "jj", short: "j" },  { long: "kk", short: "k" },
+  { long: "ll", short: "l" },   { long: "mm", short: "m" },  { long: "nn", short: "n" },
+  { long: "pp", short: "p" },   { long: "rr", short: "r" },  { long: "ss", short: "s" },
+  { long: "tt", short: "t" },   { long: "vv", short: "v" },  { long: "zz", short: "z" }
+];
+
+function analyzeWord(word) {
+  const lower = word.toLowerCase();
+  for (const pat of LONG_PATTERNS) {
+    const idx = lower.indexOf(pat.long);
+    if (idx !== -1) {
+      const actualLong = word.slice(idx, idx + pat.long.length);
+      const actualShort = (idx === 0 && word[0] === word[0].toUpperCase())
+        ? pat.short[0].toUpperCase() + pat.short.slice(1)
+        : pat.short;
+      const wrongWord = word.slice(0, idx) + actualShort + word.slice(idx + pat.long.length);
+      const gappedWord = word.slice(0, idx) + "___" + word.slice(idx + pat.long.length);
+      return { word, wrongWord, gappedWord, longPart: actualLong, shortPart: actualShort, hasLong: true };
+    }
+  }
+  const shortFallback = [
+    { short: "ny", long: "nny" }, { short: "gy", long: "ggy" }, { short: "ty", long: "tty" },
+    { short: "cs", long: "ccs" }, { short: "sz", long: "ssz" },
+    { short: "b", long: "bb" },   { short: "d", long: "dd" },   { short: "g", long: "gg" },
+    { short: "k", long: "kk" },   { short: "l", long: "ll" },   { short: "m", long: "mm" },
+    { short: "n", long: "nn" },   { short: "p", long: "pp" },   { short: "r", long: "rr" },
+    { short: "s", long: "ss" },   { short: "t", long: "tt" },   { short: "z", long: "zz" }
+  ];
+  for (const pat of shortFallback) {
+    const idx = lower.indexOf(pat.short);
+    if (idx > 0) {
+      const actualShort = word.slice(idx, idx + pat.short.length);
+      const wrongWord = word.slice(0, idx) + pat.long + word.slice(idx + pat.short.length);
+      const gappedWord = word.slice(0, idx) + "___" + word.slice(idx + pat.short.length);
+      return { word, wrongWord, gappedWord, longPart: pat.long, shortPart: actualShort, hasLong: false };
+    }
+  }
+  return null;
+}
+
+function analyzeJlyWord(word) {
+  const lower = word.toLowerCase();
+  const patterns = [
+    { target: "lly", alt: "jj" },
+    { target: "jj", alt: "lly" },
+    { target: "ly", alt: "j" },
+    { target: "j", alt: "ly" }
+  ];
+  for (const p of patterns) {
+    const idx = lower.indexOf(p.target);
+    if (idx !== -1) {
+      const actualCorrect = word.slice(idx, idx + p.target.length);
+      const isCap = (idx === 0 && word[0] === word[0].toUpperCase());
+      const actualWrong = isCap ? p.alt[0].toUpperCase() + p.alt.slice(1) : p.alt;
+      const wrongWord = word.slice(0, idx) + actualWrong + word.slice(idx + p.target.length);
+      const gappedWord = word.slice(0, idx) + "___" + word.slice(idx + p.target.length);
+      return { word, wrongWord, gappedWord, correctPart: actualCorrect, wrongPart: actualWrong };
+    }
+  }
+  return null;
+}
+
+function getClueForWord(word) {
+  if (CUSTOM_CLUES[word]) return CUSTOM_CLUES[word];
+  const jlyObj = JLY_LIST.find(x => x.w === word);
+  if (jlyObj && jlyObj.hint) return "Jelentése: " + jlyObj.hint;
+  const info = analyzeWord(word);
+  if (info) {
+    return info.hasLong
+      ? "Figyelj! A szóban egy hosszú mássalhangzó (" + info.longPart + ") szerepel."
+      : "Figyelj! Ebben a szóban rövid mássalhangzó áll.";
+  }
+  return "Rakd sorba a betűket, hogy értelmes magyar szót kapj!";
+}
+
+const STORE_KEY = "helyesiras_kaland_v3";
+let state = JSON.parse(localStorage.getItem(STORE_KEY) || "null") || {
+  current: "Játékos",
+  users: { "Játékos": { pts: 0, mastered: [], practiced: [], mistakes: [] } }
+};
+
+function saveState() {
+  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+}
+
+function curUser() {
+  if (!state.users[state.current]) {
+    state.users[state.current] = { pts: 0, mastered: [], practiced: [], mistakes: [] };
+  }
+  if (!state.users[state.current].practiced) {
+    state.users[state.current].practiced = [...state.users[state.current].mastered];
+  }
+  return state.users[state.current];
+}
+
+let sessionFlawless = 0;
+
+function updateMonitorBar() {
+  const u = curUser();
+  document.getElementById("mon-total").textContent = ALL_UNIQUE_WORDS.size;
+  document.getElementById("mon-practiced").textContent = u.practiced.length;
+  document.getElementById("mon-session-ok").textContent = sessionFlawless;
+}
+
+const RANKS = [
+  { min: 0, name: "Kezdő Betűvadász" },
+  { min: 150, name: "Helyesírás Inas" },
+  { min: 400, name: "Mássalhangzó Mester" },
+  { min: 800, name: "Betűvarázsló" },
+  { min: 1500, name: "Nyelvtan Bajnok" }
+];
+
+function updateHome() {
+  const u = curUser();
+  document.getElementById("hello-txt").textContent = "Szia, " + state.current + "!";
+  document.getElementById("st-pts").textContent = u.pts;
+  document.getElementById("st-done").textContent = u.mastered.length;
+
+  let rIdx = 0;
+  for (let i = 0; i < RANKS.length; i++) {
+    if (u.pts >= RANKS[i].min) rIdx = i;
+  }
+  const curR = RANKS[rIdx];
+  const nextR = RANKS[rIdx + 1];
+  document.getElementById("rank-name").textContent = curR.name;
+  document.getElementById("rank-cur").textContent = u.pts + " pont";
+
+  if (nextR) {
+    const pct = Math.min(100, Math.round(((u.pts - curR.min) / (nextR.min - curR.min)) * 100));
+    document.getElementById("rank-bar").style.width = pct + "%";
+    document.getElementById("rank-next").textContent = "Következő: " + nextR.name + " (" + nextR.min + " p)";
+  } else {
+    document.getElementById("rank-bar").style.width = "100%";
+    document.getElementById("rank-next").textContent = "Legmagasabb szint elérve!";
+  }
+
+  const mBtn = document.getElementById("btn-mistakes");
+  if (u.mistakes.length > 0) {
+    mBtn.style.display = "flex";
+    document.getElementById("mistake-cnt").textContent = u.mistakes.length;
+  } else {
+    mBtn.style.display = "none";
+  }
+  updateMonitorBar();
+}
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("on"));
+  document.getElementById(id).classList.add("on");
+  if (id === "scr-home") updateHome();
+  if (id === "scr-users") renderUsers();
+  updateMonitorBar();
+}
+
+function goHome() {
+  document.getElementById("sheet").classList.remove("on");
+  showScreen("scr-home");
+}
+
+function renderUsers() {
+  const list = document.getElementById("user-list");
+  list.innerHTML = "";
+  Object.keys(state.users).forEach(name => {
+    const btn = document.createElement("button");
+    btn.className = "profile" + (name === state.current ? " cur" : "");
+    btn.innerHTML = "<span>👤 " + name + "</span><span>" + state.users[name].pts + " p</span>";
+    btn.addEventListener("click", () => {
+      state.current = name;
+      sessionFlawless = 0;
+      saveState();
+      goHome();
+    });
+    list.appendChild(btn);
+  });
+}
+
+function addUser() {
+  const inp = document.getElementById("new-user-inp");
+  const name = inp.value.trim();
+  if (!name) return;
+  if (!state.users[name]) {
+    state.users[name] = { pts: 0, mastered: [], practiced: [], mistakes: [] };
+  }
+  state.current = name;
+  sessionFlawless = 0;
+  inp.value = "";
+  saveState();
+  goHome();
+}
+
+let queue = [];
+let qIndex = 0;
+let sessionScore = 0;
+let combo = 0;
+let lastMode = "mixed";
+let currentTask = null;
+let answered = false;
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function startQuiz(mode) {
+  lastMode = mode;
+  qIndex = 0;
+  sessionScore = 0;
+  sessionFlawless = 0;
+  combo = 0;
+  queue = [];
+  updateMonitorBar();
+
+  if (mode === "pairs") {
+    queue = shuffle(PAIR_TASKS).slice(0, 10).map(p => ({ type: "pair", data: p }));
+  } else if (mode === "jly") {
+    queue = shuffle(JLY_LIST).slice(0, 10).map(item => ({ type: "jly", item }));
+  } else if (mode === "mistakes") {
+    const m = curUser().mistakes;
+    queue = shuffle(m).slice(0, 10).map(w => {
+      const jlyFound = JLY_LIST.find(x => x.w === w);
+      if (jlyFound && analyzeJlyWord(w)) return { type: "jly", item: jlyFound };
+      return { type: "choice", word: w };
+    });
+  } else if (mode === "mixed") {
+    const mPool = shuffle(M_LIST).slice(0, 7);
+    const jPool = shuffle(JLY_LIST).slice(0, 3);
+    const rawTasks = [
+      { type: "choice", word: mPool[0] },
+      { type: "jly", item: jPool[0] },
+      { type: "gap", word: mPool[1] },
+      { type: "tiles", word: mPool[2] },
+      { type: "jly", item: jPool[1] },
+      { type: "choice", word: mPool[3] },
+      { type: "gap", word: mPool[4] },
+      { type: "jly", item: jPool[2] },
+      { type: "tiles", word: mPool[5] },
+      { type: "choice", word: mPool[6] }
+    ];
+    queue = shuffle(rawTasks);
+  } else {
+    const pool = shuffle(M_LIST).slice(0, 10);
+    queue = pool.map(w => ({ type: mode, word: w }));
+  }
+
+  showScreen("scr-quiz");
+  renderQuestion();
+}
+
+function makeOptionButtons(opts, correctWord, fullWord, container) {
+  const wrap = document.createElement("div");
+  wrap.className = "opts";
+  opts.forEach(o => {
+    const btn = document.createElement("button");
+    btn.className = "opt";
+    btn.textContent = o;
+    btn.addEventListener("click", () => checkChoice(btn, o, correctWord, fullWord));
+    wrap.appendChild(btn);
+  });
+  container.appendChild(wrap);
+}
+
+function renderQuestion() {
+  answered = false;
+  document.getElementById("sheet").classList.remove("on");
+  document.getElementById("q-prog").style.width = ((qIndex / queue.length) * 100) + "%";
+  document.getElementById("q-score").textContent = sessionScore + " p";
+  document.getElementById("q-combo").textContent = combo >= 2 ? "🔥 " + combo + "x" : "";
+
+  currentTask = queue[qIndex];
+  const body = document.getElementById("q-body");
+  const tag = document.getElementById("q-tag");
+  const title = document.getElementById("q-title");
+  body.innerHTML = "";
+
+  if (currentTask.type === "pair") {
+    const p = currentTask.data;
+    tag.textContent = "Jelentéskülönbség";
+    tag.style.background = "#db2777";
+    title.textContent = "Melyik szó illik a mondatba? (" + p.hint + ")";
+    const sent = document.createElement("div");
+    sent.className = "sentence-display";
+    sent.innerHTML = p.s.replace("___", '<span class="gap" id="gap-span">?</span>');
+    body.appendChild(sent);
+    makeOptionButtons(shuffle([p.ok, p.bad]), p.ok, p.ok, body);
+    return;
+  }
+
+  if (currentTask.type === "jly") {
+    const jObj = currentTask.item;
+    const jInfo = analyzeJlyWord(jObj.w);
+    tag.textContent = "j vagy ly gyakorló";
+    tag.style.background = "#ea580c";
+    title.textContent = "Válaszd ki a helyesen írt alakot!";
+    if (jObj.hint) {
+      const clue = document.createElement("div");
+      clue.className = "clue-box";
+      clue.textContent = "💡 Jelentése: " + jObj.hint;
+      body.appendChild(clue);
+    } else {
+      const disp = document.createElement("div");
+      disp.className = "word-display";
+      disp.textContent = "✍️";
+      body.appendChild(disp);
+    }
+    makeOptionButtons(shuffle([jInfo.word, jInfo.wrongWord]), jInfo.word, jInfo.word, body);
+    return;
+  }
+
+  const word = currentTask.word;
+  const info = analyzeWord(word);
+
+  if (currentTask.type === "choice" && info) {
+    tag.textContent = "Rövid vagy hosszú?";
+    tag.style.background = "#2563eb";
+    title.textContent = "Kattints a helyesen leírt szóra!";
+    const disp = document.createElement("div");
+    disp.className = "word-display";
+    disp.textContent = "🤔";
+    body.appendChild(disp);
+    makeOptionButtons(shuffle([info.word, info.wrongWord]), info.word, info.word, body);
+  } else if (currentTask.type === "gap" && info) {
+    tag.textContent = "Betűpótló";
+    tag.style.background = "#ca8a04";
+    title.textContent = "Melyik betűkapcsolat hiányzik a szóból?";
+    const correctOpt = info.hasLong ? info.longPart : info.shortPart;
+    const wrongOpt = info.hasLong ? info.shortPart : info.longPart;
+    const disp = document.createElement("div");
+    disp.className = "word-display";
+    disp.innerHTML = info.gappedWord.replace("___", '<span class="gap" id="gap-span">__</span>');
+    body.appendChild(disp);
+    makeOptionButtons(shuffle([correctOpt, wrongOpt]), correctOpt, info.word, body);
+  } else {
+    tag.textContent = "Betűkirakó";
+    tag.style.background = "#0d9488";
+    title.textContent = "Olvasd el a segítséget, és rakd ki a szót a csempékből!";
+    renderTilePuzzle(word, body);
+  }
+}
+
+function checkChoice(btn, chosen, correct, fullWord) {
+  if (answered) return;
+  answered = true;
+  document.querySelectorAll(".opt").forEach(b => {
+    if (b.textContent === correct) b.classList.add("ok");
+    else if (b === btn) b.classList.add("bad");
+    else b.classList.add("dim");
+  });
+  const gapSpan = document.getElementById("gap-span");
+  if (gapSpan) gapSpan.textContent = correct;
+  finishAnswer(chosen === correct, fullWord);
+}
+
+let tileTarget = "";
+let tilePlaced = [];
+
+function renderTilePuzzle(word, container) {
+  tileTarget = word;
+  tilePlaced = [];
+  const chars = word.split("");
+  const shuffled = shuffle(chars.map((c, idx) => ({ c, idx })));
+
+  const clue = document.createElement("div");
+  clue.className = "clue-box";
+  clue.textContent = "💡 " + getClueForWord(word);
+  container.appendChild(clue);
+
+  const slotRow = document.createElement("div");
+  slotRow.className = "slotrow";
+  slotRow.id = "slot-row";
+  container.appendChild(slotRow);
+
+  const poolDiv = document.createElement("div");
+  poolDiv.className = "tiles";
+  poolDiv.id = "tile-pool";
+  shuffled.forEach(item => {
+    const tBtn = document.createElement("button");
+    tBtn.className = "tile";
+    tBtn.id = "t-" + item.idx;
+    tBtn.textContent = item.c === " " ? "␣" : item.c;
+    tBtn.addEventListener("click", () => pickTile(item.idx, item.c));
+    poolDiv.appendChild(tBtn);
+  });
+  container.appendChild(poolDiv);
+
+  const resetWrap = document.createElement("div");
+  resetWrap.style.marginTop = "14px";
+  const resetBtn = document.createElement("button");
+  resetBtn.className = "secondary";
+  resetBtn.textContent = "↺ Újrakezdés";
+  resetBtn.addEventListener("click", clearTiles);
+  resetWrap.appendChild(resetBtn);
+  container.appendChild(resetWrap);
+}
+
+function pickTile(idx, char) {
+  if (answered) return;
+  const btn = document.getElementById("t-" + idx);
+  if (btn.classList.contains("used")) return;
+  btn.classList.add("used");
+  tilePlaced.push({ idx, char });
+  updateSlots();
+
+  if (tilePlaced.length === tileTarget.length) {
+    answered = true;
+    const built = tilePlaced.map(x => x.char).join("");
+    finishAnswer(built === tileTarget, tileTarget);
+  }
+}
+
+function updateSlots() {
+  const row = document.getElementById("slot-row");
+  row.innerHTML = "";
+  tilePlaced.forEach((item, pos) => {
+    const pBtn = document.createElement("button");
+    pBtn.className = "tile placed";
+    pBtn.textContent = item.char === " " ? "␣" : item.char;
+    pBtn.addEventListener("click", () => removeTile(pos));
+    row.appendChild(pBtn);
+  });
+}
+
+function removeTile(pos) {
+  if (answered) return;
+  const removed = tilePlaced.splice(pos, 1)[0];
+  document.getElementById("t-" + removed.idx).classList.remove("used");
+  updateSlots();
+}
+
+function clearTiles() {
+  if (answered) return;
+  tilePlaced = [];
+  document.querySelectorAll("#tile-pool .tile").forEach(b => b.classList.remove("used"));
+  updateSlots();
+}
+
+function finishAnswer(isOk, fullWord) {
+  const u = curUser();
+  const sheet = document.getElementById("sheet");
+  const shHead = document.getElementById("sh-head");
+  const shFull = document.getElementById("sh-full");
+
+  if (ALL_UNIQUE_WORDS.has(fullWord) && !u.practiced.includes(fullWord)) {
+    u.practiced.push(fullWord);
+  }
+
+  if (isOk) {
+    combo++;
+    const gain = 10 + (combo >= 3 ? 5 : 0);
+    sessionScore += gain;
+    sessionFlawless++;
+    u.pts += gain;
+    if (!u.mastered.includes(fullWord)) {
+      u.mastered.push(fullWord);
+    }
+    u.mistakes = u.mistakes.filter(w => w !== fullWord);
+
+    sheet.className = "sheet ok on";
+    shHead.textContent = combo >= 3 ? "Szuper! (+" + gain + " pont, " + combo + "x sorozat!)" : "Helyes! (+" + gain + " pont)";
+    shFull.textContent = "Helyes alak: " + fullWord;
+  } else {
+    combo = 0;
+    if (!u.mistakes.includes(fullWord)) {
+      u.mistakes.push(fullWord);
+    }
+    sheet.className = "sheet bad on";
+    shHead.textContent = "Most nem talált!";
+    shFull.textContent = "A helyes írásmód: " + fullWord;
+  }
+
+  saveState();
+  updateMonitorBar();
+  document.getElementById("q-score").textContent = sessionScore + " p";
+}
+
+function nextQuestion() {
+  qIndex++;
+  if (qIndex < queue.length) {
+    renderQuestion();
+  } else {
+    showResults();
+  }
+}
+
+function showResults() {
+  document.getElementById("sheet").classList.remove("on");
+  showScreen("scr-res");
+  const ratio = sessionFlawless / queue.length;
+  const stars = ratio === 1 ? "⭐⭐⭐" : (ratio >= 0.7 ? "⭐⭐☆" : "⭐☆☆");
+  document.getElementById("res-stars").textContent = stars;
+  document.getElementById("res-head").textContent = ratio === 1 ? "Hibátlan teljesítmény!" : "Kör teljesítve!";
+  document.getElementById("res-sub").textContent = queue.length + " szóból " + sessionFlawless + " hibátlan • Szerzett pontok: " + sessionScore + " p";
+}
+
+document.getElementById("btn-mixed").addEventListener("click", () => startQuiz("mixed"));
+document.getElementById("btn-choice").addEventListener("click", () => startQuiz("choice"));
+document.getElementById("btn-jly").addEventListener("click", () => startQuiz("jly"));
+document.getElementById("btn-gap").addEventListener("click", () => startQuiz("gap"));
+document.getElementById("btn-tiles").addEventListener("click", () => startQuiz("tiles"));
+document.getElementById("btn-pairs").addEventListener("click", () => startQuiz("pairs"));
+document.getElementById("btn-mistakes").addEventListener("click", () => startQuiz("mistakes"));
+document.getElementById("btn-switch-user").addEventListener("click", () => showScreen("scr-users"));
+document.getElementById("btn-add-user").addEventListener("click", addUser);
+document.getElementById("btn-quit").addEventListener("click", goHome);
+document.getElementById("btn-again").addEventListener("click", () => startQuiz(lastMode));
+document.getElementById("btn-home").addEventListener("click", goHome);
+document.getElementById("sh-next").addEventListener("click", nextQuestion);
+
+updateHome();
+</script>
+</body>
+</html>
