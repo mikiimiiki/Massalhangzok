@@ -182,6 +182,9 @@ function normUser(u) {
   // a régi, már 3 napos szavak megtartják az elsajátított státuszt
   Object.values(u.srs).forEach(r => { if (r.days >= 3 && r.strong === undefined) { r.strong = 1; r.rf = 0; r.due = Math.max(r.due || 0, dayNum() + 30); } });
   u.theme = u.theme || "";
+  u.best = Math.max(u.best || 0, u.streak.n || 0);          // legjobb sorozat (nem veszik el, ha megszakad)
+  u.maxM = Math.max(u.maxM || 0, masteredCount(u));         // legtöbb elsajátított szó
+  if (!Array.isArray(u.unl)) u.unl = Array.isArray(u.unl) ? u.unl : (u.unl ? Object.values(u.unl) : REWARDS.filter(r => isUnlocked(u, r)).map(rewardKey));
   return u;
 }
 function curUser() {
@@ -364,21 +367,87 @@ function refreshViews() {
 const AVATARS = ["🦉", "🦊", "🐻", "🐱", "🐶", "🐰", "🐧", "🦁", "🐼", "🦄", "🐲", "🐸"];
 let selectedAvatar = "🦉";
 
-const AV_X = [["🦖", 100], ["🐙", 250], ["🦋", 400], ["🚀", 600], ["👑", 900], ["🐉", 1500]]; // [avatar, kell pont]
+// ---- Jutalmak: pontból, napi sorozatból és elsajátított szavakból nyithatók ----
+// by: "pts" = pont, "streak" = napi sorozat (a legjobb számít), "words" = elsajátított szavak (a legtöbb számít)
+const REWARDS = [
+  // pontok
+  { k: "avatar", v: "🦖", by: "pts", n: 100 }, { k: "avatar", v: "🐙", by: "pts", n: 250 }, { k: "avatar", v: "🦋", by: "pts", n: 400 },
+  { k: "avatar", v: "🚀", by: "pts", n: 600 }, { k: "avatar", v: "👑", by: "pts", n: 900 }, { k: "avatar", v: "🐉", by: "pts", n: 1500 },
+  { k: "avatar", v: "🧙", by: "pts", n: 2500 }, { k: "avatar", v: "🛸", by: "pts", n: 4000 }, { k: "avatar", v: "🏆", by: "pts", n: 6000 },
+  { k: "theme", v: "sunset", name: "Naplemente", by: "pts", n: 150 }, { k: "theme", v: "ocean", name: "Óceán", by: "pts", n: 400 },
+  { k: "theme", v: "forest", name: "Erdő", by: "pts", n: 800 }, { k: "theme", v: "galaxy", name: "Galaxis", by: "pts", n: 1500 },
+  { k: "theme", v: "aurora", name: "Sarki fény", by: "pts", n: 3000 },
+  // napi sorozat
+  { k: "avatar", v: "🦅", by: "streak", n: 7 }, { k: "avatar", v: "🐺", by: "streak", n: 14 }, { k: "avatar", v: "🦚", by: "streak", n: 30 },
+  { k: "avatar", v: "🐘", by: "streak", n: 60 }, { k: "avatar", v: "🦈", by: "streak", n: 100 },
+  { k: "theme", v: "candy", name: "Cukorka", by: "streak", n: 14 }, { k: "theme", v: "ember", name: "Parázs", by: "streak", n: 30 },
+  // elsajátított szavak
+  { k: "avatar", v: "🦔", by: "words", n: 50 }, { k: "avatar", v: "🦥", by: "words", n: 100 }, { k: "avatar", v: "🦩", by: "words", n: 150 },
+  { k: "avatar", v: "🐋", by: "words", n: 200 }, { k: "avatar", v: "🦜", by: "words", n: 300 }, { k: "avatar", v: "🧞", by: "words", n: 400 },
+  { k: "avatar", v: "🧠", by: "words", n: 500 },
+  { k: "theme", v: "mint", name: "Menta", by: "words", n: 100 }, { k: "theme", v: "peach", name: "Barack", by: "words", n: 250 },
+  // autók és járművek
+  { k: "avatar", c: "car", v: "🚓", by: "pts", n: 120 }, { k: "avatar", c: "car", v: "🚑", by: "pts", n: 300 }, { k: "avatar", c: "car", v: "🚒", by: "pts", n: 700 },
+  { k: "avatar", c: "car", v: "🏍️", by: "streak", n: 7 }, { k: "avatar", c: "car", v: "🏎️", by: "streak", n: 30 },
+  { k: "avatar", c: "car", v: "🚜", by: "words", n: 50 }, { k: "avatar", c: "car", v: "🚁", by: "words", n: 150 }, { k: "avatar", c: "car", v: "✈️", by: "words", n: 300 },
+  // műszaki
+  { k: "avatar", c: "tech", v: "⚙️", by: "pts", n: 180 }, { k: "avatar", c: "tech", v: "🔋", by: "pts", n: 450 }, { k: "avatar", c: "tech", v: "🛰️", by: "pts", n: 1100 },
+  { k: "avatar", c: "tech", v: "🧲", by: "streak", n: 14 }, { k: "avatar", c: "tech", v: "🔭", by: "streak", n: 60 },
+  { k: "avatar", c: "tech", v: "🔬", by: "words", n: 100 }, { k: "avatar", c: "tech", v: "🎮", by: "words", n: 200 }, { k: "avatar", c: "tech", v: "📡", by: "words", n: 400 },
+  // lányos
+  { k: "avatar", c: "girl", v: "🌷", by: "pts", n: 130 }, { k: "avatar", c: "girl", v: "👗", by: "pts", n: 350 }, { k: "avatar", c: "girl", v: "💎", by: "pts", n: 800 },
+  { k: "avatar", c: "girl", v: "🧚", by: "streak", n: 7 }, { k: "avatar", c: "girl", v: "👸", by: "streak", n: 14 }, { k: "avatar", c: "girl", v: "🩰", by: "streak", n: 60 },
+  { k: "avatar", c: "girl", v: "🍓", by: "words", n: 100 }, { k: "avatar", c: "girl", v: "💄", by: "words", n: 200 }, { k: "avatar", c: "girl", v: "🌈", by: "words", n: 350 }
+];
+// avatar-kategóriák; a "free" lista mindenkinek elérhető
+const AV_CATS = [
+  { id: "animal", label: "🦉 Állatok és mesék", free: AVATARS },
+  { id: "car", label: "🚗 Autók és járművek", free: ["🚗", "🚕", "🚙"] },
+  { id: "tech", label: "🔧 Műszaki", free: ["🤖", "🔧", "💡"] },
+  { id: "girl", label: "🎀 Lányos", free: ["🎀", "🌸", "💖"] }
+];
+const avCat = v => (AV_CATS.find(c => c.free.includes(v)) || { id: (REWARDS.find(r => r.k === "avatar" && r.v === v) || {}).c || "animal" }).id;
+let avTab = "";
+const BY_TXT = { pts: n => `${n} pont`, streak: n => `${n} napos sorozat`, words: n => `${n} elsajátított szó` };
+const BY_ICON = { pts: "⭐", streak: "🔥", words: "🃏" };
+const rewardKey = r => r.k + ":" + r.v;
+const rewardLabel = r => r.k === "avatar" ? r.v : "🎨 " + r.name;
+function progress(u) { return { pts: u.pts || 0, streak: Math.max(u.best || 0, streakNow(u)), words: Math.max(u.maxM || 0, masteredCount(u)) }; }
+function isUnlocked(u, r) { return progress(u)[r.by] >= r.n; }
+function lockText(u, r) { const have = progress(u)[r.by]; return `Ehhez ${BY_TXT[r.by](r.n)} kell (most: ${have})`; }
+
+// Új jutalmak értesítése (a régieket az első betöltéskor csendben megjegyezzük)
+function checkUnlocks(u) {
+  const fresh = REWARDS.filter(r => isUnlocked(u, r) && !u.unl.includes(rewardKey(r)));
+  fresh.forEach(r => u.unl.push(rewardKey(r)));
+  if (fresh.length > 3) { setTimeout(() => toast(`🔓 ${fresh.length} új jutalom nyílt meg! Nézd meg a Gyűjteményben.`), 1700); return; }
+  fresh.forEach((r, i) => setTimeout(() => toast(`🔓 Új ${r.k === "avatar" ? "avatar" : "kinézet"}: ${rewardLabel(r)}  (${BY_TXT[r.by](r.n)})`), 1700 * (i + 1)));
+}
+
 function renderAvatarPicker(p = $("avatar-picker"), after = renderUsers) {
   p.innerHTML = "";
   const u = curUser();
-  [...AVATARS.map(e => [e, 0]), ...AV_X].forEach(([emoji, need]) => {
-    const locked = u.pts < need, sel = emoji === u.avatar;
-    const b = btn("", locked ? "🔒" : emoji, () => {
-      if (locked) { toast(`Ehhez ${need} pont kell (most: ${u.pts})`); return; }
-      selectedAvatar = emoji; u.avatar = emoji; saveState(); after();
+  if (!avTab || !AV_CATS.some(c => c.id === avTab)) avTab = avCat(u.avatar);
+  const itemsOf = id => [...AV_CATS.find(c => c.id === id).free.map(v => ({ v, r: null })), ...REWARDS.filter(r => r.k === "avatar" && (r.c || "animal") === id).map(r => ({ v: r.v, r }))];
+
+  const tabs = el("div", "levels"); tabs.style.cssText = "width:100%;margin-bottom:6px";
+  AV_CATS.forEach(c => {
+    const it = itemsOf(c.id), got = it.filter(x => !x.r || isUnlocked(u, x.r)).length;
+    tabs.append(btn("lvl" + (c.id === avTab ? " on" : ""), `${c.label} (${got}/${it.length})`, () => { avTab = c.id; renderAvatarPicker(p, after); }));
+  });
+  const grid = el("div"); grid.style.cssText = "display:flex;flex-wrap:wrap;justify-content:center;gap:8px;width:100%";
+  itemsOf(avTab).forEach(({ v, r }) => {
+    const locked = r && !isUnlocked(u, r), sel = v === u.avatar;
+    const b = btn("", locked ? "🔒" : v, () => {
+      if (locked) { toast(lockText(u, r)); return; }
+      selectedAvatar = v; u.avatar = v; saveState(); after();
     });
     b.style.cssText = `font-size:26px;width:44px;height:44px;border-radius:12px;cursor:pointer;border:2px solid ${sel ? "#7c3aed" : "#e2e8f0"};background:${sel ? "#ede9fe" : "#fff"};${locked ? "opacity:.5;" : ""}`;
-    b.setAttribute("aria-label", locked ? `Zárolt avatar, ${need} pont kell` : "Avatar: " + emoji);
-    if (locked) b.title = need + " pont";
-    p.append(b);
+    b.setAttribute("aria-label", locked ? "Zárolt avatar. " + lockText(u, r) : "Avatar: " + v);
+    if (locked) b.title = BY_TXT[r.by](r.n);
+    grid.append(b);
   });
+  p.append(tabs, grid);
 }
 
 function renderUsers() {
@@ -818,7 +887,8 @@ function finishAnswer(ok, full, meta = {}) {
     $("sh-head").textContent = (combo >= 3 ? `Szuper! (+${gain} pont, ${combo}x sorozat!)` : `Helyes! (+${gain} pont)`) + (before + 1 === S.goal ? " 🎉 Napi cél teljesítve!" : "");
     $("sh-full").textContent = "Helyes alak: " + full + (newCard ? "   🃏 Új szókártya az albumban!" : "");
     $("sh-why").textContent = "";
-    checkBadges(u);
+    u.best = Math.max(u.best || 0, u.streak.n); u.maxM = Math.max(u.maxM || 0, masteredCount(u));
+    checkBadges(u); checkUnlocks(u);
     if (S.autoNext) autoT = setTimeout(nextQuestion, 1200); // csak helyes válasznál
   } else {
     combo = 0;
@@ -993,7 +1063,6 @@ function renderParent() {
 }
 
 // ---------- 12c. Szókártya-album és jutalmak ----------
-const THEMES = [["", "Alap", 0], ["sunset", "Naplemente", 150], ["ocean", "Óceán", 400], ["forest", "Erdő", 800], ["galaxy", "Galaxis", 1500]];
 let albumTab = "hosszu", albumOnly = false;
 
 function renderAlbum() {
@@ -1005,17 +1074,29 @@ function renderAlbum() {
   const bar = el("div", "bar"), bi = el("i"); bi.style.width = Math.round(got / all.length * 100) + "%"; bar.append(bi); sp.append(bar);
   sp.append(el("p", null, "Egy szó akkor lesz kártya, ha 3 különböző napon helyesen válaszoltál rá, és legalább egyszer nehezebb feladatban is (3 opció, gépelés vagy betűkirakó). Ha a szót 30 nap múlva is tudod, ⭐ kerül a kártyára."));
 
-  const tp = panel("🎨 Kinézet (pontokból nyitható)"), tr = el("div", "levels");
-  THEMES.forEach(([id, name, need]) => {
-    const locked = u.pts < need;
-    tr.append(btn("lvl" + ((u.theme || "") === id ? " on" : ""), locked ? `🔒 ${name} (${need} p)` : name, () => {
-      if (locked) { toast(`Ehhez ${need} pont kell (most: ${u.pts})`); return; }
-      u.theme = id; saveState(); updateBar(); renderAlbum();
+  // Következő célok: kategóriánként a legközelebbi még zárolt jutalom
+  const gp = panel("🎯 Következő jutalmak"), pr = progress(u);
+  ["pts", "streak", "words"].forEach(by => {
+    const next = REWARDS.filter(r => r.by === by && pr[by] < r.n).sort((x, y) => x.n - y.n)[0];
+    const row = el("div", "trow"), bar2 = el("div", "bar"), i2 = el("i");
+    if (!next) { i2.style.width = "100%"; bar2.append(i2); row.append(el("span", null, `${BY_ICON[by]} ${{ pts: "Pont", streak: "Sorozat", words: "Szavak" }[by]}`), bar2, el("span", null, "✓ mind megvan")); }
+    else { i2.style.width = Math.min(100, Math.round(pr[by] / next.n * 100)) + "%"; bar2.append(i2); row.append(el("span", null, `${BY_ICON[by]} ${rewardLabel(next)}`), bar2, el("span", null, `${pr[by]}/${next.n}`)); }
+    gp.append(row);
+  });
+  gp.append(el("p", null, "Pontot minden helyes válasz ad. A sorozat az egymás utáni napok száma (a legjobb számít). Az elsajátított szavak a Gyűjtemény kártyái."));
+
+  const tp = panel("🎨 Kinézet"), tr = el("div", "levels");
+  tr.append(btn("lvl" + (!u.theme ? " on" : ""), "Alap", () => { u.theme = ""; saveState(); updateBar(); renderAlbum(); }));
+  REWARDS.filter(r => r.k === "theme").forEach(r => {
+    const locked = !isUnlocked(u, r);
+    tr.append(btn("lvl" + (u.theme === r.v ? " on" : ""), locked ? `🔒 ${r.name} (${BY_TXT[r.by](r.n)})` : r.name, () => {
+      if (locked) { toast(lockText(u, r)); return; }
+      u.theme = r.v; saveState(); updateBar(); renderAlbum();
     }));
   });
   tp.append(tr);
 
-  const ap = panel("🧑‍🎤 Avatarok (pontokból nyitható)"), ad = el("div");
+  const ap = panel("🧑‍🎤 Avatarok"), ad = el("div");
   ad.style.cssText = "display:flex;flex-wrap:wrap;gap:8px"; ap.append(ad);
   renderAvatarPicker(ad, renderAlbum);
 
