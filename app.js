@@ -110,15 +110,48 @@ function analyzeJlyWord(word) {
   return null;
 }
 
-function getSynonymsForWord(word) {
-  if (WORD_SYNONYMS[word]) return WORD_SYNONYMS[word];
-  const j = JLY_MAP[word];
-  return (j && j.hint) || "Keresd meg a betűkből összeálló magyar szót!";
+// ---- Tippek: a megoldást eláruló részek kiszűrése ----
+const HINT_FIX = {
+  ebbe: "erre a helyre, ide", Csilla: "lánynév (a csillag szóból ered)", Gellért: "fiúnév (budapesti hegy névadója)",
+  Ilona: "lánynév (becézve: Ili)", Jolán: "lánynév (becézve: Joli)", Mónika: "lánynév (Móni)", Vivien: "lánynév (Vivi)",
+  Kossuth: "híres magyar államférfi, 1848-as kormányzó", víziló: "afrikai, nagy testű vízi emlős", liter: "űrmérték (tíz deci egy ilyen)",
+  szisszen: "halk, éles hangot ad (mint a kígyó)", folyam: "nagy vízi út, a Duna is ilyen", gombolyag: "feltekert, gömbölyű fonalcsomó",
+  korcsolya: "jégen siklásra való, cipőre szerelt eszköz", olaj: "sütéshez használt folyékony zsiradék", pálya: "versenyek helyszíne, futóút, életút",
+  ölyv: "ragadozó madár (az egér a kedvenc zsákmánya)", sólyom: "gyors, vadászó ragadozó madár", tojás: "a tyúk adja, húsvétkor festik",
+  ujjú: "olyan ruha, aminek ujja van", ujj: "a kéz vagy a láb nyúlványa"
+};
+const foldTxt = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+function hintLeaks(word, chunk) {
+  const w = foldTxt(word), stem = w.length >= 5 ? w.slice(0, w.length - 2) : w;
+  return foldTxt(chunk).split(/[^a-z0-9]+/).filter(Boolean).some(t => (w.length >= 4 && t.includes(w)) || t.startsWith(stem));
+}
+function maskWord(word, part) { // összetett szó: a megoldás részét ▢ jelöli (pl. pókháló → pók▢)
+  const n = word.length, w = foldTxt(word);
+  if (n < 4 || foldTxt(part) === w) return null;
+  let out = "", i = 0, hit = false;
+  while (i < part.length) { if (foldTxt(part.slice(i, i + n)) === w) { out += "▢"; i += n; hit = true; } else out += part[i++]; }
+  const rest = out.replace(/▢/g, "").trim().length;
+  return hit && (out.endsWith("▢") ? rest >= 3 : out.startsWith("▢") && rest >= 6) ? out : null;
+}
+function cleanHint(word, text) {
+  if (HINT_FIX[word]) return HINT_FIX[word];
+  const all = text.split(/,\s*(?![^()]*\))/), keep = all.filter(p => !hintLeaks(word, p));
+  if (keep.length < 2) all.filter(p => hintLeaks(word, p)).forEach(p => { const m = maskWord(word, p); if (m && keep.length < 4) keep.push(m); });
+  return keep.length ? keep.join(", ") : "Gondolj a szó jelentésére, és hallgasd meg a hangokat!";
+}
+const hintCache = {};
+
+// raw = true: a teljes szöveg (csak válasz UTÁN, vagy az albumban használjuk)
+function getSynonymsForWord(word, raw = false) {
+  const src = WORD_SYNONYMS[word] || (JLY_MAP[word] && JLY_MAP[word].hint) || "";
+  if (!src) return "Keresd meg a betűkből összeálló magyar szót!";
+  if (raw) return src;
+  return hintCache[word] || (hintCache[word] = cleanHint(word, src));
 }
 
 // Hibás válasz utáni, mondatos magyarázat
 function explainWord(w) {
-  if (JLY_MAP[w]) return `A(z) „${w}” j/ly szó: ezt nem lehet kiejtésből eldönteni, meg kell jegyezni. Jelentése: ${JLY_MAP[w].hint}.`;
+  if (JLY_MAP[w]) return `A(z) „${w}” j/ly szó: ezt nem lehet kiejtésből eldönteni, meg kell jegyezni. Jelentése: ${getSynonymsForWord(w, true)}.`;
   const i = analyzeWord(w);
   if (i) return i.hasLong
     ? `A(z) „${w}” szóban hosszú mássalhangzó van: „${i.longPart}”. Mondd ki hangosan, a hosszú hangot hosszabban ejtjük.`
@@ -281,7 +314,7 @@ function streakNow(u) { const t = dayNum(); return (u.streak.last === dateKey(t)
 
 function renderLevels() {
   const w = $("levels"); w.innerHTML = "";
-  [[1, "Kezdő", "2 opció"], [2, "Haladó", "3 opció"], [3, "Mester", "gépelés"]].forEach(([n, a, b]) => {
+  [[1, "Kezdő", "2 opció"], [2, "Haladó", "3 opció"], [3, "Mester", "4 opció / gépelés"]].forEach(([n, a, b]) => {
     w.append(btn("lvl" + (state.settings.level === n ? " on" : ""), `${a} · ${b}`, () => { state.settings.level = n; persist(); renderLevels(); }));
   });
 }
@@ -499,6 +532,32 @@ function extraVariant(word, avoid) {
   }
   return null;
 }
+// További, hihető hibás alakok: más mássalhangzó-hosszúság, magánhangzó-hosszúság (á/a, ő/ö …)
+const ACC = { a: "á", á: "a", e: "é", é: "e", i: "í", í: "i", o: "ó", ó: "o", ö: "ő", ő: "ö", u: "ú", ú: "u", ü: "ű", ű: "ü" };
+function vowelVariants(word) {
+  const out = [];
+  [...word].forEach((c, i) => { const lo = c.toLowerCase(), m = ACC[lo]; if (m) out.push(word.slice(0, i) + (c === lo ? m : m.toUpperCase()) + word.slice(i + 1)); });
+  return out;
+}
+function consVariants(word, skip) {
+  const out = [];
+  [...word].forEach((c, i) => {
+    const lo = c.toLowerCase();
+    if (!"bcdfghjklmnpqrstvwxz".includes(lo) || skip.includes(lo) || (i === 0 && word[1] !== c)) return; // szó elején nem duplázunk
+    out.push(word[i + 1] === c ? word.slice(0, i) + word.slice(i + 1) : word.slice(0, i + 1) + c + word.slice(i + 1));
+  });
+  return out;
+}
+function moreVariants(word, avoid, n, skip = "") {
+  const ok = v => v !== word && !avoid.includes(v);
+  const pools = shuffle([shuffle([...new Set(consVariants(word, skip))]).filter(ok), shuffle([...new Set(vowelVariants(word))]).filter(ok)]);
+  const out = [];
+  for (let k = 0; out.length < n && (pools[0].length || pools[1].length); k++) {
+    const x = pools[k % 2].shift();
+    if (x && !out.includes(x)) out.push(x);
+  }
+  return out;
+}
 function extraFragment(c, w) {
   const used = [c, w], first = c[0].toLowerCase();
   const pool = FRAGS.filter(f => !used.includes(f) && f[0] === first);
@@ -565,11 +624,10 @@ function renderQuestion() {
 
   if (T.type === "jly") {
     const jo = T.item, ji = analyzeJlyWord(jo.w), meta = { topic: "jly", explain: explainWord(jo.w) };
-    setTag("j vagy ly gyakorló", "#ea580c", L === 3 ? "Írd be a szót helyesen!" : "Válaszd ki a helyesen írt alakot!");
-    clue("💡 Jelentése: " + (jo.hint || getSynonymsForWord(jo.w)));
-    if (L === 3) { renderTyping(body, jo.w, meta, ""); return; }
+    setTag("j vagy ly gyakorló", "#ea580c", "Válaszd ki a helyesen írt alakot!");
+    clue("💡 Jelentése: " + getSynonymsForWord(jo.w));
     const opts = [jo.w, ji.wrongWord];
-    if (L >= 2) { const x = extraVariant(jo.w, opts); if (x) opts.push(x); }
+    if (L >= 2) opts.push(...moreVariants(jo.w, opts, L >= 3 ? 2 : 1, "jly")); // 2. szint: 3 alak, 3. szint: 4 alak
     makeOptionButtons(shuffle(opts), jo.w, jo.w, body, meta);
     return;
   }
@@ -963,7 +1021,7 @@ function renderAlbum() {
     const c = el("div", "wcard " + (m ? "got" : r ? "learn" : "new"));
     if (m) {
       c.append(el("b", null, w + ((r.rf || 0) >= 1 ? " ⭐" : "")));
-      c.title = getSynonymsForWord(w); c.addEventListener("click", () => toast(w + ": " + getSynonymsForWord(w)));
+      c.title = getSynonymsForWord(w, true); c.addEventListener("click", () => toast(w + ": " + getSynonymsForWord(w, true)));
     } else if (r) { const d = Math.min(r.days, 3); c.append(el("b", null, "🌱"), el("small", null, "●".repeat(d) + "○".repeat(3 - d))); }
     else c.append(el("b", null, "?"), el("small", null, w.length + " betű"));
     grid.append(c);
