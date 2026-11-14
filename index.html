@@ -325,6 +325,7 @@
     <div style="font-size:56px">🦉</div>
     <h2>Ki játszik most?</h2>
     <div class="plist" id="user-list"></div>
+	<div id="avatar-picker" style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:10px 0;"></div>
     <input type="text" id="new-user-inp" placeholder="Új név beírása..." maxlength="18">
     <button class="primary" style="width:100%" id="btn-add-user">Hozzáadás és indítás</button>
   </div>
@@ -1556,10 +1557,11 @@ document.getElementById("mon-sync").addEventListener("click", () => {
 
 function curUser() {
   if (!state.users[state.current]) {
-    state.users[state.current] = { pts: 0, mastered: [], practiced: [], mistakes: [], daily: {} };
+    state.users[state.current] = { pts: 0, avatar: selectedAvatar, mastered: [], practiced: [], mistakes: [], daily: {} };
   }
   const u = state.users[state.current];
   u.pts = u.pts || 0;
+  u.avatar = u.avatar || "🦉";
   u.mastered = Array.isArray(u.mastered) ? u.mastered : Object.values(u.mastered || {});
   u.practiced = Array.isArray(u.practiced) ? u.practiced : Object.values(u.practiced || {});
   u.mistakes = Array.isArray(u.mistakes) ? u.mistakes : Object.values(u.mistakes || {});
@@ -1567,8 +1569,16 @@ function curUser() {
   return u;
 }
 
+function syncMascots() {
+  const av = curUser().avatar || "🦉";
+  document.querySelectorAll(".mascot").forEach((el) => {
+    el.textContent = av;
+  });
+}
+
 function updateMonitorBar() {
   const u = curUser();
+  syncMascots();
   const todayCount = u.daily[getTodayKey()] || 0;
   document.getElementById("mon-total").textContent = ALL_UNIQUE_WORDS.size;
   document.getElementById("mon-practiced").textContent = u.practiced.length;
@@ -1630,16 +1640,45 @@ function goHome() {
   showScreen("scr-home");
 }
 
+const AVATARS = ["🦉", "🦊", "🐻", "🐱", "🐶", "🐰", "🐧", "🦁", "🐼", "🦄", "🐲", "🐸"];
+let selectedAvatar = "🦉";
+
+function renderAvatarPicker() {
+  const picker = document.getElementById("avatar-picker");
+  if (!picker) return;
+  picker.innerHTML = "";
+  AVATARS.forEach((emoji) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = emoji;
+    const isSel = emoji === selectedAvatar;
+    btn.style.cssText = `font-size:26px;width:44px;height:44px;border-radius:12px;cursor:pointer;border:2px solid ${isSel ? "#7c3aed" : "#e2e8f0"};background:${isSel ? "#ede9fe" : "#ffffff"};`;
+    btn.addEventListener("click", () => {
+      selectedAvatar = emoji;
+      curUser().avatar = emoji;
+      saveState();
+      renderUsers();
+      syncMascots();
+    });
+    picker.appendChild(btn);
+  });
+}
+
 function renderUsers() {
+  selectedAvatar = curUser().avatar || "🦉";
+  renderAvatarPicker();
+  syncMascots();
   const list = document.getElementById("user-list");
   list.innerHTML = "";
   Object.keys(state.users).forEach(name => {
+    const av = state.users[name].avatar || "🦉";
     const btn = document.createElement("button");
     btn.className = "profile" + (name === state.current ? " cur" : "");
-    btn.innerHTML = "<span>👤 " + name + "</span><span>" + state.users[name].pts + " p</span>";
+    btn.innerHTML = "<span>" + av + " " + name + "</span><span>" + (state.users[name].pts || 0) + " p</span>";
     btn.addEventListener("click", () => {
       state.current = name;
       saveState();
+      syncMascots();
       goHome();
     });
     list.appendChild(btn);
