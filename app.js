@@ -144,15 +144,20 @@ function normUser(u) {
   u.daily = u.daily || {}; u.srs = u.srs || {}; u.stats = u.stats || {};
   u.streak = u.streak || { n: 0, last: "" }; u.upd = u.upd || 0;
   // régi "mastered" lista átvétele a Leitner-rendszerbe
-  u.mastered.forEach(w => { if (!u.srs[w]) u.srs[w] = { b: 2, days: 2, last: "", due: dayNum() }; });
+  u.mastered.forEach(w => { if (!u.srs[w]) u.srs[w] = { b: 2, days: 2, strong: 0, last: "", due: dayNum() }; });
   u.mastered = [];
+  // a régi, már 3 napos szavak megtartják az elsajátított státuszt
+  Object.values(u.srs).forEach(r => { if (r.days >= 3 && r.strong === undefined) { r.strong = 1; r.rf = 0; r.due = Math.max(r.due || 0, dayNum() + 30); } });
+  u.theme = u.theme || "";
   return u;
 }
 function curUser() {
   if (!state.users[state.current]) state.users[state.current] = newUser();
   return normUser(state.users[state.current]);
 }
-const masteredCount = u => Object.values(u.srs).filter(r => r.days >= 3).length;
+const REFRESH = [30, 60, 90]; // elsajátítás után ennyi nap múlva jön vissza a szó
+const isMastered = r => !!r && r.days >= 3 && (r.strong || 0) >= 1;
+const masteredCount = u => Object.values(u.srs).filter(isMastered).length;
 const persist = () => localStorage.setItem(STORE_KEY, JSON.stringify(state));
 
 function setSync(text, cls) { const e = $("mon-sync"); if (e) { e.textContent = text; e.className = "sync-badge " + (cls || ""); } }
@@ -260,14 +265,14 @@ function checkBadges(u) { BADGES.forEach(b => b.t(u) && awardBadge(u, b)); }
 
 // ---------- 6. Képernyők ----------
 function syncMascots() { const av = curUser().avatar; document.querySelectorAll(".mascot").forEach(e => e.textContent = av); }
-function updateBar() { syncMascots(); $("mon-today").textContent = curUser().daily[todayKey()] || 0; }
+function updateBar() { document.body.dataset.theme = curUser().theme || ""; syncMascots(); $("mon-today").textContent = curUser().daily[todayKey()] || 0; }
 function applySettings() { document.body.classList.toggle("dys", !!state.settings.dyslexia); }
 
 const RANKS = [{ min: 0, name: "Kezdő Betűvadász" }, { min: 150, name: "Helyesírás Inas" }, { min: 400, name: "Mássalhangzó Mester" }, { min: 800, name: "Betűvarázsló" }, { min: 1500, name: "Nyelvtan Bajnok" }];
 
 function dueWords(u) {
   const t = dayNum();
-  return [...new Set([...u.mistakes, ...Object.keys(u.srs).filter(w => u.srs[w].due <= t && u.srs[w].days < 3)])].filter(w => ALL_UNIQUE_WORDS.has(w));
+  return [...new Set([...u.mistakes, ...Object.keys(u.srs).filter(w => u.srs[w].due <= t)])].filter(w => ALL_UNIQUE_WORDS.has(w));
 }
 const MODE_TOPIC = { choice: "hosszu", gap: "hosszu", jly: "jly", tiles: "tiles", pairs: "pair" };
 const blockedTopics = u => (u.block && u.block.day === todayKey()) ? Object.values(u.block.topics || {}) : [];
@@ -310,6 +315,7 @@ function showScreen(id) {
   if (id === "scr-users") renderUsers();
   if (id === "scr-stats") renderStats();
   if (id === "scr-parent") renderParent();
+  if (id === "scr-album") renderAlbum();
   updateBar();
   scrollTo(0, 0);
 }
@@ -325,13 +331,19 @@ function refreshViews() {
 const AVATARS = ["🦉", "🦊", "🐻", "🐱", "🐶", "🐰", "🐧", "🦁", "🐼", "🦄", "🐲", "🐸"];
 let selectedAvatar = "🦉";
 
-function renderAvatarPicker() {
-  const p = $("avatar-picker"); p.innerHTML = "";
-  AVATARS.forEach(emoji => {
-    const b = btn("", emoji, () => { selectedAvatar = emoji; curUser().avatar = emoji; saveState(); renderUsers(); });
-    const sel = emoji === selectedAvatar;
-    b.style.cssText = `font-size:26px;width:44px;height:44px;border-radius:12px;cursor:pointer;border:2px solid ${sel ? "#7c3aed" : "#e2e8f0"};background:${sel ? "#ede9fe" : "#fff"};`;
-    b.setAttribute("aria-label", "Avatar: " + emoji);
+const AV_X = [["🦖", 100], ["🐙", 250], ["🦋", 400], ["🚀", 600], ["👑", 900], ["🐉", 1500]]; // [avatar, kell pont]
+function renderAvatarPicker(p = $("avatar-picker"), after = renderUsers) {
+  p.innerHTML = "";
+  const u = curUser();
+  [...AVATARS.map(e => [e, 0]), ...AV_X].forEach(([emoji, need]) => {
+    const locked = u.pts < need, sel = emoji === u.avatar;
+    const b = btn("", locked ? "🔒" : emoji, () => {
+      if (locked) { toast(`Ehhez ${need} pont kell (most: ${u.pts})`); return; }
+      selectedAvatar = emoji; u.avatar = emoji; saveState(); after();
+    });
+    b.style.cssText = `font-size:26px;width:44px;height:44px;border-radius:12px;cursor:pointer;border:2px solid ${sel ? "#7c3aed" : "#e2e8f0"};background:${sel ? "#ede9fe" : "#fff"};${locked ? "opacity:.5;" : ""}`;
+    b.setAttribute("aria-label", locked ? `Zárolt avatar, ${need} pont kell` : "Avatar: " + emoji);
+    if (locked) b.title = need + " pont";
     p.append(b);
   });
 }
@@ -454,6 +466,12 @@ function pickFrom(list, n, u) {
   return [...shuffle(list.filter(w => due.has(w))), ...shuffle(list.filter(w => !due.has(w)))].slice(0, n);
 }
 
+let curLevel = 1;
+function effLevel(T) {
+  const w = T.word || (T.item && T.item.w), r = w && curUser().srs[w];
+  const need = r && (isMastered(r) || (r.days >= 3 && !r.strong)); // ellenőrző vagy frissítő kérdés
+  return Math.max(state.settings.level, need ? 2 : 1);
+}
 function startQuiz(mode) {
   const u = curUser();
   lastMode = mode; qIndex = 0; sessionScore = 0; sessionRoundOk = 0; combo = 0; sessionBadges = [];
@@ -517,13 +535,13 @@ function renderTyping(body, word, meta, mask) {
 }
 
 function renderQuestion() {
-  answered = false; clearTimeout(autoT);
+  answered = false; clearTimeout(autoT); hideRetype();
   $("sheet").classList.remove("on");
   $("q-prog").style.width = (qIndex / queue.length * 100) + "%";
   $("q-score").textContent = sessionScore + " p";
   $("q-combo").textContent = combo >= 2 ? "🔥 " + combo + "x" : "";
 
-  const T = currentTask = queue[qIndex], L = state.settings.level;
+  const T = currentTask = queue[qIndex], L = curLevel = effLevel(T);
   const body = $("q-body"), tag = $("q-tag"), title = $("q-title");
   body.innerHTML = "";
   const setTag = (txt, col, ttl) => { tag.textContent = txt; tag.style.background = col; title.textContent = ttl; };
@@ -687,17 +705,34 @@ function removeTile(pos) { const s = tileSlots[pos]; if (answered || !s || s.loc
 function clearUnlocked() { if (answered) return; tileSlots.forEach((s, i) => { if (s && !s.locked) { $("t-" + s.poolIdx).classList.remove("used"); tileSlots[i] = null; } }); updateSlots(); }
 
 // ---------- 11. Kiértékelés ----------
+let retype = null;
+function hideRetype() { retype = null; const i = $("sh-retype"); i.style.display = "none"; i.value = ""; i.disabled = false; i.classList.remove("done"); $("sh-next").disabled = false; }
+function showRetype(w) {
+  retype = w; const i = $("sh-retype"); i.value = ""; i.disabled = false; i.classList.remove("done"); i.style.display = "block";
+  i.placeholder = "✍️ Írd le a helyes alakot, hogy tovább léphess"; $("sh-next").disabled = true; setTimeout(() => i.focus(), 350);
+}
 function finishAnswer(ok, full, meta = {}) {
   clearTimeout(autoT);
   const u = curUser(), t = dayNum(), key = todayKey(), S = state.settings;
   const tp = meta.topic || "hosszu", st = u.stats[tp] = u.stats[tp] || { ok: 0, n: 0 };
   st.n++;
 
+  let newCard = false;
   if (ALL_UNIQUE_WORDS.has(full)) { // Leitner-rendszer
     if (!u.practiced.includes(full)) u.practiced.push(full);
-    const r = u.srs[full] = u.srs[full] || { b: 0, days: 0, last: "", due: t };
-    if (ok) { if (r.last !== key) { r.days++; r.b = Math.min(r.b + 1, 4); } r.last = key; r.due = t + INTERVALS[r.b]; }
-    else { r.b = 0; r.days = Math.max(0, r.days - 1); r.due = t + 1; r.miss = (r.miss || 0) + 1; }
+    const r = u.srs[full] = u.srs[full] || { b: 0, days: 0, strong: 0, last: "", due: t };
+    if (r.strong === undefined) r.strong = 0;
+    const wasM = isMastered(r), strong = curLevel >= 2 || tp === "tiles"; // találgatással nem lehet elsajátítani
+    if (ok) {
+      if (wasM) { r.rf = (r.rf || 0) + 1; r.due = t + REFRESH[Math.min(r.rf, REFRESH.length - 1)]; r.last = key; } // frissítő ismétlés
+      else {
+        if (r.last !== key) { r.days++; r.b = Math.min(r.b + 1, 4); }
+        r.last = key; if (strong) r.strong++;
+        r.due = t + INTERVALS[r.b];
+        if (isMastered(r)) { r.rf = 0; r.due = t + REFRESH[0]; newCard = true; }
+        else if (r.days >= 3) r.due = t + 1; // még egy nehezebb feladat kell
+      }
+    } else { r.b = 0; r.days = Math.max(0, r.days - (wasM ? 2 : 1)); r.due = t + 1; r.miss = (r.miss || 0) + 1; r.rf = 0; }
   }
 
   const sheet = $("sheet");
@@ -709,16 +744,16 @@ function finishAnswer(ok, full, meta = {}) {
     const before = u.daily[key] || 0;
     u.daily[key] = before + 1;
     u.mistakes = u.mistakes.filter(w => w !== full);
-    sheet.className = "sheet ok on";
+    sheet.className = "sheet ok on"; hideRetype();
     $("sh-head").textContent = (combo >= 3 ? `Szuper! (+${gain} pont, ${combo}x sorozat!)` : `Helyes! (+${gain} pont)`) + (before + 1 === S.goal ? " 🎉 Napi cél teljesítve!" : "");
-    $("sh-full").textContent = "Helyes alak: " + full;
+    $("sh-full").textContent = "Helyes alak: " + full + (newCard ? "   🃏 Új szókártya az albumban!" : "");
     $("sh-why").textContent = "";
     checkBadges(u);
     if (S.autoNext) autoT = setTimeout(nextQuestion, 1200); // csak helyes válasznál
   } else {
     combo = 0;
     if (!u.mistakes.includes(full)) u.mistakes.push(full);
-    sheet.className = "sheet bad on";
+    sheet.className = "sheet bad on"; showRetype(full);
     $("sh-head").textContent = "Most nem talált!";
     $("sh-full").textContent = "A helyes írásmód: " + full;
     $("sh-why").textContent = "📖 " + (meta.explain || explainWord(full));
@@ -728,6 +763,7 @@ function finishAnswer(ok, full, meta = {}) {
 }
 
 function nextQuestion() {
+  if (retype) return; // előbb le kell írni a helyes alakot
   clearTimeout(autoT);
   if (!$("sheet").classList.contains("on")) return;
   qIndex++;
@@ -886,6 +922,55 @@ function renderParent() {
   box.append(fr);
 }
 
+// ---------- 12c. Szókártya-album és jutalmak ----------
+const THEMES = [["", "Alap", 0], ["sunset", "Naplemente", 150], ["ocean", "Óceán", 400], ["forest", "Erdő", 800], ["galaxy", "Galaxis", 1500]];
+let albumTab = "hosszu", albumOnly = false;
+
+function renderAlbum() {
+  const u = curUser(), box = $("album-body"); box.innerHTML = "";
+  const panel = title => { const p = el("div", "panel"); p.append(el("h3", null, title)); box.append(p); return p; };
+  const all = [...ALL_UNIQUE_WORDS], got = all.filter(w => isMastered(u.srs[w])).length;
+
+  const sp = panel(`📖 Szókártya-gyűjtemény: ${got} / ${all.length}`);
+  const bar = el("div", "bar"), bi = el("i"); bi.style.width = Math.round(got / all.length * 100) + "%"; bar.append(bi); sp.append(bar);
+  sp.append(el("p", null, "Egy szó akkor lesz kártya, ha 3 különböző napon helyesen válaszoltál rá, és legalább egyszer nehezebb feladatban is (3 opció, gépelés vagy betűkirakó). Ha a szót 30 nap múlva is tudod, ⭐ kerül a kártyára."));
+
+  const tp = panel("🎨 Kinézet (pontokból nyitható)"), tr = el("div", "levels");
+  THEMES.forEach(([id, name, need]) => {
+    const locked = u.pts < need;
+    tr.append(btn("lvl" + ((u.theme || "") === id ? " on" : ""), locked ? `🔒 ${name} (${need} p)` : name, () => {
+      if (locked) { toast(`Ehhez ${need} pont kell (most: ${u.pts})`); return; }
+      u.theme = id; saveState(); updateBar(); renderAlbum();
+    }));
+  });
+  tp.append(tr);
+
+  const ap = panel("🧑‍🎤 Avatarok (pontokból nyitható)"), ad = el("div");
+  ad.style.cssText = "display:flex;flex-wrap:wrap;gap:8px"; ap.append(ad);
+  renderAvatarPicker(ad, renderAlbum);
+
+  const sets = { hosszu: ["Hosszú mássalhangzók", M_UNIQUE], jly: ["j / ly", JLY_LIST.map(x => x.w)] };
+  const cp = panel("🃏 Szókártyák"), tabs = el("div", "levels");
+  Object.entries(sets).forEach(([k, [label]]) => tabs.append(btn("lvl" + (k === albumTab ? " on" : ""), label, () => { albumTab = k; renderAlbum(); })));
+  const only = el("label", "setrow"), cb = el("input"); cb.type = "checkbox"; cb.checked = albumOnly;
+  cb.addEventListener("change", () => { albumOnly = cb.checked; renderAlbum(); });
+  only.append(el("span", null, "Csak a megszerzettek"), cb);
+  cp.append(tabs, only);
+  const grid = el("div", "wgrid");
+  [...new Set(sets[albumTab][1])].sort((a, b) => a.localeCompare(b, "hu")).forEach(w => {
+    const r = u.srs[w], m = isMastered(r);
+    if (albumOnly && !m) return;
+    const c = el("div", "wcard " + (m ? "got" : r ? "learn" : "new"));
+    if (m) {
+      c.append(el("b", null, w + ((r.rf || 0) >= 1 ? " ⭐" : "")));
+      c.title = getSynonymsForWord(w); c.addEventListener("click", () => toast(w + ": " + getSynonymsForWord(w)));
+    } else if (r) { const d = Math.min(r.days, 3); c.append(el("b", null, "🌱"), el("small", null, "●".repeat(d) + "○".repeat(3 - d))); }
+    else c.append(el("b", null, "?"), el("small", null, w.length + " betű"));
+    grid.append(c);
+  });
+  cp.append(grid);
+}
+
 // ---------- 13. Eseménykezelők és indítás ----------
 [["mixed", "btn-mixed"], ["choice", "btn-choice"], ["jly", "btn-jly"], ["gap", "btn-gap"], ["tiles", "btn-tiles"], ["pairs", "btn-pairs"], ["mistakes", "btn-mistakes"]]
   .forEach(([mode, id]) => $(id).addEventListener("click", () => startQuiz(mode)));
@@ -894,6 +979,12 @@ $("btn-users-back").addEventListener("click", goHome);
 $("btn-stats").addEventListener("click", () => showScreen("scr-stats"));
 $("btn-parent").addEventListener("click", openParent);
 $("btn-parent-back").addEventListener("click", goHome);
+$("btn-album").addEventListener("click", () => showScreen("scr-album"));
+$("btn-album-back").addEventListener("click", goHome);
+$("sh-retype").addEventListener("input", () => { // a helyes alak begépelése után lehet továbblépni
+  const i = $("sh-retype");
+  if (retype && i.value.trim() === retype) { retype = null; i.classList.add("done"); i.disabled = true; $("sh-next").disabled = false; $("sh-next").focus(); }
+});
 $("btn-stats-back").addEventListener("click", goHome);
 $("btn-add-user").addEventListener("click", addUser);
 $("new-user-inp").addEventListener("keydown", e => { if (e.key === "Enter") addUser(); });

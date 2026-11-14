@@ -82,3 +82,18 @@ body.shake .screen { animation: shakeScr .45s; }
   #flash.on { animation: none; opacity: .2; }
   .boom { animation: none; transform: translate(-50%,-50%); }
 }
+
+/* Hibaleírás, album, kinézetek */
+.typeinp.retype { display: none; margin: 8px 0 0; font-size: 20px; padding: 8px; max-width: 340px; }
+.typeinp.retype.done { border-color: #16a34a; background: #dcfce7; }
+.primary:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+.wgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-top: 10px; }
+.wcard { border-radius: 14px; padding: 10px 6px; text-align: center; min-height: 68px; display: flex; flex-direction: column; justify-content: center; gap: 2px; font-weight: 800; border: 2px solid var(--line); background: #f8fafc; color: #94a3b8; }
+.wcard b { font-size: 18px; word-break: break-word; }
+.wcard small { font-size: 11px; }
+.wcard.got { background: linear-gradient(135deg, #fef9c3, #fde68a); border-color: #f59e0b; color: #78350f; cursor: pointer; }
+.wcard.learn { background: #f0fdf4; border-color: #86efac; color: #166534; }
+body[data-theme=sunset] { --bg1: #ffedd5; --bg2: #fecdd3; }
+body[data-theme=ocean] { --bg1: #cffafe; --bg2: #bfdbfe; }
+body[data-theme=forest] { --bg1: #dcfce7; --bg2: #fef9c3; }
+body[data-theme=galaxy] { --bg1: #e9d5ff; --bg2: #c7d2fe; }
