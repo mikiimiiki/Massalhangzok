@@ -61,3 +61,9 @@ body.dys .word-display { letter-spacing: .08em; }
   .mascot, .opt.bad { animation: none !important; }
   * { transition-duration: .01ms !important; }
 }
+
+/* Szülői nézet, zárolt gombok */
+.big:disabled { opacity: .4; filter: grayscale(.7); cursor: not-allowed; }
+.lock-note { font-weight: 800; color: #b45309; margin: -4px 0 12px; }
+.trow { grid-template-columns: 170px 1fr 84px; }
+@media (max-width: 640px) { .trow { grid-template-columns: 110px 1fr 70px; } }

@@ -198,14 +198,14 @@ function connectCloud() {
 }
 
 // ---------- 4. Kis segédek: felugró ablak, toast, konfetti ----------
-function modal({ title, text = "", value = null, ok = "OK", cancel = "Mégse" }) {
+function modal({ title, text = "", value = null, ok = "OK", cancel = "Mégse", secret = false }) {
   return new Promise(res => {
     const m = $("modal"), box = m.firstElementChild;
     box.innerHTML = "";
     box.append(el("h3", null, title));
     if (text) box.append(el("p", null, text));
     let inp = null;
-    if (value !== null) { inp = el("input", "minp"); inp.value = value; inp.maxLength = 40; box.append(inp); }
+    if (value !== null) { inp = el("input", "minp"); inp.value = value; inp.maxLength = 40; if (secret) { inp.type = "password"; inp.inputMode = "numeric"; } box.append(inp); }
     const done = v => { m.classList.remove("on"); res(v); };
     const row = el("div", "mbtns");
     if (cancel) row.append(btn("secondary", cancel, () => done(null)));
@@ -262,6 +262,9 @@ function dueWords(u) {
   const t = dayNum();
   return [...new Set([...u.mistakes, ...Object.keys(u.srs).filter(w => u.srs[w].due <= t && u.srs[w].days < 3)])].filter(w => ALL_UNIQUE_WORDS.has(w));
 }
+const MODE_TOPIC = { choice: "hosszu", gap: "hosszu", jly: "jly", tiles: "tiles", pairs: "pair" };
+const blockedTopics = u => (u.block && u.block.day === todayKey()) ? Object.values(u.block.topics || {}) : [];
+const topicOf = t => t.type === "pair" ? "pair" : t.type === "jly" ? "jly" : t.type === "tiles" ? "tiles" : "hosszu";
 function streakNow(u) { const t = dayNum(); return (u.streak.last === dateKey(t) || u.streak.last === dateKey(t - 1)) ? u.streak.n : 0; }
 
 function renderLevels() {
@@ -287,6 +290,9 @@ function updateHome() {
   const n = dueWords(u).length;
   $("btn-mistakes").style.display = n ? "flex" : "none";
   $("mistake-cnt").textContent = n;
+  const bl = blockedTopics(u);
+  Object.entries(MODE_TOPIC).forEach(([m, tp]) => { const b = $("btn-" + m), off = bl.includes(tp); b.disabled = off; b.title = off ? "Ma lezárva" : ""; });
+  $("lock-note").textContent = bl.length ? "🔒 Ma néhány feladatot lezártak, hogy a nehezebbekre jusson idő." : "";
   renderLevels(); updateBar();
 }
 
@@ -296,6 +302,7 @@ function showScreen(id) {
   if (id === "scr-home") updateHome();
   if (id === "scr-users") renderUsers();
   if (id === "scr-stats") renderStats();
+  if (id === "scr-parent") renderParent();
   updateBar();
   scrollTo(0, 0);
 }
@@ -450,8 +457,9 @@ function startQuiz(mode) {
     const m = pickFrom(M_UNIQUE, 7, u), j = pickFrom(JLY_LIST.map(x => x.w), 3, u).map(w => JLY_MAP[w]);
     queue = shuffle([{ type: "choice", word: m[0] }, { type: "jly", item: j[0] }, { type: "gap", word: m[1] }, { type: "tiles", word: m[2] }, { type: "jly", item: j[1] }, { type: "choice", word: m[3] }, { type: "gap", word: m[4] }, { type: "jly", item: j[2] }, { type: "tiles", word: m[5] }, { type: "choice", word: m[6] }]);
   } else queue = pickFrom(M_UNIQUE, 10, u).map(w => ({ type: mode, word: w }));
-  queue = queue.filter(t => t.item || t.word || t.data);
-  if (!queue.length) { toast("Nincs mit gyakorolni."); return; }
+  const bl = blockedTopics(u);
+  queue = queue.filter(t => (t.item || t.word || t.data) && !bl.includes(topicOf(t)));
+  if (!queue.length) { toast(bl.length ? "Ez a feladat ma le van zárva." : "Nincs mit gyakorolni."); return; }
   showScreen("scr-quiz");
   renderQuestion();
 }
@@ -567,7 +575,7 @@ function renderQuestion() {
     return;
   }
 
-  setTag("Betűkirakó", "#0d9488", "Rakd ki a szót! (Legfeljebb 2 segítség, a hibás kirakásra van egy újabb próba.)");
+  setTag("Betűkirakó", "#0d9488", "Rakd ki a szót! (Segítség: szinonima, és mellé magánhangzók VAGY első–utolsó betű. Hibára van még egy próba.)");
   renderTilePuzzle(T.word, body);
 }
 
@@ -588,13 +596,15 @@ function renderTilePuzzle(word, body) {
   const bar = el("div", "help-bar");
   const helps = [
     ["💡 1. Szinonimák", () => { clue.style.display = "block"; }],
-    ["🅰️ 2. Magánhangzók", () => placeMatching(p => VOWELS.includes(tileTarget[p]))],
-    ["↔️ 3. Első és utolsó betű", () => placeMatching(p => p === 0 || p === tileTarget.length - 1)]
+    ["🅰️ Magánhangzók", () => placeMatching(p => VOWELS.includes(tileTarget[p]))],
+    ["↔️ Első és utolsó betű", () => placeMatching(p => p === 0 || p === tileTarget.length - 1)]
   ];
-  helps.forEach(([label, fn]) => {
+  helps.forEach(([label, fn], idx) => {
     const b = btn("help-btn", label, () => {
       if (answered || helpUsed >= 2 || b.disabled) return;
       fn(); b.disabled = true; helpUsed++;
+      if (idx === 1) bar.children[2].disabled = true; // magánhangzók VAGY első–utolsó betű
+      if (idx === 2) bar.children[1].disabled = true;
       if (helpUsed >= 2) bar.querySelectorAll(".help-btn").forEach(x => x.disabled = true);
     });
     bar.append(b);
@@ -667,7 +677,7 @@ function finishAnswer(ok, full, meta = {}) {
     if (!u.practiced.includes(full)) u.practiced.push(full);
     const r = u.srs[full] = u.srs[full] || { b: 0, days: 0, last: "", due: t };
     if (ok) { if (r.last !== key) { r.days++; r.b = Math.min(r.b + 1, 4); } r.last = key; r.due = t + INTERVALS[r.b]; }
-    else { r.b = 0; r.days = Math.max(0, r.days - 1); r.due = t + 1; }
+    else { r.b = 0; r.days = Math.max(0, r.days - 1); r.due = t + 1; r.miss = (r.miss || 0) + 1; }
   }
 
   const sheet = $("sheet");
@@ -734,12 +744,104 @@ document.addEventListener("keydown", e => {
   }
 });
 
+
+// ---------- 12b. Szülői nézet ----------
+const ALL_TOPICS = ["jly", "hosszu", "pair", "tiles"];
+let parentUser = null;
+
+async function openParent() {
+  if (!state.parentPin) {
+    const p = await modal({ title: "Szülői PIN beállítása", text: "Adj meg egy 4–8 számjegyű PIN-kódot. Ezt kell beírni a szülői nézethez (eszközönként külön kell beállítani).", value: "", ok: "Mentés", secret: true });
+    if (p === null) return;
+    if (!/^\d{4,8}$/.test(p.trim())) { toast("A PIN 4–8 számjegy legyen."); return; }
+    state.parentPin = p.trim(); persist();
+  } else {
+    const p = await modal({ title: "Szülői nézet", text: "Írd be a PIN-kódot.", value: "", ok: "Belépés", secret: true });
+    if (p === null) return;
+    if (p.trim() !== state.parentPin) { toast("Hibás PIN."); return; }
+  }
+  if (!parentUser || !state.users[parentUser]) parentUser = state.current;
+  showScreen("scr-parent");
+}
+
+function saveOther(name) { state.users[name].upd = Date.now(); persist(); pushUser(name); }
+
+function renderParent() {
+  const box = $("parent-body"); box.innerHTML = "";
+  const names = Object.keys(state.users);
+  if (!state.users[parentUser]) parentUser = names[0];
+  const tabs = el("div", "levels");
+  names.forEach(n => tabs.append(btn("lvl" + (n === parentUser ? " on" : ""), (state.users[n].avatar || "🦉") + " " + n, () => { parentUser = n; renderParent(); })));
+  box.append(tabs);
+
+  const u = normUser(state.users[parentUser]), t = dayNum(), key = todayKey();
+  const panel = title => { const p = el("div", "panel"); p.append(el("h3", null, title)); box.append(p); return p; };
+
+  const ov = panel("Áttekintés");
+  [`📅 Utoljára játszott: ${u.streak.last || "még nem játszott"}`, `✅ Ma helyes válasz: ${u.daily[key] || 0}`, `🔥 Sorozat: ${streakNow(u)} nap`, `🏆 Elsajátított szó: ${masteredCount(u)} / ${ALL_UNIQUE_WORDS.size}`, `⭐ Pont: ${u.pts}`].forEach(x => ov.append(el("div", null, x)));
+
+  const cp = panel("Utolsó 14 nap (helyes válaszok)");
+  const days = [...Array(14)].map((_, i) => t - 13 + i), vals = days.map(d => u.daily[dateKey(d)] || 0), max = Math.max(...vals, 5), ch = el("div", "chart");
+  days.forEach((d, i) => { const col = el("div", "col"), bar = el("i"); bar.style.height = Math.round(vals[i] / max * 90) + "px"; col.append(el("b", null, vals[i]), bar, el("span", null, dateKey(d).slice(8))); ch.append(col); });
+  cp.append(ch);
+
+  const tp = panel("Témák pontossága (piros: 70% alatt, zöld: 90% fölött)");
+  const pcts = {};
+  ALL_TOPICS.forEach(k => {
+    const st = u.stats[k] || { ok: 0, n: 0 }, pct = st.n ? Math.round(st.ok / st.n * 100) : null;
+    pcts[k] = { pct, n: st.n };
+    const row = el("div", "trow"), bar = el("div", "bar"), i = el("i");
+    i.style.width = (pct || 0) + "%";
+    if (pct !== null && pct < 70) i.style.background = "#ef4444"; else if (pct >= 90) i.style.background = "#22c55e";
+    bar.append(i); row.append(el("span", null, TOPICS[k]), bar, el("span", null, st.n ? `${pct}% (${st.n})` : "–")); tp.append(row);
+  });
+
+  const pw = panel("Legtöbbet hibázott szavak");
+  const bad = Object.entries(u.srs).filter(([w, r]) => r.miss).sort((a, b) => b[1].miss - a[1].miss).slice(0, 12);
+  if (!bad.length) pw.append(el("div", null, "Még nincs adat (a hibákat mostantól számoljuk)."));
+  const wrap = el("div", "badgegrid");
+  bad.forEach(([w, r]) => { const d = el("div", "badge"); d.append(el("span", null, "✗" + r.miss), document.createTextNode(w)); wrap.append(d); });
+  pw.append(wrap);
+
+  const bp = panel("Mai feladatzár (csak ma érvényes)");
+  bp.append(el("p", null, "A lezárt feladattípust a gyerek ma nem tudja elindítani, így több idő jut a gyengébb részekre. Holnap magától feloldódik."));
+  const setBlock = arr => {
+    if (arr.length >= ALL_TOPICS.length) { toast("Legalább egy feladattípusnak nyitva kell maradnia."); return false; }
+    u.block = { day: key, topics: arr }; saveOther(parentUser); renderParent(); return true;
+  };
+  const cur = new Set(blockedTopics(u));
+  ALL_TOPICS.forEach(k => {
+    const r = el("label", "setrow"), cb = el("input"); cb.type = "checkbox"; cb.checked = cur.has(k);
+    cb.addEventListener("change", () => { const n = new Set(blockedTopics(u)); cb.checked ? n.add(k) : n.delete(k); if (!setBlock([...n])) cb.checked = false; });
+    r.append(el("span", null, "🔒 " + TOPICS[k] + (pcts[k].n ? ` (${pcts[k].pct}%)` : "")), cb); bp.append(r);
+  });
+  const row = el("div", "btnrow");
+  row.append(btn("secondary", "🎯 Zárd le automatikusan, ami már megy", () => {
+    let auto = ALL_TOPICS.filter(k => pcts[k].n >= 10 && pcts[k].pct >= 90);
+    if (!auto.length) { toast("Egyik téma sem éri el még a 90%-ot (min. 10 válasz)."); return; }
+    if (auto.length >= ALL_TOPICS.length) { const w = ALL_TOPICS.slice().sort((a, b) => pcts[a].pct - pcts[b].pct)[0]; auto = auto.filter(k => k !== w); }
+    setBlock(auto);
+  }), btn("secondary", "🔓 Minden feloldása", () => { u.block = { day: key, topics: [] }; saveOther(parentUser); renderParent(); }));
+  bp.append(row);
+
+  const fr = el("div", "btnrow");
+  fr.append(btn("secondary", "🔑 PIN módosítása", async () => {
+    const p = await modal({ title: "Új PIN", value: "", ok: "Mentés", secret: true });
+    if (p === null) return;
+    if (!/^\d{4,8}$/.test(p.trim())) { toast("A PIN 4–8 számjegy legyen."); return; }
+    state.parentPin = p.trim(); persist(); toast("PIN módosítva.");
+  }));
+  box.append(fr);
+}
+
 // ---------- 13. Eseménykezelők és indítás ----------
 [["mixed", "btn-mixed"], ["choice", "btn-choice"], ["jly", "btn-jly"], ["gap", "btn-gap"], ["tiles", "btn-tiles"], ["pairs", "btn-pairs"], ["mistakes", "btn-mistakes"]]
   .forEach(([mode, id]) => $(id).addEventListener("click", () => startQuiz(mode)));
 $("btn-switch-user").addEventListener("click", () => showScreen("scr-users"));
 $("btn-users-back").addEventListener("click", goHome);
 $("btn-stats").addEventListener("click", () => showScreen("scr-stats"));
+$("btn-parent").addEventListener("click", openParent);
+$("btn-parent-back").addEventListener("click", goHome);
 $("btn-stats-back").addEventListener("click", goHome);
 $("btn-add-user").addEventListener("click", addUser);
 $("new-user-inp").addEventListener("keydown", e => { if (e.key === "Enter") addUser(); });

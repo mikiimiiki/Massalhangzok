@@ -17,6 +17,7 @@
       <span class="hello" id="hello-txt" style="margin:0;">Szia!</span>
       <button id="btn-switch-user" class="smallbtn">👤 Váltás</button>
       <button id="btn-stats" class="smallbtn">📊 Statisztika</button>
+      <button id="btn-parent" class="smallbtn">👨‍👩‍👧 Szülői nézet</button>
     </div>
     <div class="statsrow">
       <div class="pill">⭐ <span id="st-pts">0</span> pont</div>
@@ -30,6 +31,7 @@
       <div class="barlabel"><span id="rank-cur">0 pont</span><span id="rank-next"></span></div>
     </div>
     <div class="levels" id="levels" role="group" aria-label="Nehézségi szint"></div>
+    <div id="lock-note" class="lock-note"></div>
   </div>
 
   <div class="menu">
@@ -88,6 +90,14 @@
     <h2 style="margin:0">Statisztika</h2>
   </div>
   <div id="stats-body"></div>
+</section>
+
+<section id="scr-parent" class="screen">
+  <div class="topbar">
+    <button class="iconbtn" id="btn-parent-back" aria-label="Vissza">←</button>
+    <h2 style="margin:0">Szülői nézet</h2>
+  </div>
+  <div id="parent-body"></div>
 </section>
 
 <!-- Visszajelző sáv: a képernyőolvasók felolvassák -->
