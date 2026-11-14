@@ -372,6 +372,7 @@ async function renameUser(old) {
 }
 
 async function deleteUser(name) {
+  if (!(await requirePin("Törlés PIN-kóddal", `„${name}” törléséhez írd be a szülői PIN-kódot.`))) return;
   const ok = await modal({ title: `Törlöd: ${name}?`, text: "A játékos pontjai és haladása végleg elvesznek.", ok: "Törlés" });
   if (!ok) return;
   delete state.users[name];
@@ -582,16 +583,26 @@ function renderQuestion() {
     return;
   }
 
-  setTag("Betűkirakó", "#0d9488", "Rakd ki a szót! (Segítség: szinonima, és mellé magánhangzók VAGY első–utolsó betű. Hibára van még egy próba.)");
+  setTag("Betűkirakó", "#0d9488", "Rakd ki a szót! (A szinonima ingyenes. A magánhangzók VAGY az első–utolsó betű −5 pontba kerül. Hibára van még egy próba.)");
   renderTilePuzzle(T.word, body);
 }
 
+// Pontlevonás látványos jelzése: rezgés, piros villanás, felrobbanó „−5”
+function penaltyEffect(n) {
+  if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+  let f = $("flash"); if (!f) { f = el("div"); f.id = "flash"; document.body.append(f); }
+  f.classList.remove("on"); void f.offsetWidth; f.classList.add("on");
+  document.body.classList.add("shake"); setTimeout(() => document.body.classList.remove("shake"), 500);
+  const b = el("div", "boom", "💥 −" + n); document.body.append(b); setTimeout(() => b.remove(), 950);
+  toast(`−${n} pont a segítségért`);
+}
+
 // ---------- 10. Betűkirakó ----------
-let tileTarget = "", tileSlots = [], tilePool = [], helpUsed = 0, tileTry = 0;
+let tileTarget = "", tileSlots = [], tilePool = [], helpUsed = 0, tileTry = 0, helpPen = false;
 const VOWELS = "aáeéiíoóöőuúüűAÁEÉIÍOÓÖŐUÚÜŰ";
 
 function renderTilePuzzle(word, body) {
-  tileTarget = word; tileSlots = new Array(word.length).fill(null); helpUsed = 0; tileTry = 0;
+  tileTarget = word; tileSlots = new Array(word.length).fill(null); helpUsed = 0; tileTry = 0; helpPen = false;
   tilePool = shuffle([...word].map((c, idx) => ({ c, idx })));
 
   const clue = el("div", "clue-box", "💡 Szinonimák / jelentés: " + getSynonymsForWord(word));
@@ -603,17 +614,19 @@ function renderTilePuzzle(word, body) {
   const bar = el("div", "help-bar");
   const helps = [
     ["💡 1. Szinonimák", () => { clue.style.display = "block"; }],
-    ["🅰️ Magánhangzók", () => placeMatching(p => VOWELS.includes(tileTarget[p]))],
-    ["↔️ Első és utolsó betű", () => placeMatching(p => p === 0 || p === tileTarget.length - 1)]
+    ["🅰️ Magánhangzók (−5 p)", () => placeMatching(p => VOWELS.includes(tileTarget[p]))],
+    ["↔️ Első és utolsó betű (−5 p)", () => placeMatching(p => p === 0 || p === tileTarget.length - 1)]
   ];
   helps.forEach(([label, fn], idx) => {
     const b = btn("help-btn", label, () => {
       if (answered || helpUsed >= 2 || b.disabled) return;
       fn(); b.disabled = true; helpUsed++;
+      if (idx >= 1) { helpPen = true; penaltyEffect(5); }
       if (idx === 1) bar.children[2].disabled = true; // magánhangzók VAGY első–utolsó betű
       if (idx === 2) bar.children[1].disabled = true;
       if (helpUsed >= 2) bar.querySelectorAll(".help-btn").forEach(x => x.disabled = true);
     });
+    if (idx >= 1) b.classList.add("pay");
     bar.append(b);
   });
   const reset = el("div"); reset.style.marginTop = "12px";
@@ -650,7 +663,7 @@ function pickTile(idx) {
 function checkTileDone() {
   if (!tileSlots.every(Boolean)) return;
   const built = tileSlots.map(s => s.char).join(""), meta = { topic: "tiles", explain: explainWord(tileTarget) };
-  if (built === tileTarget) { answered = true; finishAnswer(true, tileTarget, { ...meta, penalty: helpUsed * 3 + (tileTry ? 4 : 0) }); return; }
+  if (built === tileTarget) { answered = true; finishAnswer(true, tileTarget, { ...meta, penalty: (helpPen ? 5 : 0) + (tileTry ? 4 : 0) }); return; }
   if (tileTry === 0) { // egy újabb próba: a jó betűk zölden bezárulnak
     tileTry = 1;
     tileSlots.forEach((s, i) => { if (s.char === tileTarget[i]) s.locked = true; else { $("t-" + s.poolIdx).classList.remove("used"); tileSlots[i] = null; } });
@@ -773,8 +786,8 @@ async function setPin(pin) { state.parent = await hashPin(pin); delete state.par
 async function checkPin(pin) { const p = state.parent; return !!p && (await hashPin(pin, p.salt)).hash === p.hash; }
 const PIN_OK = /^\d{6,10}$/;
 
-async function openParent() {
-  if (!(window.crypto && crypto.subtle)) { toast("A PIN-hez biztonságos (https) kapcsolat kell."); return; }
+async function requirePin(title, text) {
+  if (!(window.crypto && crypto.subtle)) { toast("A PIN-hez biztonságos (https) kapcsolat kell."); return false; }
   // új eszközön először megnézzük, van-e már PIN a felhőben
   if (!state.parent && fb && db && famCode().length >= 6) {
     try { const r = (await fb.get(fb.ref(db, `families/${famCode()}/parent`))).val(); if (r && r.hash && r.salt) { state.parent = { salt: r.salt, hash: r.hash }; persist(); } } catch (e) { /* offline */ }
@@ -782,15 +795,20 @@ async function openParent() {
   // régi, helyi PIN átalakítása hash-sé
   if (!state.parent && state.parentPin) await setPin(state.parentPin);
   if (!state.parent) {
-    const p = await modal({ title: "Szülői PIN beállítása", text: "6–10 számjegy. Szinkronkóddal minden eszközön ugyanez a PIN érvényes.", value: "", ok: "Mentés", secret: true });
-    if (p === null) return;
-    if (!PIN_OK.test(p.trim())) { toast("A PIN 6–10 számjegy legyen."); return; }
+    const p = await modal({ title: "Szülői PIN beállítása", text: "Ez a PIN védi a szülői nézetet és a játékosok törlését. 6–10 számjegy; szinkronkóddal minden eszközön ugyanez érvényes.", value: "", ok: "Mentés", secret: true });
+    if (p === null) return false;
+    if (!PIN_OK.test(p.trim())) { toast("A PIN 6–10 számjegy legyen."); return false; }
     await setPin(p.trim());
-  } else {
-    const p = await modal({ title: "Szülői nézet", text: "Írd be a PIN-kódot.", value: "", ok: "Belépés", secret: true });
-    if (p === null) return;
-    if (!(await checkPin(p.trim()))) { toast("Hibás PIN."); return; }
+    return true;
   }
+  const p = await modal({ title, text, value: "", ok: "Belépés", secret: true });
+  if (p === null) return false;
+  if (!(await checkPin(p.trim()))) { toast("Hibás PIN."); return false; }
+  return true;
+}
+
+async function openParent() {
+  if (!(await requirePin("Szülői nézet", "Írd be a PIN-kódot."))) return;
   if (!parentUser || !state.users[parentUser]) parentUser = state.current;
   showScreen("scr-parent");
 }

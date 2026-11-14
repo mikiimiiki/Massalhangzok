@@ -67,3 +67,18 @@ body.dys .word-display { letter-spacing: .08em; }
 .lock-note { font-weight: 800; color: #b45309; margin: -4px 0 12px; }
 .trow { grid-template-columns: 170px 1fr 84px; }
 @media (max-width: 640px) { .trow { grid-template-columns: 110px 1fr 70px; } }
+
+/* Pontlevonás-effekt és fizetős segítség */
+.help-btn.pay { border-color: #fca5a5; background: #fef2f2; color: #991b1b; box-shadow: 0 3px 0 #fca5a5; }
+#flash { position: fixed; inset: 0; background: rgba(220,38,38,.5); pointer-events: none; opacity: 0; z-index: 65; }
+#flash.on { animation: flashred .6s ease-out; }
+@keyframes flashred { 0% { opacity: 1; } 100% { opacity: 0; } }
+body.shake .screen { animation: shakeScr .45s; }
+@keyframes shakeScr { 10%,50%,90% { transform: translateX(-10px); } 30%,70% { transform: translateX(10px); } }
+.boom { position: fixed; left: 50%; top: 40%; font-size: 76px; font-weight: 900; color: #dc2626; text-shadow: 0 4px 0 #fff; pointer-events: none; z-index: 66; animation: boom .9s ease-out forwards; white-space: nowrap; }
+@keyframes boom { 0% { transform: translate(-50%,-50%) scale(.3); opacity: 1; } 55% { transform: translate(-50%,-50%) scale(1.5); opacity: 1; } 100% { transform: translate(-50%,-110%) scale(1.9); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  body.shake .screen { animation: none; }
+  #flash.on { animation: none; opacity: .2; }
+  .boom { animation: none; transform: translate(-50%,-50%); }
+}
