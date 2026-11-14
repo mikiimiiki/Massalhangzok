@@ -259,7 +259,10 @@
   <div class="hero">
     <div class="mascot">🦉</div>
     <h1>Helyesírás Kaland</h1>
-    <div class="hello" id="hello-txt">Szia!</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin:4px 0 12px;flex-wrap:wrap;">
+      <span class="hello" id="hello-txt" style="margin:0;">Szia!</span>
+      <button id="btn-switch-user" style="background:#ffffff;border:2px solid #cbd5e1;border-radius:12px;padding:4px 12px;font-size:14px;font-weight:800;color:#475569;box-shadow:0 2px 0 #e2e8f0;cursor:pointer;">👤 Váltás</button>
+    </div>
     <div class="statsrow">
       <div class="pill">⭐ <span id="st-pts">0</span> pont</div>
       <div class="pill">🏆 <span id="st-done">0</span> hibátlan szó</div>
@@ -308,7 +311,7 @@
       Hibajavító kör (<span id="mistake-cnt">0</span> szó)
       <small>Gyakorold újra, amit elrontottál!</small>
     </button>
-	  <button class="btn-switch" id="btn-users" style="margin-top:10px;width:100%;padding:12px;border-radius:14px;border:2px solid #cbd5e1;background:#fff;font-weight:700;font-size:15px;cursor:pointer;color:#334155;">👤 Játékos váltása / Új játékos</button>
+	 
   </div>
 
   <div class="footer">
