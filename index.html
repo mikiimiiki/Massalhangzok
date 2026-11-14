@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Mássalhangzó Kaland</title>
+<style>
+  :root {
+    --bg1: #fff7ed; --bg2: #e0f2fe;
+    --ink: #1e293b; --soft: #64748b;
+    --card: #ffffff; --line: #e2e8f0;
+    --pri: #7c3aed; --pri2: #a78bfa;
+    --ok: #16a34a; --okbg: #dcfce7;
+    --bad: #dc2626; --badbg: #fee2e2;
+    --gold: #f59e0b;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "Segoe UI Rounded", "Nunito", "Segoe UI", system-ui, sans-serif;
+    color: var(--ink);
+    background: linear-gradient(160deg, var(--bg1), var(--bg2));
+    background-attachment: fixed;
+    user-select: none; -webkit-user-select: none;
+    touch-action: manipulation;
+    overflow-x: hidden;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
+  .screen { display: none; min-height: 100vh; padding: 16px; max-width: 960px; margin: 0 auto; flex-direction: column; }
+  .screen.on { display: flex; }
+
+  /* Kezdőképernyő */
+  .hero { text-align: center; margin-top: 8px; }
+  .mascot { font-size: 80px; line-height: 1; display: inline-block; animation: bob 2.6s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-8px) rotate(-4deg); } }
+  h1 {
+    font-size: 42px; margin: 4px 0 0; letter-spacing: .5px;
+    background: linear-gradient(90deg, #7c3aed, #ec4899, #f59e0b);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hello { font-size: 20px; color: var(--soft); margin: 6px 0 14px; font-weight: 700; }
+  .statsrow { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .pill {
+    background: var(--card); border-radius: 18px; padding: 10px 18px; font-size: 18px; font-weight: 800;
+    box-shadow: 0 3px 0 var(--line); display: flex; align-items: center; gap: 8px;
+  }
+  .rankbox {
+    background: var(--card); border-radius: 22px; padding: 14px 20px;
+    box-shadow: 0 4px 0 var(--line); max-width: 620px; margin: 0 auto 18px; width: 100%;
+  }
+  .rankname { font-size: 20px; font-weight: 800; }
+  .bar { height: 16px; background: #f1f5f9; border-radius: 99px; overflow: hidden; margin-top: 8px; }
+  .bar > i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #a78bfa, #7c3aed); transition: width .6s; }
+  .barlabel { display: flex; justify-content: space-between; font-size: 14px; color: var(--soft); margin-top: 6px; font-weight: 700; }
+
+  .menu { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 620px; margin: 0 auto; width: 100%; }
+  .big {
+    border: 0; border-radius: 24px; padding: 20px 14px; font-size: 22px; font-weight: 800; color: #fff;
+    box-shadow: 0 6px 0 rgba(0,0,0,.18); transition: transform .08s;
+    display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+  }
+  .big small { font-size: 14px; font-weight: 600; opacity: .92; }
+  .big:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,.18); }
+  .big .ic { font-size: 36px; }
+  .b-main { grid-column: 1 / -1; background: linear-gradient(135deg, #8b5cf6, #ec4899); font-size: 26px; padding: 24px; }
+  .b-choice { background: linear-gradient(135deg, #06b6d4, #2563eb); }
+  .b-gap { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+  .b-tiles { background: linear-gradient(135deg, #22c55e, #0d9488); }
+  .b-pairs { background: linear-gradient(135deg, #ec4899, #be185d); }
+  .b-pseudo { grid-column: 1 / -1; background: linear-gradient(135deg, #64748b, #475569); font-size: 19px; padding: 16px; }
+  .b-mistakes { grid-column: 1 / -1; background: linear-gradient(135deg, #ef4444, #b91c1c); }
+
+  /* Profilválasztó */
+  .namebox {
+    max-width: 480px; margin: 40px auto; background: var(--card); border-radius: 28px;
+    padding: 28px; text-align: center; box-shadow: 0 6px 0 var(--line); width: 100%;
+  }
+  .namebox input {
+    font: inherit; font-size: 26px; padding: 12px; border-radius: 16px; border: 3px solid var(--line);
+    width: 100%; text-align: center; margin: 14px 0; user-select: text;
+  }
+  .namebox input:focus { outline: none; border-color: var(--pri2); }
+  .plist { display: grid; gap: 10px; margin-bottom: 16px; }
+  .profile {
+    display: flex; align-items: center; justify-content: space-between;
+    border: 3px solid var(--line); background: #fff; border-radius: 18px;
+    padding: 12px 16px; box-shadow: 0 4px 0 var(--line); font-weight: 800; font-size: 20px;
+  }
+  .profile.cur { border-color: var(--pri2); background: #f5f3ff; }
+
+  /* Kvíz felület */
+  .topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .iconbtn {
+    width: 52px; height: 52px; border-radius: 16px; border: 0; background: var(--card);
+    font-size: 24px; box-shadow: 0 4px 0 var(--line); flex: none;
+  }
+  .progress { flex: 1; height: 20px; background: rgba(255,255,255,.85); border-radius: 99px; overflow: hidden; }
+  .progress > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #34d399, #16a34a); border-radius: 99px; transition: width .35s; }
+  .score {
+    font-size: 20px; font-weight: 800; background: var(--card); padding: 10px 14px;
+    border-radius: 16px; box-shadow: 0 4px 0 var(--line); min-width: 86px; text-align: center;
+  }
+  .combo { font-size: 18px; font-weight: 900; color: #ea580c; min-width: 60px; text-align: center; }
+
+  .card {
+    background: var(--card); border-radius: 28px; padding: 26px 22px;
+    box-shadow: 0 8px 0 var(--line); text-align: center;
+  }
+  .tag {
+    display: inline-block; font-size: 14px; font-weight: 800; color: #fff;
+    padding: 5px 14px; border-radius: 99px; background: var(--pri);
+  }
+  .qtitle { font-size: 19px; color: var(--soft); font-weight: 700; margin: 14px 0 8px; }
+  .word-display { font-size: 42px; font-weight: 900; line-height: 1.3; margin: 10px 0; letter-spacing: 1px; }
+  .sentence-display { font-size: 26px; font-weight: 800; line-height: 1.4; margin: 10px 0; }
+  .gap {
+    display: inline-block; min-width: 72px; border-bottom: 5px dashed var(--pri2);
+    color: var(--pri); padding: 0 6px;
+  }
+  .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 22px; }
+  .opt {
+    border: 3px solid var(--line); background: #fff; border-radius: 20px; padding: 18px 14px;
+    font-size: 28px; font-weight: 800; box-shadow: 0 5px 0 var(--line); transition: transform .08s;
+  }
+  .opt:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--line); }
+  .opt.ok { border-color: var(--ok); background: var(--okbg); box-shadow: 0 5px 0 #86efac; color: var(--ok); }
+  .opt.bad { border-color: var(--bad); background: var(--badbg); box-shadow: 0 5px 0 #fca5a5; color: var(--bad); animation: shake .4s; }
+  .opt.dim { opacity: .45; }
+  @keyframes shake { 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }
+
+  /* Betűkirakó */
+  .slotrow {
+    display: flex; flex-wrap: wrap; gap: 8px; min-height: 72px; padding: 12px;
+    margin-top: 16px; border-radius: 20px; background: #f8fafc; border: 3px dashed var(--line);
+    justify-content: center; align-items: center;
+  }
+  .tiles { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; justify-content: center; }
+  .tile {
+    border: 3px solid #ddd6fe; background: #f5f3ff; border-radius: 16px; padding: 12px 18px;
+    font-size: 28px; font-weight: 900; box-shadow: 0 5px 0 #ddd6fe; min-width: 56px;
+  }
+  .tile:active { transform: translateY(3px); box-shadow: 0 2px 0 #ddd6fe; }
+  .tile.used { visibility: hidden; }
+  .tile.placed { background: #fff; border-color: var(--pri2); box-shadow: 0 4px 0 var(--pri2); }
+
+  /* Visszajelző sáv */
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; padding: 18px 16px 22px;
+    transform: translateY(110%); transition: transform .28s cubic-bezier(.2,1.3,.4,1); z-index: 20;
+  }
+  .sheet.on { transform: none; }
+  .sheet .in { max-width: 960px; margin: 0 auto; display: flex; gap: 16px; align-items: center; justify-content: space-between; }
+  .sheet.ok { background: var(--okbg); border-top: 5px solid #86efac; }
+  .sheet.bad { background: var(--badbg); border-top: 5px solid #fca5a5; }
+  .sheet .head { font-size: 24px; font-weight: 900; }
+  .sheet.ok .head { color: var(--ok); }
+  .sheet.bad .head { color: var(--bad); }
+  .sheet .full { font-size: 22px; font-weight: 800; margin-top: 2px; }
+  .primary {
+    border: 0; border-radius: 18px; padding: 14px 26px; font-size: 22px; font-weight: 900;
+    color: #fff; background: linear-gradient(135deg, #8b5cf6, #7c3aed); box-shadow: 0 5px 0 #5b21b6;
+  }
+  .primary:active { transform: translateY(3px); box-shadow: 0 2px 0 #5b21b6; }
+  .secondary {
+    border: 0; border-radius: 16px; padding: 12px 20px; font-size: 18px; font-weight: 800;
+    background: #f1f5f9; box-shadow: 0 4px 0 var(--line);
+  }
+
+  /* Eredmény */
+  .result { text-align: center; margin-top: 20px; }
+  .stars { font-size: 68px; letter-spacing: 6px; margin: 10px 0; }
+  .footer { text-align: center; margin-top: 18px; }
+  .ghost { background: rgba(255,255,255,.75); border: 0; border-radius: 14px; padding: 10px 16px; font-size: 15px; font-weight: 700; color: var(--soft); }
+
+  @media (max-width: 600px) {
+    .menu, .opts { grid-template-columns: 1fr; }
+    .word-display { font-size: 34px; }
+    .sheet .in { flex-direction: column; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- KEZDŐKÉPERNYŐ -->
+<section id="scr-home" class="screen on">
+  <div class="hero">
+    <div class="mascot">🦉</div>
+    <h1>Mássalhangzó Kaland</h1>
+    <div class="hello" id="hello-txt">Szia!</div>
+    <div class="statsrow">
+      <div class="pill">⭐ <span id="st-pts">0</span> pont</div>
+      <div class="pill">🏆 <span id="st-done">0</span> hibátlan szó</div>
+    </div>
+    <div class="rankbox">
+      <div class="rankname" id="rank-name">Kezdő Betűvadász</div>
+      <div class="bar"><i id="rank-bar"></i></div>
+      <div class="barlabel"><span id="rank-cur">0 pont</span><span id="rank-next">Következő szint: 100 pont</span></div>
+    </div>
+  </div>
+
+  <div class="menu">
+    <button class="big b-main" onclick="startQuiz('mixed')">
+      <span class="ic">🚀</span>
+      Vegyes kaland (10 szó)
+      <small>Választás, betűpótlás és szókirakó vegyesen</small>
+    </button>
+    <button class="big b-choice" onclick="startQuiz('choice')">
+      <span class="ic">🎯</span>
+      Rövid vagy hosszú?
+      <small>Válaszd ki a helyes írásmódot!</small>
+    </button>
+    <button class="big b-gap" onclick="startQuiz('gap')">
+      <span class="ic">🧩</span>
+      Betűpótló
+      <small>Pótold a hiányzó mássalhangzót!</small>
+    </button>
+    <button class="big b-tiles" onclick="startQuiz('tiles')">
+      <span class="ic">🔤</span>
+      Betűkirakó
+      <small>Rakd ki a szót a csempékből!</small>
+    </button>
+    <button class="big b-pairs" onclick="startQuiz('pairs')">
+      <span class="ic">⚖️</span>
+      Jelentéskülönbségek
+      <small>fejjel–fejel, hal–hall, ara–arra...</small>
+    </button>
+    <button class="big b-mistakes" id="btn-mistakes" style="display:none" onclick="startQuiz('mistakes')">
+      <span class="ic">🩹</span>
+      Hibajavító kör (<span id="mistake-cnt">0</span> szó)
+      <small>Gyakorold újra, amit elrontottál!</small>
+    </button>
+    <button class="big b-pseudo" onclick="startQuiz('pseudo')">
+      <span class="ic">👽</span>
+      Álszavak gyakorlása (olvasás & kirakó)
+      <small>zsuppa, gallaposz, halloka és társai</small>
+    </button>
+  </div>
+
+  <div class="footer">
+    <button class="ghost" onclick="showScreen('scr-users')">👤 Játékos váltása</button>
+  </div>
+</section>
+
+<!-- JÁTÉKOS VÁLASZTÓ -->
+<section id="scr-users" class="screen">
+  <div class="namebox">
+    <div style="font-size:60px">🦉</div>
+    <h2>Ki játszik most?</h2>
+    <div class="plist" id="user-list"></div>
+    <input type="text" id="new-user-inp" placeholder="Új név beírása..." maxlength="18">
+    <button class="primary" style="width:100%" onclick="addUser()">Hozzáadás és indítás</button>
+  </div>
+</section>
+
+<!-- KVÍZ KÉPERNYŐ -->
+<section id="scr-quiz" class="screen">
+  <div class="topbar">
+    <button class="iconbtn" onclick="quitQuiz()">🏠</button>
+    <div class="progress"><i id="q-prog"></i></div>
+    <div class="combo" id="q-combo"></div>
+    <div class="score" id="q-score">0 p</div>
+  </div>
+
+  <div class="card" id="q-card">
+    <div class="tag" id="q-tag">Feladat</div>
+    <div class="qtitle" id="q-title">Válaszd ki a helyeset!</div>
+    <div id="q-body"></div>
+  </div>
+</section>
+
+<!-- EREDMÉNY KÉPERNYŐ -->
+<section id="scr-res" class="screen">
+  <div class="card result">
+    <div class="stars" id="res-stars">⭐⭐⭐</div>
+    <h2 id="res-head" style="font-size:32px;margin:6px 0">Szép munka!</h2>
+    <p id="res-sub" style="font-size:20px;color:var(--soft);font-weight:700"></p>
+    <div style="display:flex;gap:12px;justify-content:center;margin-top:22px;flex-wrap:wrap">
+      <button class="primary" onclick="startQuiz(lastMode)">Újabb kör</button>
+      <button class="secondary" onclick="goHome()">Kezdőlap</button>
+    </div>
+  </div>
+</section>
+
+<!-- VISSZAJELZÉS ALSÓ SÁV -->
+<div class="sheet" id="sheet">
+  <div class="in">
+    <div>
+      <div class="head" id="sh-head">Helyes!</div>
+      <div class="full" id="sh-full"></div>
+    </div>
+    <button class="primary" id="sh-next" onclick="nextQuestion()">Tovább ➔</button>
+  </div>
+</div>
+
+<script>
+// 1. VALÓDI SZAVAK LISTÁJA (tisztítva, duplikációk nélkül)
+const RAW_WORDS = [
+  "Nelli", "loccsan", "csepp", "hipp-hopp", "kipp-kopp", "hullám", "duzzad", "durran",
+  "fullad", "hullik", "futtat", "cuppan", "juttat", "csusszan", "szunnyad", "könny",
+  "fönn", "több", "pöttöm", "masszőr", "kettőz", "könnyít", "szünnap", "küllem",
+  "süpped", "fülledt", "dülled", "züllik", "csügged", "fütty", "bükk", "tüll",
+  "puff", "csügg", "benn", "bumm", "ballag", "billeg", "jobbít", "ballon",
+  "meddő", "dinnye", "haddelhadd", "durr", "hordd", "szedd", "vedd", "kedd",
+  "szállás", "szaggat", "passzol", "szusszan", "tüsszög", "zsuppol", "csillag", "csillár",
+  "csökken", "reccsen", "parittya", "szivattyú", "dugattyú", "pörgettyű", "billentyű", "csengettyű",
+  "poggyász", "faggyú", "keggyel", "fonnyad", "gennyes", "dollár", "gallér", "zeller",
+  "puttony", "dallam", "ketten", "kattan", "úttörő", "öttusa", "pattan", "asszony",
+  "holló", "hull", "suttog", "dünnyög", "csüccs", "függöny", "surran", "summáz",
+  "mellőz", "semmi", "merre", "billen", "sakk", "kassza", "zubbony", "csattog",
+  "saccol", "hattyú", "szebb", "jobb", "fillér", "nyugtat", "fortyog", "gyullad",
+  "pottyan", "nyaggat", "tárgyal", "tárggyal", "szárnyal", "szárnnyal", "satnyul", "szennyez",
+  "buggyan", "nyikkan", "gyorsul", "nyekken", "pettyez", "görnyed", "lenyel", "langyos"
+];
+
+// 2. JELENTÉSKÜLÖNBSÉGES SZÓPÁROK MONDATOKBAN
+const PAIR_TASKS = [
+  { s: "A focista ___ talált a kapuba.", ok: "fejjel", bad: "fejel", hint: "Mivel? (eszközhatározó: fej + -vel)" },
+  { s: "A csatár jól ___ a szögleteknél.", ok: "fejel", bad: "fejjel", hint: "Mit csinál? (cselekvés)" },
+  { s: "Kakaót főzök friss ___.", ok: "tejjel", bad: "tejel", hint: "Mivel? (tej + -vel)" },
+  { s: "A tehén sok tejet ___.", ok: "tejel", bad: "tejjel", hint: "Mit csinál? (ige)" },
+  { s: "A kedvenc színem a ___.", ok: "lila", bad: "Lilla", hint: "Színnév (kisbetű, rövid l)" },
+  { s: "Az osztálytársam neve ___.", ok: "Lilla", bad: "lila", hint: "Lánynév (nagybetű, hosszú ll)" },
+  { s: "Budapestet kettészeli a ___.", ok: "Duna", bad: "dunna", hint: "Folyónév (nagybetű, rövid n)" },
+  { s: "A nagymama meleg tollas ___ alatt alszik.", ok: "dunna", bad: "Duna", hint: "Vastag takaró (kisbetű, hosszú nn)" },
+  { s: "A tóban egy nagy ___ úszik.", ok: "hal", bad: "hall", hint: "Vízi állat (rövid l)" },
+  { s: "A bagoly a sötétben is jól ___.", ok: "hall", bad: "hal", hint: "Fülével érzékel (hosszú ll)" },
+  { s: "A menyasszony régi neve: ___.", ok: "ara", bad: "arra", hint: "Menyasszony (rövid r)" },
+  { s: "Ne menj ___, mert vizes a fű!", ok: "arra", bad: "ara", hint: "Irányt mutat (hosszú rr)" },
+  { s: "A kisfiú játékautót ___ a szőnyegen.", ok: "tol", bad: "toll", hint: "Mozgat maga előtt (rövid l)" },
+  { s: "A madár szárnyából kihullott egy ___.", ok: "toll", bad: "tol", hint: "Íróeszköz vagy madártoll (hosszú ll)" }
+];
+
+// 3. ÁLSZAVAK (LOGOPÉDIAI GYAKORLÁSHOZ)
+const PSEUDO_WORDS = [
+  "zsuppa", "gallaposz", "halloka", "zsuffa", "öbbele", "ammok", "keveccse",
+  "pirannya", "karass", "ujjaka", "csikkasza", "peddeszi", "fosszaka", "larran",
+  "hevvele", "kattalán", "pikkura", "cikkurát", "minneze", "cukkerel", "fozzan",
+  "evvic", "pazzol", "tottu", "dippar", "kolloss", "nuhha", "peccen",
+  "kiddre", "rejjaz", "tefful", "behhor", "hijjce", "peffut", "penne"
+];
+
+// Hosszú mássalhangzók elemzése (két- és háromjegyűeket is felismer)
+const LONG_PATTERNS = [
+  { long: "ccs", short: "cs" }, { long: "ggy", short: "gy" }, { long: "lly", short: "ly" },
+  { long: "nny", short: "ny" }, { long: "ssz", short: "sz" }, { long: "tty", short: "ty" },
+  { long: "zzs", short: "zs" }, { long: "bb", short: "b" },  { long: "cc", short: "c" },
+  { long: "dd", short: "d" },   { long: "ff", short: "f" },  { long: "gg", short: "g" },
+  { long: "hh", short: "h" },   { long: "jj", short: "j" },  { long: "kk", short: "k" },
+  { long: "ll", short: "l" },   { long: "mm", short: "m" },  { long: "nn", short: "n" },
+  { long: "pp", short: "p" },   { long: "rr", short: "r" },  { long: "ss", short: "s" },
+  { long: "tt", short: "t" },   { long: "vv", short: "v" },  { long: "zz", short: "z" }
+];
+
+function analyzeWord(word) {
+  const lower = word.toLowerCase();
+  for (const pat of LONG_PATTERNS) {
+    const idx = lower.indexOf(pat.long);
+    if (idx !== -1) {
+      const actualLong = word.slice(idx, idx + pat.long.length);
+      const actualShort = (idx === 0 && word[0] === word[0].toUpperCase())
+        ? pat.short[0].toUpperCase() + pat.short.slice(1)
+        : pat.short;
+      const wrongWord = word.slice(0, idx) + actualShort + word.slice(idx + pat.long.length);
+      const gappedWord = word.slice(0, idx) + "___" + word.slice(idx + pat.long.length);
+      return {
+        word, wrongWord, gappedWord,
+        longPart: actualLong, shortPart: actualShort,
+        hasLong: true
+      };
+    }
+  }
+  // Rövid mássalhangzós szavakhoz (pl. nyugtat, fortyog, satnyul, gyorsul, lenyel, langyos)
+  const shortFallback = [
+    { short: "ny", long: "nny" }, { short: "gy", long: "ggy" }, { short: "ty", long: "tty" },
+    { short: "t", long: "tt" },   { short: "l", long: "ll" },   { short: "r", long: "rr" }
+  ];
+  for (const pat of shortFallback) {
+    const idx = lower.indexOf(pat.short);
+    if (idx > 0) {
+      const actualShort = word.slice(idx, idx + pat.short.length);
+      const wrongWord = word.slice(0, idx) + pat.long + word.slice(idx + pat.short.length);
+      const gappedWord = word.slice(0, idx) + "___" + word.slice(idx + pat.short.length);
+      return {
+        word, wrongWord, gappedWord,
+        longPart: pat.long, shortPart: actualShort,
+        hasLong: false
+      };
+    }
+  }
+  return null;
+}
+
+// Állapotkezelés (localStorage)
+const STORE_KEY = "massalhangzo_kaland_v1";
+let state = JSON.parse(localStorage.getItem(STORE_KEY) || "null") || {
+  current: "Játékos",
+  users: { "Játékos": { pts: 0, mastered: [], mistakes: [] } }
+};
+
+function saveState() {
+  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+}
+
+function curUser() {
+  if (!state.users[state.current]) {
+    state.users[state.current] = { pts: 0, mastered: [], mistakes: [] };
+  }
+  return state.users[state.current];
+}
+
+// Rangok
+const RANKS = [
+  { min: 0, name: "Kezdő Betűvadász" },
+  { min: 100, name: "Helyesírás Inas" },
+  { min: 250, name: "Mássalhangzó Mester" },
+  { min: 500, name: "Betűvarázsló" },
+  { min: 1000, name: "Nyelvtan Bajnok" }
+];
+
+function updateHome() {
+  const u = curUser();
+  document.getElementById("hello-txt").textContent = `Szia, ${state.current}!`;
+  document.getElementById("st-pts").textContent = u.pts;
+  document.getElementById("st-done").textContent = u.mastered.length;
+
+  let rIdx = 0;
+  for (let i = 0; i < RANKS.length; i++) {
+    if (u.pts >= RANKS[i].min) rIdx = i;
+  }
+  const curR = RANKS[rIdx];
+  const nextR = RANKS[rIdx + 1];
+  document.getElementById("rank-name").textContent = curR.name;
+  document.getElementById("rank-cur").textContent = `${u.pts} pont`;
+
+  if (nextR) {
+    const pct = Math.min(100, Math.round(((u.pts - curR.min) / (nextR.min - curR.min)) * 100));
+    document.getElementById("rank-bar").style.width = pct + "%";
+    document.getElementById("rank-next").textContent = `Következő: ${nextR.name} (${nextR.min} p)`;
+  } else {
+    document.getElementById("rank-bar").style.width = "100%";
+    document.getElementById("rank-next").textContent = "Legmagasabb szint elérve!";
+  }
+
+  const mBtn = document.getElementById("btn-mistakes");
+  if (u.mistakes.length > 0) {
+    mBtn.style.display = "flex";
+    document.getElementById("mistake-cnt").textContent = u.mistakes.length;
+  } else {
+    mBtn.style.display = "none";
+  }
+}
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("on"));
+  document.getElementById(id).classList.add("on");
+  if (id === "scr-home") updateHome();
+  if (id === "scr-users") renderUsers();
+}
+
+function goHome() {
+  document.getElementById("sheet").classList.remove("on");
+  showScreen("scr-home");
+}
+
+function renderUsers() {
+  const list = document.getElementById("user-list");
+  list.innerHTML = "";
+  Object.keys(state.users).forEach(name => {
+    const btn = document.createElement("button");
+    btn.className = "profile" + (name === state.current ? " cur" : "");
+    btn.innerHTML = `<span>👤 ${name}</span><span>${state.users[name].pts} p</span>`;
+    btn.onclick = () => {
+      state.current = name;
+      saveState();
+      goHome();
+    };
+    list.appendChild(btn);
+  });
+}
+
+function addUser() {
+  const inp = document.getElementById("new-user-inp");
+  const name = inp.value.trim();
+  if (!name) return;
+  if (!state.users[name]) {
+    state.users[name] = { pts: 0, mastered: [], mistakes: [] };
+  }
+  state.current = name;
+  inp.value = "";
+  saveState();
+  goHome();
+}
+
+// Kvíz logika
+let queue = [];
+let qIndex = 0;
+let sessionScore = 0;
+let sessionCorrect = 0;
+let combo = 0;
+let lastMode = "mixed";
+let currentTask = null;
+let answered = false;
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function startQuiz(mode) {
+  lastMode = mode;
+  qIndex = 0;
+  sessionScore = 0;
+  sessionCorrect = 0;
+  combo = 0;
+  queue = [];
+
+  if (mode === "pairs") {
+    queue = shuffle(PAIR_TASKS).slice(0, 10).map(p => ({ type: "pair", data: p }));
+  } else if (mode === "pseudo") {
+    queue = shuffle(PSEUDO_WORDS).slice(0, 10).map(w => ({ type: "tiles", word: w, isPseudo: true }));
+  } else if (mode === "mistakes") {
+    const m = curUser().mistakes;
+    queue = shuffle(m).slice(0, 10).map(w => ({ type: "choice", word: w }));
+  } else {
+    const pool = shuffle(RAW_WORDS).slice(0, 10);
+    queue = pool.map((w, i) => {
+      if (mode === "choice") return { type: "choice", word: w };
+      if (mode === "gap") return { type: "gap", word: w };
+      if (mode === "tiles") return { type: "tiles", word: w };
+      // Vegyes mód
+      const types = ["choice", "gap", "tiles"];
+      return { type: types[i % 3], word: w };
+    });
+  }
+
+  showScreen("scr-quiz");
+  renderQuestion();
+}
+
+function quitQuiz() {
+  goHome();
+}
+
+function renderQuestion() {
+  answered = false;
+  document.getElementById("sheet").classList.remove("on");
+  document.getElementById("q-prog").style.width = ((qIndex / queue.length) * 100) + "%";
+  document.getElementById("q-score").textContent = sessionScore + " p";
+  document.getElementById("q-combo").textContent = combo >= 2 ? `🔥 ${combo}x` : "";
+
+  currentTask = queue[qIndex];
+  const body = document.getElementById("q-body");
+  const tag = document.getElementById("q-tag");
+  const title = document.getElementById("q-title");
+  body.innerHTML = "";
+
+  if (currentTask.type === "pair") {
+    const p = currentTask.data;
+    tag.textContent = "Jelentéskülönbség";
+    tag.style.background = "#db2777";
+    title.textContent = `Melyik szó illik a mondatba? (${p.hint})`;
+    const opts = shuffle([p.ok, p.bad]);
+    body.innerHTML = `
+      <div class="sentence-display">${p.s.replace("___", '<span class="gap" id="gap-span">?</span>')}</div>
+      <div class="opts">
+        ${opts.map(o => `<button class="opt" onclick="checkChoice(this, '${o}', '${p.ok}', '${p.ok}')">${o}</button>`).join("")}
+      </div>
+    `;
+    return;
+  }
+
+  const info = analyzeWord(currentTask.word);
+  if (currentTask.type === "choice" && info) {
+    tag.textContent = "Rövid vagy hosszú?";
+    tag.style.background = "#2563eb";
+    title.textContent = "Kattints a helyesen leírt szóra!";
+    const opts = shuffle([info.word, info.wrongWord]);
+    body.innerHTML = `
+      <div class="word-display">🤔</div>
+      <div class="opts">
+        ${opts.map(o => `<button class="opt" onclick="checkChoice(this, '${o}', '${info.word}', '${info.word}')">${o}</button>`).join("")}
+      </div>
+    `;
+  } else if (currentTask.type === "gap" && info) {
+    tag.textContent = "Betűpótló";
+    tag.style.background = "#d97706";
+    title.textContent = "Melyik betűkapcsolat hiányzik a szóból?";
+    const correctOpt = info.hasLong ? info.longPart : info.shortPart;
+    const wrongOpt = info.hasLong ? info.shortPart : info.longPart;
+    const opts = shuffle([correctOpt, wrongOpt]);
+    body.innerHTML = `
+      <div class="word-display">${info.gappedWord.replace("___", '<span class="gap" id="gap-span">__</span>')}</div>
+      <div class="opts">
+        ${opts.map(o => `<button class="opt" onclick="checkChoice(this, '${o}', '${correctOpt}', '${info.word}')">${o}</button>`).join("")}
+      </div>
+    `;
+  } else {
+    // Szókirakó (valódi vagy álszó)
+    tag.textContent = currentTask.isPseudo ? "Álszó kirakó" : "Betűkirakó";
+    tag.style.background = currentTask.isPseudo ? "#475569" : "#0d9488";
+    title.textContent = "Rakd ki a szót a betűcsempékből!";
+    renderTilePuzzle(currentTask.word, body);
+  }
+}
+
+function checkChoice(btn, chosen, correct, fullWord) {
+  if (answered) return;
+  answered = true;
+  const allBtns = document.querySelectorAll(".opt");
+  allBtns.forEach(b => {
+    if (b.textContent === correct) b.classList.add("ok");
+    else if (b === btn) b.classList.add("bad");
+    else b.classList.add("dim");
+  });
+  const gapSpan = document.getElementById("gap-span");
+  if (gapSpan) gapSpan.textContent = correct;
+
+  finishAnswer(chosen === correct, fullWord);
+}
+
+// Szókirakó csempék kezelése
+let tileTarget = "";
+let tilePlaced = [];
+
+function renderTilePuzzle(word, container) {
+  tileTarget = word;
+  tilePlaced = [];
+  const chars = word.split("");
+  const shuffled = shuffle(chars.map((c, idx) => ({ c, idx })));
+
+  container.innerHTML = `
+    <div class="slotrow" id="slot-row"></div>
+    <div class="tiles" id="tile-pool">
+      ${shuffled.map(item => `<button class="tile" id="t-${item.idx}" onclick="pickTile(${item.idx}, '${item.c}')">${item.c}</button>`).join("")}
+    </div>
+    <div style="margin-top:16px">
+      <button class="secondary" onclick="clearTiles()">↺ Újrakezdés</button>
+    </div>
+  `;
+}
+
+function pickTile(idx, char) {
+  if (answered) return;
+  const btn = document.getElementById("t-" + idx);
+  if (btn.classList.contains("used")) return;
+  btn.classList.add("used");
+  tilePlaced.push({ idx, char });
+  updateSlots();
+
+  if (tilePlaced.length === tileTarget.length) {
+    answered = true;
+    const built = tilePlaced.map(x => x.char).join("");
+    finishAnswer(built === tileTarget, tileTarget);
+  }
+}
+
+function updateSlots() {
+  const row = document.getElementById("slot-row");
+  row.innerHTML = tilePlaced.map((item, pos) =>
+    `<button class="tile placed" onclick="removeTile(${pos})">${item.char}</button>`
+  ).join("");
+}
+
+function removeTile(pos) {
+  if (answered) return;
+  const removed = tilePlaced.splice(pos, 1)[0];
+  document.getElementById("t-" + removed.idx).classList.remove("used");
+  updateSlots();
+}
+
+function clearTiles() {
+  if (answered) return;
+  tilePlaced = [];
+  document.querySelectorAll("#tile-pool .tile").forEach(b => b.classList.remove("used"));
+  updateSlots();
+}
+
+function finishAnswer(isOk, fullWord) {
+  const u = curUser();
+  const sheet = document.getElementById("sheet");
+  const shHead = document.getElementById("sh-head");
+  const shFull = document.getElementById("sh-full");
+
+  if (isOk) {
+    combo++;
+    const gain = 10 + (combo >= 3 ? 5 : 0);
+    sessionScore += gain;
+    sessionCorrect++;
+    u.pts += gain;
+    if (!currentTask.isPseudo && !u.mastered.includes(fullWord)) {
+      u.mastered.push(fullWord);
+    }
+    u.mistakes = u.mistakes.filter(w => w !== fullWord);
+
+    sheet.className = "sheet ok on";
+    shHead.textContent = combo >= 3 ? `Szuper! (+${gain} pont, ${combo}x sorozat!)` : `Helyes! (+${gain} pont)`;
+    shFull.textContent = `Helyes alak: ${fullWord}`;
+  } else {
+    combo = 0;
+    if (!currentTask.isPseudo && !u.mistakes.includes(fullWord)) {
+      u.mistakes.push(fullWord);
+    }
+    sheet.className = "sheet bad on";
+    shHead.textContent = "Most nem talált!";
+    shFull.textContent = `A helyes írásmód: ${fullWord}`;
+  }
+
+  saveState();
+  document.getElementById("q-score").textContent = sessionScore + " p";
+}
+
+function nextQuestion() {
+  qIndex++;
+  if (qIndex < queue.length) {
+    renderQuestion();
+  } else {
+    showResults();
+  }
+}
+
+function showResults() {
+  document.getElementById("sheet").classList.remove("on");
+  showScreen("scr-res");
+  const ratio = sessionCorrect / queue.length;
+  const stars = ratio === 1 ? "⭐⭐⭐" : (ratio >= 0.7 ? "⭐⭐☆" : "⭐☆☆");
+  document.getElementById("res-stars").textContent = stars;
+  document.getElementById("res-head").textContent = ratio === 1 ? "Hibátlan teljesítmény!" : "Kör teljesítve!";
+  document.getElementById("res-sub").textContent = `${queue.length} szóból ${sessionCorrect} helyes • Szerzett pontok: ${sessionScore} p`;
+}
+
+// Indítás
+updateHome();
+</script>
+</body>
+</html>
