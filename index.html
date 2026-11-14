@@ -1,67 +1,88 @@
-<!doctype html>
-<html lang="hu">
+<!doctype html> <!-- HTML5 dokumentumtípus deklarációja -->
+<html lang="hu"> <!-- Nyelv beállítása magyarra (képernyőolvasók és böngészőfordító miatt fontos) -->
 <head>
-<meta charset="utf-8">
+<meta charset="utf-8"> <!-- UTF-8 karakterkódolás az ékezetes magyar betűk (á, é, ő, ű) hibátlan megjelenítéséhez -->
+<!-- Mobilos és tabletes nézetablak beállítása: tiltja a véletlen nagyítást dupla koppintáskor -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Helyesírás Kaland</title>
-<style>
-  :root {
-    --bg1: #fff7ed; --bg2: #e0f2fe;
-    --ink: #1e293b; --soft: #64748b;
-    --card: #ffffff; --line: #e2e8f0;
-    --pri: #7c3aed; --pri2: #a78bfa;
-    --ok: #16a34a; --okbg: #dcfce7;
-    --bad: #dc2626; --badbg: #fee2e2;
-  }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; height: 100%; }
-  body {
-    font-family: "Segoe UI Rounded", "Nunito", "Segoe UI", system-ui, sans-serif;
-    color: var(--ink);
-    background: linear-gradient(160deg, var(--bg1), var(--bg2));
-    background-attachment: fixed;
-    user-select: none; -webkit-user-select: none;
-    touch-action: manipulation;
-    overflow-x: hidden;
-    padding-bottom: 64px;
-  }
-  button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
-  .screen { display: none; min-height: calc(100vh - 64px); padding: 16px; max-width: 960px; margin: 0 auto; flex-direction: column; }
-  .screen.on { display: flex; }
+<title>Helyesírás Kaland</title> <!-- A böngészőfülön megjelenő cím -->
 
-  .hero { text-align: center; margin-top: 6px; }
-  .mascot { font-size: 72px; line-height: 1; display: inline-block; animation: bob 2.6s ease-in-out infinite; }
-  @keyframes bob { 50% { transform: translateY(-8px) rotate(-4deg); } }
+<!-- =====================================================================
+     1. BLOKK: VIZUÁLIS MEGJELENÉS ÉS STÍLUSOK (CSS)
+     ===================================================================== -->
+<style>
+  /* Globális CSS változók (színpaletta központi definíciója) */
+  :root {
+    --bg1: #fff7ed; --bg2: #e0f2fe;     /* Háttér színátmenet két végpontja */
+    --ink: #1e293b; --soft: #64748b;    /* Fő szövegszín és halványabb segédszöveg színe */
+    --card: #ffffff; --line: #e2e8f0;   /* Kártyák háttérszíne és szegélyszíne */
+    --pri: #7c3aed; --pri2: #a78bfa;    /* Elsődleges lila kiemelőszín és világosabb párja */
+    --ok: #16a34a; --okbg: #dcfce7;     /* Helyes válasz zöld szöveg- és háttérszíne */
+    --bad: #dc2626; --badbg: #fee2e2;   /* Hibás válasz piros szöveg- és háttérszíne */
+  }
+
+  /* Minden HTML elemre érvényes alapbeállítás: a padding és a border beleszámít a szélességbe */
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  /* A teljes böngészőablak magasságának kihasználása */
+  html, body { margin: 0; height: 100%; }
+
+  /* Oldaltörzs alapstílusai */
+  body {
+    font-family: "Segoe UI Rounded", "Nunito", "Segoe UI", system-ui, sans-serif; /* Lekerekített, gyerekbarát betűtípusok */
+    color: var(--ink); /* Alap szövegszín */
+    background: linear-gradient(160deg, var(--bg1), var(--bg2)); /* Átlós háttér-színátmenet */
+    background-attachment: fixed; /* Görgetéskor a háttér fixen marad */
+    user-select: none; -webkit-user-select: none; /* Szövegkijelölés tiltása (játék közben zavaró lenne) */
+    touch-action: manipulation; /* Érintőképernyős késleltetés (300ms) megszüntetése */
+    overflow-x: hidden; /* Vízszintes görgetősáv tiltása */
+    padding-bottom: 64px; /* Alsó helykihagyás a fix monitorozó sávnak */
+  }
+
+  /* Gombok alapértelmezett viselkedése */
+  button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
+
+  /* Képernyő-konténerek (egyszerre csak az .on osztályú látszik) */
+  .screen { display: none; min-height: calc(100vh - 64px); padding: 16px; max-width: 960px; margin: 0 auto; flex-direction: column; }
+  .screen.on { display: flex; } /* Aktív képernyő megjelenítése flexbox elrendezéssel */
+
+  /* --- Kezdőképernyő (Hero és Statisztika) --- */
+  .hero { text-align: center; margin-top: 6px; } /* Középre igazított fejléc */
+  .mascot { font-size: 72px; line-height: 1; display: inline-block; animation: bob 2.6s ease-in-out infinite; } /* Lebegő bagoly figura */
+  @keyframes bob { 50% { transform: translateY(-8px) rotate(-4deg); } } /* A lebegő animáció kulcskockája */
   h1 {
     font-size: 38px; margin: 4px 0 0; letter-spacing: .5px;
-    background: linear-gradient(90deg, #7c3aed, #ec4899, #f59e0b);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
+    background: linear-gradient(90deg, #7c3aed, #ec4899, #f59e0b); /* Színátmenetes szövegkitöltés */
+    -webkit-background-clip: text; background-clip: text; color: transparent; /* Háttér kivágása a betűk formájára */
   }
-  .hello { font-size: 19px; color: var(--soft); margin: 4px 0 12px; font-weight: 700; }
-  .statsrow { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .hello { font-size: 19px; color: var(--soft); margin: 4px 0 12px; font-weight: 700; } /* Üdvözlő felirat */
+  .statsrow { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; } /* Pontszám kapszulák sora */
   .pill {
     background: var(--card); border-radius: 16px; padding: 8px 16px; font-size: 17px; font-weight: 800;
     box-shadow: 0 3px 0 var(--line); display: flex; align-items: center; gap: 6px;
   }
+
+  /* Rang és szintlépés sáv */
   .rankbox {
     background: var(--card); border-radius: 20px; padding: 12px 18px;
     box-shadow: 0 4px 0 var(--line); max-width: 620px; margin: 0 auto 16px; width: 100%;
   }
-  .rankname { font-size: 19px; font-weight: 800; }
-  .bar { height: 14px; background: #f1f5f9; border-radius: 99px; overflow: hidden; margin-top: 6px; }
-  .bar > i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #a78bfa, #7c3aed); transition: width .6s; }
-  .barlabel { display: flex; justify-content: space-between; font-size: 13px; color: var(--soft); margin-top: 5px; font-weight: 700; }
+  .rankname { font-size: 19px; font-weight: 800; } /* Aktuális rang neve */
+  .bar { height: 14px; background: #f1f5f9; border-radius: 99px; overflow: hidden; margin-top: 6px; } /* Haladási sáv kerete */
+  .bar > i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #a78bfa, #7c3aed); transition: width .6s; } /* Töltöttség csík */
+  .barlabel { display: flex; justify-content: space-between; font-size: 13px; color: var(--soft); margin-top: 5px; font-weight: 700; } /* Pontszám feliratok a sáv alatt */
 
-  .menu { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 620px; margin: 0 auto; width: 100%; }
+  /* --- Főmenü csempék (CSS Grid) --- */
+  .menu { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 620px; margin: 0 auto; width: 100%; } /* Kétoszlopos csemperács */
   .big {
     border: 0; border-radius: 22px; padding: 18px 12px; font-size: 20px; font-weight: 800; color: #fff;
-    box-shadow: 0 5px 0 rgba(0,0,0,.18); transition: transform .08s;
+    box-shadow: 0 5px 0 rgba(0,0,0,.18); transition: transform .08s; /* 3D hatású alsó árnyék */
     display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center;
   }
-  .big small { font-size: 13px; font-weight: 600; opacity: .92; }
-  .big:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.18); }
-  .big .ic { font-size: 32px; }
-  .b-main { grid-column: 1 / -1; background: linear-gradient(135deg, #8b5cf6, #ec4899); font-size: 24px; padding: 20px; }
+  .big small { font-size: 13px; font-weight: 600; opacity: .92; } /* Csempe alatti leírás */
+  .big:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.18); } /* Lenyomás animáció */
+  .big .ic { font-size: 32px; } /* Emoji ikon mérete */
+  /* Különböző játékmódok egyedi színátmenetei */
+  .b-main { grid-column: 1 / -1; background: linear-gradient(135deg, #8b5cf6, #ec4899); font-size: 24px; padding: 20px; } /* Teljes szélességű főgomb */
   .b-choice { background: linear-gradient(135deg, #06b6d4, #2563eb); }
   .b-jly { background: linear-gradient(135deg, #f97316, #ea580c); }
   .b-gap { background: linear-gradient(135deg, #eab308, #ca8a04); }
@@ -69,35 +90,37 @@
   .b-pairs { grid-column: 1 / -1; background: linear-gradient(135deg, #ec4899, #be185d); }
   .b-mistakes { grid-column: 1 / -1; background: linear-gradient(135deg, #ef4444, #b91c1c); }
 
+  /* --- Profilválasztó képernyő --- */
   .namebox {
     max-width: 480px; margin: 30px auto; background: var(--card); border-radius: 28px;
     padding: 26px; text-align: center; box-shadow: 0 6px 0 var(--line); width: 100%;
   }
   .namebox input {
     font: inherit; font-size: 24px; padding: 12px; border-radius: 16px; border: 3px solid var(--line);
-    width: 100%; text-align: center; margin: 14px 0; user-select: text;
+    width: 100%; text-align: center; margin: 14px 0; user-select: text; /* Név beírásánál engedélyezett a kijelölés */
   }
-  .namebox input:focus { outline: none; border-color: var(--pri2); }
-  .plist { display: grid; gap: 10px; margin-bottom: 16px; }
+  .namebox input:focus { outline: none; border-color: var(--pri2); } /* Fókusz keret */
+  .plist { display: grid; gap: 10px; margin-bottom: 16px; } /* Meglévő profilok listája */
   .profile {
     display: flex; align-items: center; justify-content: space-between;
     border: 3px solid var(--line); background: #fff; border-radius: 18px;
     padding: 12px 16px; box-shadow: 0 4px 0 var(--line); font-weight: 800; font-size: 19px;
   }
-  .profile.cur { border-color: var(--pri2); background: #f5f3ff; }
+  .profile.cur { border-color: var(--pri2); background: #f5f3ff; } /* Éppen aktív profil kiemelése */
 
-  .topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  /* --- Kvíz felület felső sáv és feladatkártya --- */
+  .topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; } /* Felső navigációs sáv */
   .iconbtn {
     width: 50px; height: 50px; border-radius: 16px; border: 0; background: var(--card);
     font-size: 22px; box-shadow: 0 4px 0 var(--line); flex: none;
   }
-  .progress { flex: 1; height: 18px; background: rgba(255,255,255,.85); border-radius: 99px; overflow: hidden; }
+  .progress { flex: 1; height: 18px; background: rgba(255,255,255,.85); border-radius: 99px; overflow: hidden; } /* Kvíz előrehaladás sáv */
   .progress > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #34d399, #16a34a); border-radius: 99px; transition: width .35s; }
   .score {
     font-size: 19px; font-weight: 800; background: var(--card); padding: 9px 14px;
     border-radius: 16px; box-shadow: 0 4px 0 var(--line); min-width: 82px; text-align: center;
   }
-  .combo { font-size: 17px; font-weight: 900; color: #ea580c; min-width: 56px; text-align: center; }
+  .combo { font-size: 17px; font-weight: 900; color: #ea580c; min-width: 56px; text-align: center; } /* Sorozat (combo) jelző */
 
   .card {
     background: var(--card); border-radius: 28px; padding: 24px 20px;
@@ -107,49 +130,75 @@
     display: inline-block; font-size: 14px; font-weight: 800; color: #fff;
     padding: 5px 14px; border-radius: 99px; background: var(--pri);
   }
-  .qtitle { font-size: 18px; color: var(--soft); font-weight: 700; margin: 12px 0 8px; }
-  .word-display { font-size: 40px; font-weight: 900; line-height: 1.3; margin: 10px 0; letter-spacing: 1px; }
-  .sentence-display { font-size: 24px; font-weight: 800; line-height: 1.4; margin: 10px 0; }
+  .qtitle { font-size: 18px; color: var(--soft); font-weight: 700; margin: 12px 0 8px; } /* Feladat instrukció */
+  .word-display { font-size: 40px; font-weight: 900; line-height: 1.3; margin: 10px 0; letter-spacing: 1px; } /* Nagy szókijelző */
+  .sentence-display { font-size: 24px; font-weight: 800; line-height: 1.4; margin: 10px 0; } /* Mondatkijelző */
   .clue-box {
     background: #fef9c3; border: 2px solid #fde047; border-radius: 18px;
-    padding: 12px 16px; font-size: 20px; font-weight: 800; color: #854d0e;
+    padding: 12px 16px; font-size: 19px; font-weight: 800; color: #854d0e;
     margin: 10px auto 6px; max-width: 680px; line-height: 1.35;
   }
   .gap {
     display: inline-block; min-width: 68px; border-bottom: 5px dashed var(--pri2);
     color: var(--pri); padding: 0 6px;
   }
+
+  /* Választógombok */
   .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
   .opt {
     border: 3px solid var(--line); background: #fff; border-radius: 20px; padding: 16px 14px;
     font-size: 26px; font-weight: 800; box-shadow: 0 5px 0 var(--line); transition: transform .08s;
   }
   .opt:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--line); }
-  .opt.ok { border-color: var(--ok); background: var(--okbg); box-shadow: 0 5px 0 #86efac; color: var(--ok); }
-  .opt.bad { border-color: var(--bad); background: var(--badbg); box-shadow: 0 5px 0 #fca5a5; color: var(--bad); animation: shake .4s; }
-  .opt.dim { opacity: .45; }
-  @keyframes shake { 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }
+  .opt.ok { border-color: var(--ok); background: var(--okbg); box-shadow: 0 5px 0 #86efac; color: var(--ok); } /* Helyes válasz stílusa */
+  .opt.bad { border-color: var(--bad); background: var(--badbg); box-shadow: 0 5px 0 #fca5a5; color: var(--bad); animation: shake .4s; } /* Hibás válasz stílusa */
+  .opt.dim { opacity: .45; } /* Nem választott opció elhalványítása */
+  @keyframes shake { 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } } /* Rázó animáció hiba esetén */
 
+  /* --- Betűkirakó rekeszek és csempék --- */
   .slotrow {
-    display: flex; flex-wrap: wrap; gap: 8px; min-height: 68px; padding: 10px;
+    display: flex; flex-wrap: wrap; gap: 8px; min-height: 70px; padding: 12px;
     margin-top: 14px; border-radius: 20px; background: #f8fafc; border: 3px dashed var(--line);
     justify-content: center; align-items: center;
   }
+  .slot-empty {
+    width: 48px; height: 54px; border-radius: 14px;
+    border: 3px dashed #cbd5e1; background: #ffffff;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 20px; color: #cbd5e1; font-weight: 800;
+  }
   .tiles { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 16px; justify-content: center; }
   .tile {
-    border: 3px solid #ddd6fe; background: #f5f3ff; border-radius: 15px; padding: 10px 16px;
-    font-size: 26px; font-weight: 900; box-shadow: 0 4px 0 #ddd6fe; min-width: 52px;
+    border: 3px solid #ddd6fe; background: #f5f3ff; border-radius: 15px; padding: 10px 14px;
+    font-size: 26px; font-weight: 900; box-shadow: 0 4px 0 #ddd6fe; min-width: 48px; height: 54px;
+    display: inline-flex; align-items: center; justify-content: center;
   }
   .tile:active { transform: translateY(3px); box-shadow: 0 2px 0 #ddd6fe; }
-  .tile.used { visibility: hidden; }
-  .tile.placed { background: #fff; border-color: var(--pri2); box-shadow: 0 4px 0 var(--pri2); }
+  .tile.used { visibility: hidden; } /* Felhasznált betű elrejtése (de a helyét megtartja, hogy ne ugráljon a sor) */
+  .tile.placed { background: #fff; border-color: var(--pri2); box-shadow: 0 4px 0 var(--pri2); } /* Kirakott betű */
+  .tile.locked {
+    background: #dcfce7; border-color: #22c55e; color: #15803d;
+    box-shadow: 0 4px 0 #86efac; cursor: default; /* Segítséggel rögzített (nem mozdítható) betű */
+  }
+  .tile.locked:active { transform: none; }
 
+  /* Segítség gombok sora */
+  .help-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 16px; }
+  .help-btn {
+    border: 2px solid #fde047; background: #fefce8; color: #854d0e;
+    border-radius: 14px; padding: 8px 14px; font-size: 15px; font-weight: 800;
+    box-shadow: 0 3px 0 #fde047; transition: transform .08s;
+  }
+  .help-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #fde047; }
+  .help-btn:disabled { opacity: 0.45; cursor: default; transform: none; box-shadow: none; } /* Felhasznált segítség tiltása */
+
+  /* --- Felugró visszajelző sáv (Sheet) --- */
   .sheet {
     position: fixed; left: 0; right: 0; bottom: 52px; padding: 16px 16px 18px;
     transform: translateY(150%); transition: transform .28s cubic-bezier(.2,1.3,.4,1); z-index: 20;
     box-shadow: 0 -4px 16px rgba(0,0,0,.08);
   }
-  .sheet.on { transform: none; }
+  .sheet.on { transform: none; } /* Becúszás a képernyőre */
   .sheet .in { max-width: 960px; margin: 0 auto; display: flex; gap: 16px; align-items: center; justify-content: space-between; }
   .sheet.ok { background: var(--okbg); border-top: 4px solid #86efac; }
   .sheet.bad { background: var(--badbg); border-top: 4px solid #fca5a5; }
@@ -157,21 +206,25 @@
   .sheet.ok .head { color: var(--ok); }
   .sheet.bad .head { color: var(--bad); }
   .sheet .full { font-size: 20px; font-weight: 800; margin-top: 2px; }
+
+  /* Általános elsődleges és másodlagos gombok */
   .primary {
     border: 0; border-radius: 18px; padding: 13px 24px; font-size: 20px; font-weight: 900;
     color: #fff; background: linear-gradient(135deg, #8b5cf6, #7c3aed); box-shadow: 0 4px 0 #5b21b6;
   }
   .primary:active { transform: translateY(3px); box-shadow: 0 2px 0 #5b21b6; }
   .secondary {
-    border: 0; border-radius: 16px; padding: 11px 18px; font-size: 17px; font-weight: 800;
+    border: 0; border-radius: 16px; padding: 10px 16px; font-size: 16px; font-weight: 800;
     background: #f1f5f9; box-shadow: 0 4px 0 var(--line);
   }
 
+  /* Eredmény képernyő és lábléc */
   .result { text-align: center; margin-top: 20px; }
   .stars { font-size: 64px; letter-spacing: 6px; margin: 10px 0; }
   .footer { text-align: center; margin-top: 16px; }
   .ghost { background: rgba(255,255,255,.75); border: 0; border-radius: 14px; padding: 9px 15px; font-size: 14px; font-weight: 700; color: var(--soft); }
 
+  /* --- Fix alsó monitorozó sáv --- */
   .monitor-bar {
     position: fixed; left: 0; right: 0; bottom: 0; height: 52px;
     background: #1e293b; color: #f8fafc; z-index: 30;
@@ -179,20 +232,15 @@
     padding: 0 12px; font-size: 14px; font-weight: 700;
     box-shadow: 0 -2px 10px rgba(0,0,0,.15);
   }
-  .monitor-inner {
-    max-width: 960px; width: 100%;
-    display: flex; justify-content: space-around; align-items: center; gap: 8px;
-  }
+  .monitor-inner { max-width: 960px; width: 100%; display: flex; justify-content: space-around; align-items: center; gap: 8px; }
   .mon-item { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
-  .mon-val {
-    background: #334155; color: #38bdf8; padding: 3px 9px;
-    border-radius: 8px; font-weight: 900; font-size: 15px;
-  }
-  .mon-val.ok { color: #4ade80; }
-  .mon-val.gold { color: #fbbf24; }
+  .mon-val { background: #334155; color: #38bdf8; padding: 3px 9px; border-radius: 8px; font-weight: 900; font-size: 15px; }
+  .mon-val.ok { color: #4ade80; } /* Zöld kiemelés a mai hibátlan számlálónak */
+  .mon-val.gold { color: #fbbf24; } /* Arany kiemelés a gyakorolt szavaknak */
 
+  /* Reszponzív igazítás kis kijelzőkre (mobil / álló tablet) */
   @media (max-width: 640px) {
-    .menu, .opts { grid-template-columns: 1fr; }
+    .menu, .opts { grid-template-columns: 1fr; } /* Egyoszlopos elrendezés */
     .word-display { font-size: 32px; }
     .sheet .in { flex-direction: column; text-align: center; }
     .monitor-bar { height: auto; min-height: 52px; padding: 6px 8px; font-size: 12px; }
@@ -202,22 +250,28 @@
 </head>
 <body>
 
+<!-- =====================================================================
+     2. BLOKK: FELHASZNÁLÓI FELÜLET SZERKEZETE (HTML)
+     ===================================================================== -->
+
+<!-- 1. KÉPERNYŐ: FŐMENÜ ÉS STATISZTIKÁK -->
 <section id="scr-home" class="screen on">
   <div class="hero">
-    <div class="mascot">🦉</div>
+    <div class="mascot">🦉</div> <!-- Kabalafigura -->
     <h1>Helyesírás Kaland</h1>
-    <div class="hello" id="hello-txt">Szia!</div>
+    <div class="hello" id="hello-txt">Szia!</div> <!-- Ide kerül a játékos neve -->
     <div class="statsrow">
-      <div class="pill">⭐ <span id="st-pts">0</span> pont</div>
-      <div class="pill">🏆 <span id="st-done">0</span> hibátlan szó</div>
+      <div class="pill">⭐ <span id="st-pts">0</span> pont</div> <!-- Összpontszám -->
+      <div class="pill">🏆 <span id="st-done">0</span> hibátlan szó</div> <!-- Hibátlanul elsajátított szavak -->
     </div>
     <div class="rankbox">
-      <div class="rankname" id="rank-name">Kezdő Betűvadász</div>
-      <div class="bar"><i id="rank-bar"></i></div>
+      <div class="rankname" id="rank-name">Kezdő Betűvadász</div> <!-- Aktuális rang -->
+      <div class="bar"><i id="rank-bar"></i></div> <!-- Vizuális haladásjelző -->
       <div class="barlabel"><span id="rank-cur">0 pont</span><span id="rank-next">Következő szint: 150 pont</span></div>
     </div>
   </div>
 
+  <!-- Játékmód-választó gombok -->
   <div class="menu">
     <button class="big b-main" id="btn-mixed">
       <span class="ic">🚀</span>
@@ -242,7 +296,7 @@
     <button class="big b-tiles" id="btn-tiles">
       <span class="ic">🔤</span>
       Betűkirakó
-      <small>Rakd ki a szót a betűcsempékből!</small>
+      <small>Rakd ki a szót 3 választható segítséggel!</small>
     </button>
     <button class="big b-pairs" id="btn-pairs">
       <span class="ic">⚖️</span>
@@ -261,34 +315,37 @@
   </div>
 </section>
 
+<!-- 2. KÉPERNYŐ: JÁTÉKOS PROFILVÁLASZTÓ -->
 <section id="scr-users" class="screen">
   <div class="namebox">
     <div style="font-size:56px">🦉</div>
     <h2>Ki játszik most?</h2>
-    <div class="plist" id="user-list"></div>
+    <div class="plist" id="user-list"></div> <!-- JavaScript tölti fel a profilgombokkal -->
     <input type="text" id="new-user-inp" placeholder="Új név beírása..." maxlength="18">
     <button class="primary" style="width:100%" id="btn-add-user">Hozzáadás és indítás</button>
   </div>
 </section>
 
+<!-- 3. KÉPERNYŐ: AKTÍV KVÍZ / FELADATMEGOLDÓ -->
 <section id="scr-quiz" class="screen">
   <div class="topbar">
-    <button class="iconbtn" id="btn-quit">🏠</button>
-    <div class="progress"><i id="q-prog"></i></div>
-    <div class="combo" id="q-combo"></div>
-    <div class="score" id="q-score">0 p</div>
+    <button class="iconbtn" id="btn-quit">🏠</button> <!-- Vissza a főmenübe -->
+    <div class="progress"><i id="q-prog"></i></div> <!-- 10-es kör előrehaladása -->
+    <div class="combo" id="q-combo"></div> <!-- Sorozatbónusz kijelzése -->
+    <div class="score" id="q-score">0 p</div> <!-- Aktuális körben szerzett pont -->
   </div>
 
   <div class="card" id="q-card">
-    <div class="tag" id="q-tag">Feladat</div>
-    <div class="qtitle" id="q-title">Válaszd ki a helyeset!</div>
-    <div id="q-body"></div>
+    <div class="tag" id="q-tag">Feladat</div> <!-- Feladattípus címke -->
+    <div class="qtitle" id="q-title">Válaszd ki a helyeset!</div> <!-- Feladat utasítása -->
+    <div id="q-body"></div> <!-- Ide generálódik dinamikusan maga a feladat -->
   </div>
 </section>
 
+<!-- 4. KÉPERNYŐ: KÖR VÉGI ÖSSZEGZÉS -->
 <section id="scr-res" class="screen">
   <div class="card result">
-    <div class="stars" id="res-stars">⭐⭐⭐</div>
+    <div class="stars" id="res-stars">⭐⭐⭐</div> <!-- Értékelő csillagok -->
     <h2 id="res-head" style="font-size:30px;margin:6px 0">Szép munka!</h2>
     <p id="res-sub" style="font-size:19px;color:var(--soft);font-weight:700"></p>
     <div style="display:flex;gap:12px;justify-content:center;margin-top:20px;flex-wrap:wrap">
@@ -298,25 +355,31 @@
   </div>
 </section>
 
+<!-- FELUGRÓ VISSZAJELZÉS SÁV (Válaszadás után csúszik fel) -->
 <div class="sheet" id="sheet">
   <div class="in">
     <div>
       <div class="head" id="sh-head">Helyes!</div>
-      <div class="full" id="sh-full"></div>
+      <div class="full" id="sh-full"></div> <!-- Helyes szóalak megerősítése -->
     </div>
     <button class="primary" id="sh-next">Tovább ➔</button>
   </div>
 </div>
 
+<!-- FIX ALSÓ MONITOROZÓ SÁV (Minden képernyőn látszik) -->
 <footer class="monitor-bar">
   <div class="monitor-inner">
     <div class="mon-item">📚 Összes szó: <span class="mon-val" id="mon-total">0</span></div>
     <div class="mon-item">🎯 Már gyakorolva: <span class="mon-val gold" id="mon-practiced">0</span></div>
-    <div class="mon-item">✅ Most hibátlan: <span class="mon-val ok" id="mon-session-ok">0</span></div>
+    <div class="mon-item">✅ Mai hibátlan: <span class="mon-val ok" id="mon-today-ok">0</span></div>
   </div>
 </footer>
 
+<!-- =====================================================================
+     3. BLOKK: ALKALMAZÁS LOGIKA ÉS ADATBÁZIS (JAVASCRIPT)
+     ===================================================================== -->
 <script>
+// --- 3.1. ADATBÁZISOK: Kiemelt körülírások szótára (kulcs: szó -> érték: magyarázat) ---
 const CUSTOM_CLUES = {
   "Nelli": "Lánynév, a Kornélia rövidített alakja.",
   "loccsan": "A víz hirtelen csapódva ilyen hangot ad.",
@@ -385,6 +448,7 @@ const CUSTOM_CLUES = {
   "meszel": "Fehér mésztejjel befesti a falat."
 };
 
+// --- 3.2. ADATBÁZISOK: Mássalhangzós szavak listája (Set gondoskodik az ismétlődések kiszűréséről) ---
 const M_LIST = Array.from(new Set([
   "Nelli","loccsan","csepp","hipp-hopp","kipp-kopp","hullám","duzzad","durran",
   "fullad","hullik","futtat","cuppan","juttat","csusszan","szunnyad","könny",
@@ -453,6 +517,7 @@ const M_LIST = Array.from(new Set([
   "viszket","vissza","bátyja","fütyül","füttyent","petty","pettyes","potyog"
 ]));
 
+// --- 3.3. ADATBÁZISOK: j - ly szópárok [szó, opcionális jelentésmagyarázat] formátumban ---
 const JLY_RAW = [
   ["ajak",""],["ajándék",""],["ajánl",""],["ajtó",""],["akadály",""],["amely",""],
   ["amilyen",""],["amolyan",""],["baj",""],["bajnok",""],["bajusz",""],["Benjámin",""],
@@ -514,9 +579,13 @@ const JLY_RAW = [
   ["zsámoly",""],["zsindely","tetőfedésre használt falemez"],["zsivaj",""],["zsöllye","nézőtéri ülőhely"]
 ];
 
+// Átalakítás objektumokká: { w: "szó", hint: "magyarázat" }
 const JLY_LIST = JLY_RAW.map(x => ({ w: x[0], hint: x[1] }));
+
+// Az összes egyedi szó halmaza (a monitorozó sáv "Összes szó" számlálójához)
 const ALL_UNIQUE_WORDS = new Set([...M_LIST, ...JLY_LIST.map(x => x.w)]);
 
+// --- 3.4. ADATBÁZISOK: Jelentéskülönbséges mondatkiegészítő feladatok ---
 const PAIR_TASKS = [
   { s: "A focista ___ talált a kapuba.", ok: "fejjel", bad: "fejel", hint: "Mivel? (eszközhatározó: fej + -vel)" },
   { s: "A csatár jól ___ a szögleteknél.", ok: "fejel", bad: "fejjel", hint: "Mit csinál? (cselekvés)" },
@@ -536,6 +605,8 @@ const PAIR_TASKS = [
   { s: "Az osztályterem egy tágas ___.", ok: "helyiség", bad: "helység", hint: "Épületrész, szoba" }
 ];
 
+// --- 3.5. NYELVTANI SZÓELEMZŐ MOTOR ---
+// A kétjegyű hosszú mássalhangzóknak elöl kell lenniük, hogy pl. az "ssz"-t ne "sz"-ként találja meg először!
 const LONG_PATTERNS = [
   { long: "ccs", short: "cs" }, { long: "ggy", short: "gy" }, { long: "lly", short: "ly" },
   { long: "nny", short: "ny" }, { long: "ssz", short: "sz" }, { long: "tty", short: "ty" },
@@ -547,20 +618,24 @@ const LONG_PATTERNS = [
   { long: "tt", short: "t" },   { long: "vv", short: "v" },  { long: "zz", short: "z" }
 ];
 
+// Elemzi a szót, és előállítja belőle a hibás párt és a hiányos ("___") változatot
 function analyzeWord(word) {
-  const lower = word.toLowerCase();
+  const lower = word.toLowerCase(); // Kisbetűs változat a kereséshez
+  // 1. lépés: Hosszú mássalhangzó keresése a szóban
   for (const pat of LONG_PATTERNS) {
-    const idx = lower.indexOf(pat.long);
+    const idx = lower.indexOf(pat.long); // Megkeresi a minta pozícióját
     if (idx !== -1) {
-      const actualLong = word.slice(idx, idx + pat.long.length);
+      const actualLong = word.slice(idx, idx + pat.long.length); // Eredeti kis/nagybetűs hosszú részlet
+      // Ha nagybetűvel kezdődik a szó, a rövidített pár is nagybetűs legyen
       const actualShort = (idx === 0 && word[0] === word[0].toUpperCase())
         ? pat.short[0].toUpperCase() + pat.short.slice(1)
         : pat.short;
-      const wrongWord = word.slice(0, idx) + actualShort + word.slice(idx + pat.long.length);
-      const gappedWord = word.slice(0, idx) + "___" + word.slice(idx + pat.long.length);
+      const wrongWord = word.slice(0, idx) + actualShort + word.slice(idx + pat.long.length); // Hibás (megrövidített) alak
+      const gappedWord = word.slice(0, idx) + "___" + word.slice(idx + pat.long.length); // Lyukas szó a Betűpótlóhoz
       return { word, wrongWord, gappedWord, longPart: actualLong, shortPart: actualShort, hasLong: true };
     }
   }
+  // 2. lépés: Ha nincs benne hosszú mássalhangzó, rövidet keresünk, és megkettőzzük hibás alaknak
   const shortFallback = [
     { short: "ny", long: "nny" }, { short: "gy", long: "ggy" }, { short: "ty", long: "tty" },
     { short: "cs", long: "ccs" }, { short: "sz", long: "ssz" },
@@ -570,7 +645,7 @@ function analyzeWord(word) {
     { short: "s", long: "ss" },   { short: "t", long: "tt" },   { short: "z", long: "zz" }
   ];
   for (const pat of shortFallback) {
-    const idx = lower.indexOf(pat.short);
+    const idx = lower.indexOf(pat.short); // Keresés a szó belsejében (idx > 0, hogy szó elejét ne duplázzunk)
     if (idx > 0) {
       const actualShort = word.slice(idx, idx + pat.short.length);
       const wrongWord = word.slice(0, idx) + pat.long + word.slice(idx + pat.short.length);
@@ -578,22 +653,23 @@ function analyzeWord(word) {
       return { word, wrongWord, gappedWord, longPart: pat.long, shortPart: actualShort, hasLong: false };
     }
   }
-  return null;
+  return null; // Ha egyik minta sem illeszkedik
 }
 
+// j / ly szavak elemzése: kicseréli a j-t ly-ra (vagy fordítva) a hibás opcióhoz
 function analyzeJlyWord(word) {
   const lower = word.toLowerCase();
   const patterns = [
-    { target: "lly", alt: "jj" },
-    { target: "jj", alt: "lly" },
-    { target: "ly", alt: "j" },
-    { target: "j", alt: "ly" }
+    { target: "lly", alt: "jj" }, // Hosszú lly -> jj
+    { target: "jj", alt: "lly" }, // Hosszú jj -> lly
+    { target: "ly", alt: "j" },   // Rövid ly -> j
+    { target: "j", alt: "ly" }    // Rövid j -> ly
   ];
   for (const p of patterns) {
     const idx = lower.indexOf(p.target);
     if (idx !== -1) {
       const actualCorrect = word.slice(idx, idx + p.target.length);
-      const isCap = (idx === 0 && word[0] === word[0].toUpperCase());
+      const isCap = (idx === 0 && word[0] === word[0].toUpperCase()); // Nagy kezdőbetű vizsgálata (pl. Júlia)
       const actualWrong = isCap ? p.alt[0].toUpperCase() + p.alt.slice(1) : p.alt;
       const wrongWord = word.slice(0, idx) + actualWrong + word.slice(idx + p.target.length);
       const gappedWord = word.slice(0, idx) + "___" + word.slice(idx + p.target.length);
@@ -603,48 +679,60 @@ function analyzeJlyWord(word) {
   return null;
 }
 
+// Visszaadja a szóhoz tartozó 1. számú segítséget (körülírás vagy hangtani tipp)
 function getClueForWord(word) {
-  if (CUSTOM_CLUES[word]) return CUSTOM_CLUES[word];
-  const jlyObj = JLY_LIST.find(x => x.w === word);
+  if (CUSTOM_CLUES[word]) return CUSTOM_CLUES[word]; // Ha van egyedi körülírás, azt adja vissza
+  const jlyObj = JLY_LIST.find(x => x.w === word); // Ha j-ly listás szó és van zárójeles jelentése
   if (jlyObj && jlyObj.hint) return "Jelentése: " + jlyObj.hint;
-  const info = analyzeWord(word);
+  const info = analyzeWord(word); // Egyébként hangtani segítséget generál
   if (info) {
     return info.hasLong
-      ? "Figyelj! A szóban egy hosszú mássalhangzó (" + info.longPart + ") szerepel."
-      : "Figyelj! Ebben a szóban rövid mássalhangzó áll.";
+      ? "Keresett szó jellemzője: egy hosszú mássalhangzó (" + info.longPart + ") szerepel benne."
+      : "Keresett szó jellemzője: rövid mássalhangzó áll benne.";
   }
   return "Rakd sorba a betűket, hogy értelmes magyar szót kapj!";
 }
 
-const STORE_KEY = "helyesiras_kaland_v3";
+// --- 3.6. ÁLLAPOTKEZELÉS ÉS MENTÉS (localStorage) ---
+// Mai dátum lekérése "ÉÉÉÉ-HH-NN" formátumban a napi számlálóhoz
+function getTodayKey() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+const STORE_KEY = "helyesiras_kaland_v4"; // Böngésző tárhely kulcsa
+// Mentett állapot betöltése, vagy alapértelmezett profil létrehozása
 let state = JSON.parse(localStorage.getItem(STORE_KEY) || "null") || {
   current: "Játékos",
-  users: { "Játékos": { pts: 0, mastered: [], practiced: [], mistakes: [] } }
+  users: { "Játékos": { pts: 0, mastered: [], practiced: [], mistakes: [], daily: {} } }
 };
 
+// Aktuális állapot kiírása a böngésző helyi tárhelyébe
 function saveState() {
   localStorage.setItem(STORE_KEY, JSON.stringify(state));
 }
 
+// Aktív játékos adatainak lekérése (hiányzó mezők biztonsági pótlásával)
 function curUser() {
   if (!state.users[state.current]) {
-    state.users[state.current] = { pts: 0, mastered: [], practiced: [], mistakes: [] };
+    state.users[state.current] = { pts: 0, mastered: [], practiced: [], mistakes: [], daily: {} };
   }
-  if (!state.users[state.current].practiced) {
-    state.users[state.current].practiced = [...state.users[state.current].mastered];
-  }
-  return state.users[state.current];
+  const u = state.users[state.current];
+  if (!u.practiced) u.practiced = [...u.mastered]; // Régebbi mentés kompatibilitása
+  if (!u.daily) u.daily = {}; // Napi statisztika objektum biztosítása
+  return u;
 }
 
-let sessionFlawless = 0;
-
+// Alsó monitorozó sáv számainak frissítése
 function updateMonitorBar() {
   const u = curUser();
-  document.getElementById("mon-total").textContent = ALL_UNIQUE_WORDS.size;
-  document.getElementById("mon-practiced").textContent = u.practiced.length;
-  document.getElementById("mon-session-ok").textContent = sessionFlawless;
+  const todayCount = u.daily[getTodayKey()] || 0; // Mai hibátlan válaszok száma
+  document.getElementById("mon-total").textContent = ALL_UNIQUE_WORDS.size; // Összes szó az adatbázisban
+  document.getElementById("mon-practiced").textContent = u.practiced.length; // Már gyakorolt egyedi szavak
+  document.getElementById("mon-today-ok").textContent = todayCount; // Mai hibátlan találatok
 }
 
+// Ranglétrák definíciója
 const RANKS = [
   { min: 0, name: "Kezdő Betűvadász" },
   { min: 150, name: "Helyesírás Inas" },
@@ -653,12 +741,14 @@ const RANKS = [
   { min: 1500, name: "Nyelvtan Bajnok" }
 ];
 
+// Kezdőképernyő adatainak és rangsávjának újrarajzolása
 function updateHome() {
   const u = curUser();
   document.getElementById("hello-txt").textContent = "Szia, " + state.current + "!";
   document.getElementById("st-pts").textContent = u.pts;
   document.getElementById("st-done").textContent = u.mastered.length;
 
+  // Aktuális rang megkeresése pontszám alapján
   let rIdx = 0;
   for (let i = 0; i < RANKS.length; i++) {
     if (u.pts >= RANKS[i].min) rIdx = i;
@@ -668,6 +758,7 @@ function updateHome() {
   document.getElementById("rank-name").textContent = curR.name;
   document.getElementById("rank-cur").textContent = u.pts + " pont";
 
+  // Haladási csík százalékos számítása a következő rangig
   if (nextR) {
     const pct = Math.min(100, Math.round(((u.pts - curR.min) / (nextR.min - curR.min)) * 100));
     document.getElementById("rank-bar").style.width = pct + "%";
@@ -677,6 +768,7 @@ function updateHome() {
     document.getElementById("rank-next").textContent = "Legmagasabb szint elérve!";
   }
 
+  // Hibajavító gomb megjelenítése, ha van elrontott szó
   const mBtn = document.getElementById("btn-mistakes");
   if (u.mistakes.length > 0) {
     mBtn.style.display = "flex";
@@ -687,6 +779,7 @@ function updateHome() {
   updateMonitorBar();
 }
 
+// Képernyők közötti váltás (.on osztály kapcsolgatásával)
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("on"));
   document.getElementById(id).classList.add("on");
@@ -695,11 +788,13 @@ function showScreen(id) {
   updateMonitorBar();
 }
 
+// Visszatérés a főmenübe
 function goHome() {
   document.getElementById("sheet").classList.remove("on");
   showScreen("scr-home");
 }
 
+// Játékos profilok listázása
 function renderUsers() {
   const list = document.getElementById("user-list");
   list.innerHTML = "";
@@ -709,7 +804,6 @@ function renderUsers() {
     btn.innerHTML = "<span>👤 " + name + "</span><span>" + state.users[name].pts + " p</span>";
     btn.addEventListener("click", () => {
       state.current = name;
-      sessionFlawless = 0;
       saveState();
       goHome();
     });
@@ -717,28 +811,31 @@ function renderUsers() {
   });
 }
 
+// Új játékos profil létrehozása
 function addUser() {
   const inp = document.getElementById("new-user-inp");
   const name = inp.value.trim();
-  if (!name) return;
+  if (!name) return; // Üres nevet nem veszünk fel
   if (!state.users[name]) {
-    state.users[name] = { pts: 0, mastered: [], practiced: [], mistakes: [] };
+    state.users[name] = { pts: 0, mastered: [], practiced: [], mistakes: [], daily: {} };
   }
   state.current = name;
-  sessionFlawless = 0;
   inp.value = "";
   saveState();
   goHome();
 }
 
-let queue = [];
-let qIndex = 0;
-let sessionScore = 0;
-let combo = 0;
-let lastMode = "mixed";
-let currentTask = null;
-let answered = false;
+// --- 3.7. KVÍZ MOTOR ÉS FELADATGENERÁLÁS ---
+let queue = [];         // Az aktuális 10 feladatból álló várólista
+let qIndex = 0;         // Hányadik feladatnál tartunk (0..9)
+let sessionScore = 0;   // Az adott körben gyűjtött pontok
+let sessionRoundOk = 0; // Az adott körben elért hibátlan válaszok (csillagokhoz)
+let combo = 0;          // Egymás utáni hibátlan válaszok száma
+let lastMode = "mixed"; // Utoljára választott játékmód ("Újabb kör" gombhoz)
+let currentTask = null; // Az éppen képernyőn lévő feladat objektuma
+let answered = false;   // Jelzőbit, hogy ne lehessen duplán kattintani válaszadás után
 
+// Fisher-Yates tömbkeverő algoritmus (véletlenszerű sorrendhez)
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -748,20 +845,24 @@ function shuffle(arr) {
   return a;
 }
 
+// Új 10-es feladatsor indítása a választott módban
 function startQuiz(mode) {
   lastMode = mode;
   qIndex = 0;
   sessionScore = 0;
-  sessionFlawless = 0;
+  sessionRoundOk = 0;
   combo = 0;
   queue = [];
   updateMonitorBar();
 
   if (mode === "pairs") {
+    // Jelentéskülönbségek mód
     queue = shuffle(PAIR_TASKS).slice(0, 10).map(p => ({ type: "pair", data: p }));
   } else if (mode === "jly") {
+    // Csak j - ly gyakorló mód
     queue = shuffle(JLY_LIST).slice(0, 10).map(item => ({ type: "jly", item }));
   } else if (mode === "mistakes") {
+    // Elrontott szavak újragyakorlása
     const m = curUser().mistakes;
     queue = shuffle(m).slice(0, 10).map(w => {
       const jlyFound = JLY_LIST.find(x => x.w === w);
@@ -769,6 +870,7 @@ function startQuiz(mode) {
       return { type: "choice", word: w };
     });
   } else if (mode === "mixed") {
+    // Vegyes kaland: 7 mássalhangzós + 3 j-ly feladat megkeverve
     const mPool = shuffle(M_LIST).slice(0, 7);
     const jPool = shuffle(JLY_LIST).slice(0, 3);
     const rawTasks = [
@@ -785,6 +887,7 @@ function startQuiz(mode) {
     ];
     queue = shuffle(rawTasks);
   } else {
+    // Egyedi módok (choice, gap, tiles)
     const pool = shuffle(M_LIST).slice(0, 10);
     queue = pool.map(w => ({ type: mode, word: w }));
   }
@@ -793,6 +896,7 @@ function startQuiz(mode) {
   renderQuestion();
 }
 
+// Két választógomb (helyes és hibás) legenerálása és eseménykezelővel ellátása
 function makeOptionButtons(opts, correctWord, fullWord, container) {
   const wrap = document.createElement("div");
   wrap.className = "opts";
@@ -806,10 +910,11 @@ function makeOptionButtons(opts, correctWord, fullWord, container) {
   container.appendChild(wrap);
 }
 
+// Az aktuális (qIndex-edik) feladat kirajzolása a képernyőre
 function renderQuestion() {
   answered = false;
-  document.getElementById("sheet").classList.remove("on");
-  document.getElementById("q-prog").style.width = ((qIndex / queue.length) * 100) + "%";
+  document.getElementById("sheet").classList.remove("on"); // Alsó visszajelző elrejtése
+  document.getElementById("q-prog").style.width = ((qIndex / queue.length) * 100) + "%"; // Haladási csík frissítése
   document.getElementById("q-score").textContent = sessionScore + " p";
   document.getElementById("q-combo").textContent = combo >= 2 ? "🔥 " + combo + "x" : "";
 
@@ -817,8 +922,9 @@ function renderQuestion() {
   const body = document.getElementById("q-body");
   const tag = document.getElementById("q-tag");
   const title = document.getElementById("q-title");
-  body.innerHTML = "";
+  body.innerHTML = ""; // Előző feladat törlése
 
+  // 1. eset: Jelentéskülönbség mondatban
   if (currentTask.type === "pair") {
     const p = currentTask.data;
     tag.textContent = "Jelentéskülönbség";
@@ -832,6 +938,7 @@ function renderQuestion() {
     return;
   }
 
+  // 2. eset: j vagy ly gyakorló
   if (currentTask.type === "jly") {
     const jObj = currentTask.item;
     const jInfo = analyzeJlyWord(jObj.w);
@@ -853,10 +960,12 @@ function renderQuestion() {
     return;
   }
 
+  // 3-5. eset: Mássalhangzós feladatok
   const word = currentTask.word;
   const info = analyzeWord(word);
 
   if (currentTask.type === "choice" && info) {
+    // Rövid vagy hosszú választó
     tag.textContent = "Rövid vagy hosszú?";
     tag.style.background = "#2563eb";
     title.textContent = "Kattints a helyesen leírt szóra!";
@@ -866,6 +975,7 @@ function renderQuestion() {
     body.appendChild(disp);
     makeOptionButtons(shuffle([info.word, info.wrongWord]), info.word, info.word, body);
   } else if (currentTask.type === "gap" && info) {
+    // Betűpótló (hiányzó mássalhangzó kiválasztása)
     tag.textContent = "Betűpótló";
     tag.style.background = "#ca8a04";
     title.textContent = "Melyik betűkapcsolat hiányzik a szóból?";
@@ -877,148 +987,283 @@ function renderQuestion() {
     body.appendChild(disp);
     makeOptionButtons(shuffle([correctOpt, wrongOpt]), correctOpt, info.word, body);
   } else {
+    // Betűkirakó (3 segítséggel)
     tag.textContent = "Betűkirakó";
     tag.style.background = "#0d9488";
-    title.textContent = "Olvasd el a segítséget, és rakd ki a szót a csempékből!";
+    title.textContent = "Rakd ki a szót a betűcsempékből! (Ha elakadsz, kérj segítséget alul.)";
     renderTilePuzzle(word, body);
   }
 }
 
+// Választógombos feladat kiértékelése
 function checkChoice(btn, chosen, correct, fullWord) {
-  if (answered) return;
+  if (answered) return; // Ha már válaszolt, nem csinál semmit
   answered = true;
   document.querySelectorAll(".opt").forEach(b => {
-    if (b.textContent === correct) b.classList.add("ok");
-    else if (b === btn) b.classList.add("bad");
-    else b.classList.add("dim");
+    if (b.textContent === correct) b.classList.add("ok");      // A helyes gomb zöld lesz
+    else if (b === btn) b.classList.add("bad");               // A hibásan választott piros lesz
+    else b.classList.add("dim");                              // A többi elhalványul
   });
   const gapSpan = document.getElementById("gap-span");
-  if (gapSpan) gapSpan.textContent = correct;
+  if (gapSpan) gapSpan.textContent = correct; // Beírja a hiányzó részt a mondatba/szóba
   finishAnswer(chosen === correct, fullWord);
 }
 
-let tileTarget = "";
-let tilePlaced = [];
+// --- 3.8. BETŰKIRAKÓ LOGIKA (3 LÉPCSŐS SEGÍTSÉGGEL) ---
+let tileTarget = "";      // A kirakandó célszó (pl. "pillangó")
+let tileSlots = [];       // A célrekeszek tömbje: null (üres) vagy { poolIdx, char, locked }
+let tilePoolItems = [];   // A lent lévő kevert betűcsempék tömbje
+const VOWELS = "aáeéiíoóöőuúüűAÁEÉIÍOÓÖŐUÚÜŰ"; // Magyar magánhangzók listája
 
+// Betűkirakó felület felépítése
 function renderTilePuzzle(word, container) {
   tileTarget = word;
-  tilePlaced = [];
-  const chars = word.split("");
-  const shuffled = shuffle(chars.map((c, idx) => ({ c, idx })));
+  tileSlots = new Array(word.length).fill(null); // A szó hosszának megfelelő számú üres rekesz
+  const chars = word.split(""); // Betűkre bontás
+  tilePoolItems = shuffle(chars.map((c, idx) => ({ c, idx }))); // Betűk megkeverése egyedi azonosítóval
 
-  const clue = document.createElement("div");
-  clue.className = "clue-box";
-  clue.textContent = "💡 " + getClueForWord(word);
-  container.appendChild(clue);
+  // 1. segítség doboza (alapból rejtve, a gombra kattintva jelenik meg)
+  const clueBox = document.createElement("div");
+  clueBox.className = "clue-box";
+  clueBox.id = "puzzle-clue";
+  clueBox.style.display = "none";
+  clueBox.textContent = "💡 " + getClueForWord(word);
+  container.appendChild(clueBox);
 
+  // Felső rekeszsor, ahová a betűk kerülnek
   const slotRow = document.createElement("div");
   slotRow.className = "slotrow";
   slotRow.id = "slot-row";
   container.appendChild(slotRow);
 
+  // Alsó betűkészlet (csempék)
   const poolDiv = document.createElement("div");
   poolDiv.className = "tiles";
   poolDiv.id = "tile-pool";
-  shuffled.forEach(item => {
+  tilePoolItems.forEach(item => {
     const tBtn = document.createElement("button");
     tBtn.className = "tile";
     tBtn.id = "t-" + item.idx;
-    tBtn.textContent = item.c === " " ? "␣" : item.c;
+    tBtn.textContent = item.c === " " ? "␣" : item.c; // Szóköz láthatóvá tétele
     tBtn.addEventListener("click", () => pickTile(item.idx, item.c));
     poolDiv.appendChild(tBtn);
   });
   container.appendChild(poolDiv);
 
+  // --- 3 segítség gomb létrehozása ---
+  const helpBar = document.createElement("div");
+  helpBar.className = "help-bar";
+
+  // 1. segítség: Körülírás megjelenítése
+  const h1 = document.createElement("button");
+  h1.className = "help-btn";
+  h1.id = "help-clue";
+  h1.textContent = "💡 1. Körülírás";
+  h1.addEventListener("click", () => {
+    clueBox.style.display = "block";
+    h1.disabled = true; // Egyszer használható
+  });
+
+  // 2. segítség: Összes magánhangzó elhelyezése és zárolása
+  const h2 = document.createElement("button");
+  h2.className = "help-btn";
+  h2.id = "help-vowels";
+  h2.textContent = "🅰️ 2. Magánhangzók";
+  h2.addEventListener("click", () => {
+    placeMatchingPositions(pos => VOWELS.includes(tileTarget[pos]));
+    h2.disabled = true;
+  });
+
+  // 3. segítség: Első és utolsó betű elhelyezése és zárolása
+  const h3 = document.createElement("button");
+  h3.className = "help-btn";
+  h3.id = "help-edges";
+  h3.textContent = "↔️ 3. Első és utolsó betű";
+  h3.addEventListener("click", () => {
+    placeMatchingPositions(pos => pos === 0 || pos === tileTarget.length - 1);
+    h3.disabled = true;
+  });
+
+  helpBar.appendChild(h1);
+  helpBar.appendChild(h2);
+  helpBar.appendChild(h3);
+  container.appendChild(helpBar);
+
+  // Visszaállító gomb (csak a nem zárolt betűket veszi ki a rekeszekből)
   const resetWrap = document.createElement("div");
-  resetWrap.style.marginTop = "14px";
+  resetWrap.style.marginTop = "12px";
   const resetBtn = document.createElement("button");
   resetBtn.className = "secondary";
-  resetBtn.textContent = "↺ Újrakezdés";
-  resetBtn.addEventListener("click", clearTiles);
+  resetBtn.textContent = "↺ Szabad betűk törlése";
+  resetBtn.addEventListener("click", clearUnlockedTiles);
   resetWrap.appendChild(resetBtn);
   container.appendChild(resetWrap);
+
+  updateSlots(); // Üres rekeszek kirajzolása
 }
 
-function pickTile(idx, char) {
+// Segítség végrehajtása: a feltételnek (predicate) megfelelő pozíciókra beírja a helyes betűt és zárolja
+function placeMatchingPositions(predicate) {
   if (answered) return;
-  const btn = document.getElementById("t-" + idx);
-  if (btn.classList.contains("used")) return;
-  btn.classList.add("used");
-  tilePlaced.push({ idx, char });
-  updateSlots();
+  for (let pos = 0; pos < tileTarget.length; pos++) {
+    if (!predicate(pos)) continue; // Ha erre a pozícióra nem vonatkozik a segítség, ugrás
+    const neededChar = tileTarget[pos]; // Az adott helyre való helyes betű
 
-  if (tilePlaced.length === tileTarget.length) {
+    // Ha a játékos már tett ide egy nem zárolt betűt, azt előbb visszatesszük alulra
+    if (tileSlots[pos] && !tileSlots[pos].locked) {
+      document.getElementById("t-" + tileSlots[pos].poolIdx).classList.remove("used");
+      tileSlots[pos] = null;
+    }
+    if (tileSlots[pos] && tileSlots[pos].locked) continue; // Ha már zárolva van, kész
+
+    // Keresünk egy még szabad csempét az alsó készletben ugyanazzal a karakterrel
+    let foundItem = tilePoolItems.find(it => it.c === neededChar && !document.getElementById("t-" + it.idx).classList.contains("used"));
+
+    // Ha a játékos már elhasználta az összes ilyen betűt egy rossz helyre, visszavesszük onnan
+    if (!foundItem) {
+      for (let otherPos = 0; otherPos < tileSlots.length; otherPos++) {
+        if (tileSlots[otherPos] && !tileSlots[otherPos].locked && tileSlots[otherPos].char === neededChar) {
+          const freedIdx = tileSlots[otherPos].poolIdx;
+          document.getElementById("t-" + freedIdx).classList.remove("used");
+          tileSlots[otherPos] = null;
+          foundItem = tilePoolItems.find(it => it.idx === freedIdx);
+          break;
+        }
+      }
+    }
+
+    // Ha megvan a csempe, elrejtjük alul, és zárolva (locked: true) beírjuk a helyére
+    if (foundItem) {
+      document.getElementById("t-" + foundItem.idx).classList.add("used");
+      tileSlots[pos] = { poolIdx: foundItem.idx, char: neededChar, locked: true };
+    }
+  }
+  updateSlots();
+  checkTileCompletion(); // Ellenőrizzük, hogy a segítséggel nem telt-e be az összes hely
+}
+
+// Alsó csempére kattintás: beteszi az első szabad (null) rekeszbe
+function pickTile(poolIdx, char) {
+  if (answered) return;
+  const btn = document.getElementById("t-" + poolIdx);
+  if (btn.classList.contains("used")) return;
+
+  const emptyPos = tileSlots.findIndex(s => s === null); // Első üres hely keresése
+  if (emptyPos === -1) return;
+
+  btn.classList.add("used"); // Csempe elrejtése alul
+  tileSlots[emptyPos] = { poolIdx, char, locked: false }; // Betű elhelyezése
+  updateSlots();
+  checkTileCompletion();
+}
+
+// Ellenőrzi, hogy minden rekesz megtelt-e; ha igen, kiértékeli a szót
+function checkTileCompletion() {
+  if (tileSlots.every(s => s !== null)) {
     answered = true;
-    const built = tilePlaced.map(x => x.char).join("");
+    const built = tileSlots.map(s => s.char).join(""); // Összeolvassa a rekeszek tartalmát
     finishAnswer(built === tileTarget, tileTarget);
   }
 }
 
+// Felső rekeszsor újrarajzolása az aktuális állapot alapján
 function updateSlots() {
   const row = document.getElementById("slot-row");
   row.innerHTML = "";
-  tilePlaced.forEach((item, pos) => {
-    const pBtn = document.createElement("button");
-    pBtn.className = "tile placed";
-    pBtn.textContent = item.char === " " ? "␣" : item.char;
-    pBtn.addEventListener("click", () => removeTile(pos));
-    row.appendChild(pBtn);
+  tileSlots.forEach((slot, pos) => {
+    if (slot === null) {
+      // Üres helyiérték-doboz
+      const emptyBox = document.createElement("div");
+      emptyBox.className = "slot-empty";
+      emptyBox.textContent = "•";
+      row.appendChild(emptyBox);
+    } else {
+      // Kitöltött betűcsempe (ha locked, zöld és nem kattintható)
+      const pBtn = document.createElement("button");
+      pBtn.className = "tile placed" + (slot.locked ? " locked" : "");
+      pBtn.textContent = slot.char === " " ? "␣" : slot.char;
+      if (!slot.locked) {
+        pBtn.addEventListener("click", () => removeTile(pos)); // Kattintásra visszakerül alulra
+      }
+      row.appendChild(pBtn);
+    }
   });
 }
 
+// Egyetlen nem zárolt betű visszavétele a rekeszből
 function removeTile(pos) {
   if (answered) return;
-  const removed = tilePlaced.splice(pos, 1)[0];
-  document.getElementById("t-" + removed.idx).classList.remove("used");
+  const slot = tileSlots[pos];
+  if (!slot || slot.locked) return;
+  document.getElementById("t-" + slot.poolIdx).classList.remove("used");
+  tileSlots[pos] = null;
   updateSlots();
 }
 
-function clearTiles() {
+// Összes nem zárolt betű törlése a rekeszekből (a segítséggel rögzítettek maradnak)
+function clearUnlockedTiles() {
   if (answered) return;
-  tilePlaced = [];
-  document.querySelectorAll("#tile-pool .tile").forEach(b => b.classList.remove("used"));
+  for (let pos = 0; pos < tileSlots.length; pos++) {
+    const slot = tileSlots[pos];
+    if (slot && !slot.locked) {
+      document.getElementById("t-" + slot.poolIdx).classList.remove("used");
+      tileSlots[pos] = null;
+    }
+  }
   updateSlots();
 }
 
+// --- 3.9. VÁLASZ KIÉRTÉKELÉSE, PONTOZÁS ÉS NAVIGÁCIÓ ---
 function finishAnswer(isOk, fullWord) {
   const u = curUser();
   const sheet = document.getElementById("sheet");
   const shHead = document.getElementById("sh-head");
   const shFull = document.getElementById("sh-full");
 
+  // Rögzítjük, hogy ez a szó már gyakorolva lett (függetlenül attól, hogy sikerült-e)
   if (ALL_UNIQUE_WORDS.has(fullWord) && !u.practiced.includes(fullWord)) {
     u.practiced.push(fullWord);
   }
 
   if (isOk) {
-    combo++;
-    const gain = 10 + (combo >= 3 ? 5 : 0);
+    combo++; // Sorozatszámláló növelése
+    const gain = 10 + (combo >= 3 ? 5 : 0); // 10 pont + 5 bónuszpont 3-as sorozattól
     sessionScore += gain;
-    sessionFlawless++;
+    sessionRoundOk++;
     u.pts += gain;
+
+    // Mai dátumhoz tartozó hibátlan számláló növelése
+    const todayKey = getTodayKey();
+    u.daily[todayKey] = (u.daily[todayKey] || 0) + 1;
+
+    // Hozzáadás a hibátlanul elsajátított szavakhoz, és törlés a hibalistából
     if (!u.mastered.includes(fullWord)) {
       u.mastered.push(fullWord);
     }
     u.mistakes = u.mistakes.filter(w => w !== fullWord);
 
+    // Zöld visszajelző sáv felcsúsztatása
     sheet.className = "sheet ok on";
     shHead.textContent = combo >= 3 ? "Szuper! (+" + gain + " pont, " + combo + "x sorozat!)" : "Helyes! (+" + gain + " pont)";
     shFull.textContent = "Helyes alak: " + fullWord;
   } else {
-    combo = 0;
+    combo = 0; // Sorozat nullázása
+    // Hozzáadás a hibalistához, ha még nem szerepel benne
     if (!u.mistakes.includes(fullWord)) {
       u.mistakes.push(fullWord);
     }
+    // Piros visszajelző sáv felcsúsztatása
     sheet.className = "sheet bad on";
     shHead.textContent = "Most nem talált!";
     shFull.textContent = "A helyes írásmód: " + fullWord;
   }
 
-  saveState();
-  updateMonitorBar();
+  saveState(); // Adatok mentése
+  updateMonitorBar(); // Alsó sáv frissítése
   document.getElementById("q-score").textContent = sessionScore + " p";
 }
 
+// Lépés a következő feladatra vagy az eredményképernyőre
 function nextQuestion() {
   qIndex++;
   if (qIndex < queue.length) {
@@ -1028,16 +1273,18 @@ function nextQuestion() {
   }
 }
 
+// 10-es kör végi összegző képernyő megjelenítése
 function showResults() {
   document.getElementById("sheet").classList.remove("on");
   showScreen("scr-res");
-  const ratio = sessionFlawless / queue.length;
+  const ratio = sessionRoundOk / queue.length; // Találati arány (0.0 .. 1.0)
   const stars = ratio === 1 ? "⭐⭐⭐" : (ratio >= 0.7 ? "⭐⭐☆" : "⭐☆☆");
   document.getElementById("res-stars").textContent = stars;
   document.getElementById("res-head").textContent = ratio === 1 ? "Hibátlan teljesítmény!" : "Kör teljesítve!";
-  document.getElementById("res-sub").textContent = queue.length + " szóból " + sessionFlawless + " hibátlan • Szerzett pontok: " + sessionScore + " p";
+  document.getElementById("res-sub").textContent = queue.length + " szóból " + sessionRoundOk + " hibátlan • Szerzett pontok: " + sessionScore + " p";
 }
 
+// --- 3.10. ESEMÉNYKEZELŐK BEKÖTÉSE ---
 document.getElementById("btn-mixed").addEventListener("click", () => startQuiz("mixed"));
 document.getElementById("btn-choice").addEventListener("click", () => startQuiz("choice"));
 document.getElementById("btn-jly").addEventListener("click", () => startQuiz("jly"));
@@ -1052,6 +1299,7 @@ document.getElementById("btn-again").addEventListener("click", () => startQuiz(l
 document.getElementById("btn-home").addEventListener("click", goHome);
 document.getElementById("sh-next").addEventListener("click", nextQuestion);
 
+// Alkalmazás indítása: kezdőképernyő adatainak betöltése
 updateHome();
 </script>
 </body>
