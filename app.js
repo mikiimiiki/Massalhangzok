@@ -397,14 +397,19 @@ const REWARDS = [
   // lányos
   { k: "avatar", c: "girl", v: "🌷", by: "pts", n: 130 }, { k: "avatar", c: "girl", v: "👗", by: "pts", n: 350 }, { k: "avatar", c: "girl", v: "💎", by: "pts", n: 800 },
   { k: "avatar", c: "girl", v: "🧚", by: "streak", n: 7 }, { k: "avatar", c: "girl", v: "👸", by: "streak", n: 14 }, { k: "avatar", c: "girl", v: "🩰", by: "streak", n: 60 },
-  { k: "avatar", c: "girl", v: "🍓", by: "words", n: 100 }, { k: "avatar", c: "girl", v: "💄", by: "words", n: 200 }, { k: "avatar", c: "girl", v: "🌈", by: "words", n: 350 }
+  { k: "avatar", c: "girl", v: "🍓", by: "words", n: 100 }, { k: "avatar", c: "girl", v: "💄", by: "words", n: 200 }, { k: "avatar", c: "girl", v: "🌈", by: "words", n: 350 },
+  // édességek
+  { k: "avatar", c: "sweet", v: "🍩", by: "pts", n: 140 }, { k: "avatar", c: "sweet", v: "🍪", by: "pts", n: 320 }, { k: "avatar", c: "sweet", v: "🍰", by: "pts", n: 650 },
+  { k: "avatar", c: "sweet", v: "🍫", by: "streak", n: 7 }, { k: "avatar", c: "sweet", v: "🥧", by: "streak", n: 30 }, { k: "avatar", c: "sweet", v: "🍨", by: "streak", n: 100 },
+  { k: "avatar", c: "sweet", v: "🧁", by: "words", n: 50 }, { k: "avatar", c: "sweet", v: "🍮", by: "words", n: 150 }, { k: "avatar", c: "sweet", v: "🎂", by: "words", n: 300 }
 ];
 // avatar-kategóriák; a "free" lista mindenkinek elérhető
 const AV_CATS = [
   { id: "animal", label: "🦉 Állatok és mesék", free: AVATARS },
   { id: "car", label: "🚗 Autók és járművek", free: ["🚗", "🚕", "🚙"] },
   { id: "tech", label: "🔧 Műszaki", free: ["🤖", "🔧", "💡"] },
-  { id: "girl", label: "🎀 Lányos", free: ["🎀", "🌸", "💖"] }
+  { id: "girl", label: "🎀 Lányos", free: ["🎀", "🌸", "💖"] },
+  { id: "sweet", label: "🍭 Édességek", free: ["🍭", "🍬", "🍦"] }
 ];
 const avCat = v => (AV_CATS.find(c => c.free.includes(v)) || { id: (REWARDS.find(r => r.k === "avatar" && r.v === v) || {}).c || "animal" }).id;
 let avTab = "";
@@ -414,6 +419,8 @@ const rewardKey = r => r.k + ":" + r.v;
 const rewardLabel = r => r.k === "avatar" ? r.v : "🎨 " + r.name;
 function progress(u) { return { pts: u.pts || 0, streak: Math.max(u.best || 0, streakNow(u)), words: Math.max(u.maxM || 0, masteredCount(u)) }; }
 function isUnlocked(u, r) { return progress(u)[r.by] >= r.n; }
+const BY_UNIT = { pts: "p", streak: "nap", words: "szó" };
+const shortReq = r => `${BY_ICON[r.by]} ${r.n} ${BY_UNIT[r.by]}`;
 function lockText(u, r) { const have = progress(u)[r.by]; return `Ehhez ${BY_TXT[r.by](r.n)} kell (most: ${have})`; }
 
 // Új jutalmak értesítése (a régieket az első betöltéskor csendben megjegyezzük)
@@ -438,13 +445,13 @@ function renderAvatarPicker(p = $("avatar-picker"), after = renderUsers) {
   const grid = el("div"); grid.style.cssText = "display:flex;flex-wrap:wrap;justify-content:center;gap:8px;width:100%";
   itemsOf(avTab).forEach(({ v, r }) => {
     const locked = r && !isUnlocked(u, r), sel = v === u.avatar;
-    const b = btn("", locked ? "🔒" : v, () => {
+    const b = btn("avcell" + (sel ? " sel" : "") + (locked ? " locked" : ""), "", () => {
       if (locked) { toast(lockText(u, r)); return; }
       selectedAvatar = v; u.avatar = v; saveState(); after();
     });
-    b.style.cssText = `font-size:26px;width:44px;height:44px;border-radius:12px;cursor:pointer;border:2px solid ${sel ? "#7c3aed" : "#e2e8f0"};background:${sel ? "#ede9fe" : "#fff"};${locked ? "opacity:.5;" : ""}`;
+    b.append(el("span", "ae", v), el("small", null, locked ? "🔒 " + shortReq(r) : sel ? "✓" : ""));
     b.setAttribute("aria-label", locked ? "Zárolt avatar. " + lockText(u, r) : "Avatar: " + v);
-    if (locked) b.title = BY_TXT[r.by](r.n);
+    if (locked) b.title = lockText(u, r);
     grid.append(b);
   });
   p.append(tabs, grid);
