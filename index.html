@@ -67,7 +67,6 @@
   .b-gap { background: linear-gradient(135deg, #f59e0b, #ef4444); }
   .b-tiles { background: linear-gradient(135deg, #22c55e, #0d9488); }
   .b-pairs { background: linear-gradient(135deg, #ec4899, #be185d); }
-  .b-pseudo { grid-column: 1 / -1; background: linear-gradient(135deg, #64748b, #475569); font-size: 19px; padding: 16px; }
   .b-mistakes { grid-column: 1 / -1; background: linear-gradient(135deg, #ef4444, #b91c1c); }
 
   /* Profilválasztó */
@@ -113,6 +112,11 @@
   .qtitle { font-size: 19px; color: var(--soft); font-weight: 700; margin: 14px 0 8px; }
   .word-display { font-size: 42px; font-weight: 900; line-height: 1.3; margin: 10px 0; letter-spacing: 1px; }
   .sentence-display { font-size: 26px; font-weight: 800; line-height: 1.4; margin: 10px 0; }
+  .clue-box {
+    background: #fef9c3; border: 2px solid #fde047; border-radius: 18px;
+    padding: 14px 18px; font-size: 22px; font-weight: 800; color: #854d0e;
+    margin: 12px auto 6px; max-width: 680px; line-height: 1.35;
+  }
   .gap {
     display: inline-block; min-width: 72px; border-bottom: 5px dashed var(--pri2);
     color: var(--pri); padding: 0 6px;
@@ -217,7 +221,7 @@
     <button class="big b-tiles" onclick="startQuiz('tiles')">
       <span class="ic">🔤</span>
       Betűkirakó
-      <small>Rakd ki a szót a csempékből!</small>
+      <small>Találd ki a szót a körülírásból!</small>
     </button>
     <button class="big b-pairs" onclick="startQuiz('pairs')">
       <span class="ic">⚖️</span>
@@ -228,11 +232,6 @@
       <span class="ic">🩹</span>
       Hibajavító kör (<span id="mistake-cnt">0</span> szó)
       <small>Gyakorold újra, amit elrontottál!</small>
-    </button>
-    <button class="big b-pseudo" onclick="startQuiz('pseudo')">
-      <span class="ic">👽</span>
-      Álszavak gyakorlása (olvasás & kirakó)
-      <small>zsuppa, gallaposz, halloka és társai</small>
     </button>
   </div>
 
@@ -293,23 +292,128 @@
 </div>
 
 <script>
-// 1. VALÓDI SZAVAK LISTÁJA (tisztítva, duplikációk nélkül)
-const RAW_WORDS = [
-  "Nelli", "loccsan", "csepp", "hipp-hopp", "kipp-kopp", "hullám", "duzzad", "durran",
-  "fullad", "hullik", "futtat", "cuppan", "juttat", "csusszan", "szunnyad", "könny",
-  "fönn", "több", "pöttöm", "masszőr", "kettőz", "könnyít", "szünnap", "küllem",
-  "süpped", "fülledt", "dülled", "züllik", "csügged", "fütty", "bükk", "tüll",
-  "puff", "csügg", "benn", "bumm", "ballag", "billeg", "jobbít", "ballon",
-  "meddő", "dinnye", "haddelhadd", "durr", "hordd", "szedd", "vedd", "kedd",
-  "szállás", "szaggat", "passzol", "szusszan", "tüsszög", "zsuppol", "csillag", "csillár",
-  "csökken", "reccsen", "parittya", "szivattyú", "dugattyú", "pörgettyű", "billentyű", "csengettyű",
-  "poggyász", "faggyú", "keggyel", "fonnyad", "gennyes", "dollár", "gallér", "zeller",
-  "puttony", "dallam", "ketten", "kattan", "úttörő", "öttusa", "pattan", "asszony",
-  "holló", "hull", "suttog", "dünnyög", "csüccs", "függöny", "surran", "summáz",
-  "mellőz", "semmi", "merre", "billen", "sakk", "kassza", "zubbony", "csattog",
-  "saccol", "hattyú", "szebb", "jobb", "fillér", "nyugtat", "fortyog", "gyullad",
-  "pottyan", "nyaggat", "tárgyal", "tárggyal", "szárnyal", "szárnnyal", "satnyul", "szennyez",
-  "buggyan", "nyikkan", "gyorsul", "nyekken", "pettyez", "görnyed", "lenyel", "langyos"
+// 1. VALÓDI SZAVAK LISTÁJA ÉS KÖRÜLÍRÁSAI
+const WORD_LIST = [
+  { w: "Nelli", d: "Lánynév, a Kornélia rövidített alakja." },
+  { w: "loccsan", d: "A víz hirtelen csapódva ilyen hangot ad." },
+  { w: "csepp", d: "Egyetlen pici gömbölyű vízrészecske." },
+  { w: "hipp-hopp", d: "Nagyon gyorsan, egyik pillanatról a másikra (kötőjeles szó)." },
+  { w: "kipp-kopp", d: "Kopogást utánzó hangutánzó szó (kötőjellel)." },
+  { w: "hullám", d: "A tenger vagy a tó vizének fodrozódó mozgása." },
+  { w: "duzzad", d: "Megdagad, megnagyobbodik, feszül." },
+  { w: "durran", d: "A lufi kipukkadásakor hallható erős, éles hang." },
+  { w: "fullad", d: "Nem kap levegőt, fuldoklik." },
+  { w: "hullik", d: "Ősszel így esik le a fa levele, télen pedig a hó." },
+  { w: "futtat", d: "Valakit vagy kutyát gyors mozgásra késztet." },
+  { w: "cuppan", d: "Cuppanó, puszira emlékeztető kis hangot ad." },
+  { w: "juttat", d: "Valakinek ad valamit, eljuttat hozzá egy részt." },
+  { w: "csusszan", d: "Halkan, simán megcsúszik a jégen vagy a csúszdán." },
+  { w: "szunnyad", d: "Csendesen, békésen szundikál, alszik." },
+  { w: "könny", d: "Síráskor a szemünkből kicsorduló sós vízcsepp." },
+  { w: "fönn", d: "Magasan fent van (a lenn ellentéte)." },
+  { w: "több", d: "Nagyobb mennyiségű (a kevesebb ellentéte)." },
+  { w: "pöttöm", d: "Egészen apró, picike termetű." },
+  { w: "masszőr", d: "Olyan szakember, aki a fájó izmokat gyúrja, masszírozza." },
+  { w: "kettőz", d: "Megdupláz valamit, a kétszeresére növeli." },
+  { w: "könnyít", d: "Könnyebbé tesz egy nehéz feladatot vagy csomagot." },
+  { w: "szünnap", d: "Olyan nap, amikor nincs tanítás vagy munka." },
+  { w: "küllem", d: "Valakinek vagy valaminek a külső megjelenése, kinézete." },
+  { w: "süpped", d: "Lába alatt beszakad vagy mélyen belenyomódik a puha hóba, sárba." },
+  { w: "fülledt", d: "Nyomasztóan meleg, párás, levegőtlen idő." },
+  { w: "dülled", d: "Kifelé domborodik, kidülled (például a béka szeme)." },
+  { w: "züllik", d: "Rossz irányba változik, romlik a viselkedése." },
+  { w: "csügged", d: "Elveszíti a kedvét és a reményét, elszomorodik." },
+  { w: "fütty", d: "Összecsücsörített ajkakkal adott éles, magas hang." },
+  { w: "bükk", d: "Sima, szürke kérgű, magas erdei lombhullató fa." },
+  { w: "tüll", d: "Áttetsző, finom hálós szövet, például menyasszonyi fátyolhoz." },
+  { w: "puff", d: "Puha, kerek ülőalkalmatosság vagy tompa puffanó hang." },
+  { w: "csügg", d: "Valamin lóg, kapaszkodik lefelé." },
+  { w: "benn", d: "Belül, a szobában vagy az épületben van (a kinn ellentéte)." },
+  { w: "bumm", d: "Nagy robbanást vagy esést jelző hangutánzó szó." },
+  { w: "ballag", d: "Lassan, kényelmesen sétál, vagy az iskolától búcsúzik." },
+  { w: "billeg", d: "Jobbra-balra inog, nem áll stabilan." },
+  { w: "jobbít", d: "Jobbá tesz, tökéletesít valamit." },
+  { w: "ballon", d: "Levegővel vagy gázzal töltött nagy léggömb." },
+  { w: "meddő", d: "Terméketlen, haszontalan, eredménytelen." },
+  { w: "dinnye", d: "Kívül zöld, belül piros és lédús nyári gyümölcs." },
+  { w: "haddelhadd", d: "Nagy veszekedés, felfordulás, csetepaté." },
+  { w: "durr", d: "Hirtelen csattanást vagy lövést utánzó szó." },
+  { w: "hordd", d: "Vidd el magaddal, viseld! (hord + -d felszólító mód)" },
+  { w: "szedd", d: "Gyűjtsd össze a földről vagy a fáról! (szed + -d)" },
+  { w: "vedd", d: "Fogd meg, vásárold meg! (vesz/vegy + -d)" },
+  { w: "kedd", d: "A hét második napja, hétfő után következik." },
+  { w: "szállás", d: "Hely, ahol utazáskor éjszaka megszállunk és alszunk." },
+  { w: "szaggat", d: "Darabokra tép, vagy hirtelen nyilalló fájdalmat okoz." },
+  { w: "passzol", d: "Fociban átadja a labdát a csapattársának, vagy pontosan illik." },
+  { w: "szusszan", d: "Egyet pihen, nagyot sóhajtva kifújja a levegőt." },
+  { w: "tüsszög", d: "Náthásan egymás után többször hapcizik." },
+  { w: "zsuppol", d: "Beterel, bedug vagy továbbküld valakit valahova." },
+  { w: "csillag", d: "Éjszaka az égbolton ragyogó távoli égitest." },
+  { w: "csillár", d: "A szoba mennyezetéről lelógó, több égős lámpa." },
+  { w: "csökken", d: "Kevesebb lesz, apad, fogy." },
+  { w: "reccsen", d: "A száraz faág eltörésekor hallható éles hang." },
+  { w: "parittya", d: "Y alakú ágból és gumiból készült régi hajítóeszköz." },
+  { w: "szivattyú", d: "Folyadék vagy levegő átemelésére szolgáló gép." },
+  { w: "dugattyú", d: "A motor hengerében fel-le mozgó alkatrész." },
+  { w: "pörgettyű", d: "Kézzel megpörgethető, hegyén forgó játék (búgócsiga)." },
+  { w: "billentyű", d: "A zongora vagy a számítógép lenyomható gombja." },
+  { w: "csengettyű", d: "Kicsi kézi csengő, amelyet megrázva szólaltatunk meg." },
+  { w: "poggyász", d: "Utazáskor magunkkal vitt bőrönd, táska, csomag." },
+  { w: "faggyú", d: "Állati zsiradék, amelyből régen gyertyát is öntöttek." },
+  { w: "keggyel", d: "Jóindulattal, bocsánattal (kegy + -vel)." },
+  { w: "fonnyad", d: "A virág vagy a gyümölcs vízhiány miatt összezsugorodik." },
+  { w: "gennyes", d: "Elfertőződött, gyulladt seb." },
+  { w: "dollár", d: "Az Amerikai Egyesült Államok hivatalos pénzneme." },
+  { w: "gallér", d: "Az ing vagy a kabát nyak körüli része." },
+  { w: "zeller", d: "Erős illatú, gumós leveszöldség." },
+  { w: "puttony", d: "Háton hordható szüretelő edény, kosár." },
+  { w: "dallam", d: "Énekelhető, fülbemászó zenei hangsor." },
+  { w: "ketten", d: "Két személy együtt." },
+  { w: "kattan", d: "A zár vagy a kapcsoló éles, rövid hangot ad." },
+  { w: "úttörő", d: "Valamiben legelsőként elinduló, új utat nyitó személy." },
+  { w: "öttusa", d: "Öt sportágból (vívás, úszás, lovaglás, lövészet, futás) álló verseny." },
+  { w: "pattan", d: "A labda a földről hirtelen felugrik." },
+  { w: "asszony", d: "Felnőtt nő, feleség." },
+  { w: "holló", d: "Nagy termetű, fényes fekete tollú, okos madár." },
+  { w: "hull", d: "Fentről lefelé esik, potyog." },
+  { w: "suttog", d: "Nagyon halkan, hangszálak nélkül beszél." },
+  { w: "dünnyög", d: "Halkan, morogva beszél az orra alatt." },
+  { w: "csüccs", d: "Kisgyerekeknek mondott szó: ülj le!" },
+  { w: "függöny", d: "Az ablak elé húzható, fényt szűrő textil." },
+  { w: "surran", d: "Halkan, gyorsan és észrevétlenül oson." },
+  { w: "summáz", d: "Röviden összefoglalja a lényeget." },
+  { w: "mellőz", d: "Kihagy valakit, nem vesz róla tudomást." },
+  { w: "semmi", d: "Egyáltalán nem létező dolog, nulla." },
+  { w: "merre", d: "Milyen irányba? Melyik úton?" },
+  { w: "billen", d: "Egyik oldalára megdől, kibillen az egyensúlyából." },
+  { w: "sakk", d: "Kétszemélyes táblás játék királyokkal, bástyákkal, huszárokkal." },
+  { w: "kassza", d: "Pénztárgép vagy a boltban lévő pénztár." },
+  { w: "zubbony", d: "Katonai vagy munkás felsőkabát, zakó." },
+  { w: "csattog", d: "Egymás után többször éles csattanó hangot ad." },
+  { w: "saccol", d: "Megbecsül egy mennyiséget vagy értéket." },
+  { w: "hattyú", d: "Hosszú nyakú, hófehér vízimadár." },
+  { w: "szebb", d: "Csinosabb, mutatósabb valakinél." },
+  { w: "jobb", d: "Kiválóbb, vagy a bal ellentéte." },
+  { w: "fillér", d: "A forint régi váltópénze (1 forint = 100 fillér)." },
+  { w: "nyugtat", d: "Csitít, békít valakit, hogy ne féljen." },
+  { w: "fortyog", d: "Bugyborékolva forr a fazékban, vagy dühöng." },
+  { w: "gyullad", d: "Lángra kap, meggyullad." },
+  { w: "pottyan", d: "Valami hirtelen leesik a földre." },
+  { w: "nyaggat", d: "Folyamatosan kérlel, piszkál, zaklat valakit." },
+  { w: "tárgyal", d: "Megbeszélést folytat, egyezkedik valakivel." },
+  { w: "tárggyal", d: "Valamilyen eszközzel, dologgal (tárgy + -val)." },
+  { w: "szárnyal", d: "Magasan repül a levegőben." },
+  { w: "szárnnyal", d: "A madár repülésre szolgáló testrészével (szárny + -val)." },
+  { w: "satnyul", d: "Nem fejlődik rendesen, elcsökevényesedik." },
+  { w: "szennyez", d: "Koszol, piszkít, rontja a környezet tisztaságát." },
+  { w: "buggyan", d: "Hirtelen előtör, kibuggyan (például a forrás vize)." },
+  { w: "nyikkan", d: "Rövid, vékony nyikorgó hangot ad." },
+  { w: "gyorsul", d: "Egyre sebesebben halad." },
+  { w: "nyekken", d: "Halk, nyekergő hangot hallat." },
+  { w: "pettyez", d: "Apró pöttyökkel díszít, tarkít." },
+  { w: "görnyed", d: "Meghajolva, púpos háttal áll vagy ül." },
+  { w: "lenyel", d: "A szájából a gyomrába juttatja a falatot." },
+  { w: "langyos", d: "Kellemesen meleg, nem forró és nem hideg." }
 ];
 
 // 2. JELENTÉSKÜLÖNBSÉGES SZÓPÁROK MONDATOKBAN
@@ -330,16 +434,7 @@ const PAIR_TASKS = [
   { s: "A madár szárnyából kihullott egy ___.", ok: "toll", bad: "tol", hint: "Íróeszköz vagy madártoll (hosszú ll)" }
 ];
 
-// 3. ÁLSZAVAK (LOGOPÉDIAI GYAKORLÁSHOZ)
-const PSEUDO_WORDS = [
-  "zsuppa", "gallaposz", "halloka", "zsuffa", "öbbele", "ammok", "keveccse",
-  "pirannya", "karass", "ujjaka", "csikkasza", "peddeszi", "fosszaka", "larran",
-  "hevvele", "kattalán", "pikkura", "cikkurát", "minneze", "cukkerel", "fozzan",
-  "evvic", "pazzol", "tottu", "dippar", "kolloss", "nuhha", "peccen",
-  "kiddre", "rejjaz", "tefful", "behhor", "hijjce", "peffut", "penne"
-];
-
-// Hosszú mássalhangzók elemzése (két- és háromjegyűeket is felismer)
+// Hosszú mássalhangzók elemzése
 const LONG_PATTERNS = [
   { long: "ccs", short: "cs" }, { long: "ggy", short: "gy" }, { long: "lly", short: "ly" },
   { long: "nny", short: "ny" }, { long: "ssz", short: "sz" }, { long: "tty", short: "ty" },
@@ -369,7 +464,6 @@ function analyzeWord(word) {
       };
     }
   }
-  // Rövid mássalhangzós szavakhoz (pl. nyugtat, fortyog, satnyul, gyorsul, lenyel, langyos)
   const shortFallback = [
     { short: "ny", long: "nny" }, { short: "gy", long: "ggy" }, { short: "ty", long: "tty" },
     { short: "t", long: "tt" },   { short: "l", long: "ll" },   { short: "r", long: "rr" }
@@ -391,7 +485,7 @@ function analyzeWord(word) {
 }
 
 // Állapotkezelés (localStorage)
-const STORE_KEY = "massalhangzo_kaland_v1";
+const STORE_KEY = "massalhangzo_kaland_v2";
 let state = JSON.parse(localStorage.getItem(STORE_KEY) || "null") || {
   current: "Játékos",
   users: { "Játékos": { pts: 0, mastered: [], mistakes: [] } }
@@ -520,20 +614,20 @@ function startQuiz(mode) {
 
   if (mode === "pairs") {
     queue = shuffle(PAIR_TASKS).slice(0, 10).map(p => ({ type: "pair", data: p }));
-  } else if (mode === "pseudo") {
-    queue = shuffle(PSEUDO_WORDS).slice(0, 10).map(w => ({ type: "tiles", word: w, isPseudo: true }));
   } else if (mode === "mistakes") {
     const m = curUser().mistakes;
-    queue = shuffle(m).slice(0, 10).map(w => ({ type: "choice", word: w }));
+    queue = shuffle(m).slice(0, 10).map(w => {
+      const found = WORD_LIST.find(x => x.w === w) || { w, d: "" };
+      return { type: "choice", item: found };
+    });
   } else {
-    const pool = shuffle(RAW_WORDS).slice(0, 10);
-    queue = pool.map((w, i) => {
-      if (mode === "choice") return { type: "choice", word: w };
-      if (mode === "gap") return { type: "gap", word: w };
-      if (mode === "tiles") return { type: "tiles", word: w };
-      // Vegyes mód
+    const pool = shuffle(WORD_LIST).slice(0, 10);
+    queue = pool.map((item, i) => {
+      if (mode === "choice") return { type: "choice", item };
+      if (mode === "gap") return { type: "gap", item };
+      if (mode === "tiles") return { type: "tiles", item };
       const types = ["choice", "gap", "tiles"];
-      return { type: types[i % 3], word: w };
+      return { type: types[i % 3], item };
     });
   }
 
@@ -573,7 +667,9 @@ function renderQuestion() {
     return;
   }
 
-  const info = analyzeWord(currentTask.word);
+  const wordObj = currentTask.item;
+  const info = analyzeWord(wordObj.w);
+
   if (currentTask.type === "choice" && info) {
     tag.textContent = "Rövid vagy hosszú?";
     tag.style.background = "#2563eb";
@@ -599,11 +695,10 @@ function renderQuestion() {
       </div>
     `;
   } else {
-    // Szókirakó (valódi vagy álszó)
-    tag.textContent = currentTask.isPseudo ? "Álszó kirakó" : "Betűkirakó";
-    tag.style.background = currentTask.isPseudo ? "#475569" : "#0d9488";
-    title.textContent = "Rakd ki a szót a betűcsempékből!";
-    renderTilePuzzle(currentTask.word, body);
+    tag.textContent = "Betűkirakó";
+    tag.style.background = "#0d9488";
+    title.textContent = "Olvasd el a meghatározást, és rakd ki a szót a betűcsempékből!";
+    renderTilePuzzle(wordObj, body);
   }
 }
 
@@ -626,13 +721,14 @@ function checkChoice(btn, chosen, correct, fullWord) {
 let tileTarget = "";
 let tilePlaced = [];
 
-function renderTilePuzzle(word, container) {
-  tileTarget = word;
+function renderTilePuzzle(wordObj, container) {
+  tileTarget = wordObj.w;
   tilePlaced = [];
-  const chars = word.split("");
+  const chars = wordObj.w.split("");
   const shuffled = shuffle(chars.map((c, idx) => ({ c, idx })));
 
   container.innerHTML = `
+    <div class="clue-box">💡 ${wordObj.d}</div>
     <div class="slotrow" id="slot-row"></div>
     <div class="tiles" id="tile-pool">
       ${shuffled.map(item => `<button class="tile" id="t-${item.idx}" onclick="pickTile(${item.idx}, '${item.c}')">${item.c}</button>`).join("")}
@@ -691,7 +787,7 @@ function finishAnswer(isOk, fullWord) {
     sessionScore += gain;
     sessionCorrect++;
     u.pts += gain;
-    if (!currentTask.isPseudo && !u.mastered.includes(fullWord)) {
+    if (!u.mastered.includes(fullWord)) {
       u.mastered.push(fullWord);
     }
     u.mistakes = u.mistakes.filter(w => w !== fullWord);
@@ -701,7 +797,7 @@ function finishAnswer(isOk, fullWord) {
     shFull.textContent = `Helyes alak: ${fullWord}`;
   } else {
     combo = 0;
-    if (!currentTask.isPseudo && !u.mistakes.includes(fullWord)) {
+    if (!u.mistakes.includes(fullWord)) {
       u.mistakes.push(fullWord);
     }
     sheet.className = "sheet bad on";
