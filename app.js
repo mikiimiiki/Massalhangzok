@@ -558,6 +558,19 @@ function moreVariants(word, avoid, n, skip = "") {
   }
   return out;
 }
+// j/ly feladat válaszlehetőségei. A kiegészítő (más hibás) alakok felében a j/ly is el van rontva,
+// így a j/ly betűből nem lehet kitalálni a jó választ (2. szint: 3 alak, 3. szint: 4 alak).
+function jlyOptions(word, swapped, L) {
+  const opts = [word, swapped], n = L >= 3 ? 2 : L >= 2 ? 1 : 0;
+  if (!n) return opts;
+  const flags = n === 2 ? shuffle([true, false]) : [Math.random() < .5];
+  moreVariants(word, opts, n, "jly").forEach((v, i) => {
+    const a = flags[i] && analyzeJlyWord(v);
+    const x = a && a.wrongWord !== word && !opts.includes(a.wrongWord) ? a.wrongWord : v;
+    if (!opts.includes(x)) opts.push(x);
+  });
+  return opts;
+}
 function extraFragment(c, w) {
   const used = [c, w], first = c[0].toLowerCase();
   const pool = FRAGS.filter(f => !used.includes(f) && f[0] === first);
@@ -626,8 +639,7 @@ function renderQuestion() {
     const jo = T.item, ji = analyzeJlyWord(jo.w), meta = { topic: "jly", explain: explainWord(jo.w) };
     setTag("j vagy ly gyakorló", "#ea580c", "Válaszd ki a helyesen írt alakot!");
     clue("💡 Jelentése: " + getSynonymsForWord(jo.w));
-    const opts = [jo.w, ji.wrongWord];
-    if (L >= 2) opts.push(...moreVariants(jo.w, opts, L >= 3 ? 2 : 1, "jly")); // 2. szint: 3 alak, 3. szint: 4 alak
+    const opts = jlyOptions(jo.w, ji.wrongWord, L);
     makeOptionButtons(shuffle(opts), jo.w, jo.w, body, meta);
     return;
   }
