@@ -238,6 +238,14 @@
     .monitor-bar { height: auto; min-height: 52px; padding: 6px 8px; font-size: 12px; }
     .monitor-inner { flex-wrap: wrap; justify-content: center; gap: 6px 14px; }
   }
+
+.sync-badge {
+    padding: 3px 9px; border-radius: 8px; font-weight: 800; font-size: 13px;
+    background: #334155; color: #94a3b8; cursor: pointer; border: 0;
+  }
+  .sync-badge.online { background: #064e3b; color: #34d399; }
+  .sync-badge.err { background: #7f1d1d; color: #fca5a5; }
+
 </style>
 </head>
 <body>
@@ -364,13 +372,40 @@
     <div class="mon-item">📚 Összes szó: <span class="mon-val" id="mon-total">0</span></div>
     <div class="mon-item">🎯 Már gyakorolva: <span class="mon-val gold" id="mon-practiced">0</span></div>
     <div class="mon-item">✅ Mai hibátlan: <span class="mon-val ok" id="mon-today-ok">0</span></div>
+	<div class="mon-item">
+      	<button id="mon-sync" class="sync-badge" title="Kattints a felhő kód beállításához">☁️ Helyi mód</button>
+    </div>
   </div>
 </footer>
 
 <!-- =====================================================================
      3. BLOKK: ALKALMAZÁS LOGIKA ÉS ADATBÁZIS (JAVASCRIPT)
      ===================================================================== -->
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBqtbV2-nWHwllriImtc9hYLhVnsgaXoCc",
+  authDomain: "helyesiras-kaland.firebaseapp.com",
+  databaseURL: "https://helyesiras-kaland-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "helyesiras-kaland",
+  storageBucket: "helyesiras-kaland.firebasestorage.app",
+  messagingSenderId: "346262937393",
+  appId: "1:346262937393:web:b256094d9a777aa6d69a10"
+};
+
+let db = null;
+let unsubscribeCloud = null;
+let isApplyingRemote = false;
+
+try {
+  const app = initializeApp(firebaseConfig);
+  db = getDatabase(app);
+} catch (e) {
+  console.warn("Firebase hiba:", e);
+}
+
 // --- 3.1. SZINONIMA ÉS ROKON ÉRTELMŰ KIFEJEZÉSEK SZÓTÁRA ---
 // A Betűkirakó "1. Szinonimák" segítség gombja innen keresi ki a szó rokon értelmű párjait.
 const WORD_SYNONYMS = {
@@ -1449,9 +1484,70 @@ function getTodayKey() {
 
 const STORE_KEY = "helyesiras_kaland_v4";
 let state = JSON.parse(localStorage.getItem(STORE_KEY) || "null") || {
+  familyCode: "",
   current: "Játékos",
   users: { "Játékos": { pts: 0, mastered: [], practiced: [], mistakes: [], daily: {} } }
 };
+
+function setSyncStatus(text, cls) {
+  const el = document.getElementById("mon-sync");
+  if (!el) return;
+  el.textContent = text;
+  el.className = "sync-badge " + (cls || "");
+}
+
+function saveState() {
+  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  if (db && state.familyCode && state.familyCode.length >= 6 && !isApplyingRemote) {
+    const cleanCode = state.familyCode.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+    set(ref(db, "families/" + cleanCode + "/users"), state.users)
+      .then(() => setSyncStatus("☁️ Szinkronban (" + cleanCode + ")", "online"))
+      .catch(() => setSyncStatus("⚠️ Szinkron hiba", "err"));
+  }
+}
+
+function connectCloud() {
+  if (unsubscribeCloud) { unsubscribeCloud(); unsubscribeCloud = null; }
+  const code = (state.familyCode || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+  if (!db || code.length < 6) {
+    setSyncStatus("☁️ Helyi mód (kód beállítása)", "");
+    return;
+  }
+  setSyncStatus("⏳ Kapcsolódás...", "");
+  const usersRef = ref(db, "families/" + code + "/users");
+  unsubscribeCloud = onValue(usersRef, (snapshot) => {
+    const remoteUsers = snapshot.val();
+    setSyncStatus("☁️ Szinkronban (" + code + ")", "online");
+    if (!remoteUsers) {
+      saveState();
+      return;
+    }
+    isApplyingRemote = true;
+    state.users = remoteUsers;
+    if (!state.users[state.current]) {
+      const firstKey = Object.keys(state.users)[0];
+      if (firstKey) state.current = firstKey;
+    }
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    if (document.getElementById("scr-home").classList.contains("on")) updateHome();
+    if (document.getElementById("scr-users").classList.contains("on")) renderUsers();
+    updateMonitorBar();
+    isApplyingRemote = false;
+  }, () => {
+    setSyncStatus("⚠️ Hozzáférés megtagadva", "err");
+  });
+}
+
+document.getElementById("mon-sync").addEventListener("click", () => {
+  const next = prompt(
+    "Add meg a közös családi szinkronkódot (min. 6 karakter, pl. gyorcsalad26).\nUgyanezt a kódot írd be a többi eszközön is:",
+    state.familyCode || ""
+  );
+  if (next === null) return;
+  state.familyCode = next.trim();
+  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  connectCloud();
+});
 
 function saveState() {
   localStorage.setItem(STORE_KEY, JSON.stringify(state));
@@ -1998,6 +2094,7 @@ document.getElementById("sh-next").addEventListener("click", nextQuestion);
 
 // Alkalmazás indítása
 updateHome();
+connectCloud();
 </script>
 </body>
 </html>
