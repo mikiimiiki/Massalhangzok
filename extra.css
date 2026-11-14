@@ -1,0 +1,63 @@
+/* Az eredeti style.css UTÁN töltődik be */
+body { padding-bottom: 44px; }
+body.dys, body.dys button, body.dys input { font-family: "OpenDyslexic", "Comic Sans MS", "Verdana", sans-serif; letter-spacing: .04em; }
+body.dys .word-display { letter-spacing: .08em; }
+.screen { min-height: calc(100vh - 44px); }
+
+/* Vékony alsó sáv */
+.monitor-bar { height: 34px !important; min-height: 0 !important; padding: 0 12px !important; justify-content: space-between !important; font-size: 13px !important; }
+.monitor-bar b { color: #4ade80; }
+.sheet { bottom: 34px; }
+.sheet .why { font-size: 17px; font-weight: 700; margin-top: 6px; max-width: 640px; line-height: 1.35; }
+.sheet.ok .why { display: none; }
+
+.smallbtn { background:#fff; border:2px solid #cbd5e1; border-radius:12px; padding:4px 12px; font-size:14px; font-weight:800; color:#475569; box-shadow:0 2px 0 #e2e8f0; }
+.levels { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:14px; }
+.lvl { border:3px solid var(--line); background:#fff; border-radius:14px; padding:8px 12px; font-size:15px; font-weight:800; box-shadow:0 3px 0 var(--line); }
+.lvl.on { border-color: var(--pri); background:#f5f3ff; color: var(--pri); }
+
+/* Gépelős válasz */
+.typeinp { font: inherit; font-size: 28px; font-weight: 800; text-align: center; width: 100%; max-width: 420px; padding: 12px; margin: 14px 0; border-radius: 16px; border: 3px solid var(--line); user-select: text; -webkit-user-select: text; }
+.typeinp:focus { outline: none; border-color: var(--pri2); }
+
+/* Profil sorok */
+.urow { display: flex; gap: 8px; align-items: center; }
+.urow .profile { flex: 1; }
+.iconbtn.sm { width: 44px; height: 44px; font-size: 18px; }
+
+/* Felugró ablak és értesítés */
+.modal { position: fixed; inset: 0; background: rgba(15,23,42,.5); display: none; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+.modal.on { display: flex; }
+.mbox { background:#fff; border-radius:24px; padding:22px; max-width:420px; width:100%; box-shadow:0 8px 0 var(--line); }
+.mbox h3 { margin: 0 0 8px; }
+.mbox p { color: var(--soft); font-weight: 700; margin: 0 0 10px; }
+.minp { font: inherit; font-size: 20px; width: 100%; padding: 10px; border-radius: 14px; border: 3px solid var(--line); margin-bottom: 12px; user-select: text; }
+.mbtns { display: flex; gap: 10px; justify-content: flex-end; }
+.toast { position: fixed; left: 50%; bottom: 120px; transform: translate(-50%, 30px); background: #1e293b; color: #fff; padding: 10px 18px; border-radius: 14px; font-weight: 800; opacity: 0; pointer-events: none; transition: .25s; z-index: 60; max-width: 90vw; text-align: center; }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 70; }
+
+/* Statisztika */
+.panel { background: var(--card); border-radius: 22px; padding: 16px 18px; box-shadow: 0 5px 0 var(--line); margin-bottom: 14px; }
+.panel h3 { margin: 0 0 10px; }
+.chart { display: flex; gap: 8px; align-items: flex-end; height: 140px; }
+.chart .col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; font-size: 12px; font-weight: 800; color: var(--soft); }
+.chart .col i { display: block; width: 100%; max-width: 36px; background: linear-gradient(180deg,#a78bfa,#7c3aed); border-radius: 8px 8px 0 0; min-height: 3px; }
+.trow { display: grid; grid-template-columns: 170px 1fr 48px; gap: 8px; align-items: center; margin: 8px 0; font-weight: 800; font-size: 15px; }
+.trow .bar { margin: 0; }
+.badgegrid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 12px; }
+.badge { width: 104px; text-align: center; font-size: 12px; font-weight: 800; padding: 8px 4px; border-radius: 16px; background: #fef9c3; border: 2px solid #fde047; }
+.badge span { display: block; font-size: 32px; }
+.badge.locked { filter: grayscale(1); opacity: .4; background: #f1f5f9; border-color: var(--line); }
+.setrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; font-weight: 800; }
+.setrow input[type=checkbox] { width: 24px; height: 24px; }
+.setrow select { font: inherit; padding: 6px; border-radius: 10px; }
+.btnrow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+
+@media (max-width: 640px) { .trow { grid-template-columns: 110px 1fr 42px; font-size: 13px; } }
+
+/* Csökkentett mozgás */
+@media (prefers-reduced-motion: reduce) {
+  .mascot, .opt.bad { animation: none !important; }
+  * { transition-duration: .01ms !important; }
+}
