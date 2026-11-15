@@ -409,6 +409,7 @@ function updateHome() {
 }
 
 function showScreen(id) {
+  document.querySelectorAll(".retype-wrap").forEach(x => x.remove()); // a középső beíró panel ne maradjon fent képernyőváltáskor
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("on"));
   $(id).classList.add("on");
   if (id === "scr-home") updateHome();
@@ -1176,6 +1177,7 @@ function starsFor(ok, total) {
   return 0;
 }
 function showResults() {
+  hideRetype();
   $("sheet").classList.remove("on");
   const u = curUser(), ratio = sessionRoundOk / queue.length;
   if (ratio === 1) { const b = BADGES.find(x => x.id === "perfect"); awardBadge(u, b); saveState(); }
