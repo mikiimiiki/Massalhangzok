@@ -113,3 +113,23 @@ body[data-theme=peach] { --bg1: #ffe4e6; --bg2: #ffedd5; }
 .avcell.sel small { color: #7c3aed; }
 .avcell.locked { background: #f8fafc; }
 .avcell.locked .ae { filter: grayscale(1); opacity: .4; }
+
+/* Szinkron állapotjelző (alsó sáv) és a ☁️ panel élő állapota + eseménynaplója */
+.sync-badge.busy { background: #1e3a8a; color: #bfdbfe; }
+.sync-badge.slow { background: #c2410c; color: #fff7ed; }
+.sync-badge.off { background: #475569; color: #e2e8f0; }
+.mbox { max-height: 92vh; overflow-y: auto; }
+.cloud-live { border-radius: 14px; padding: 10px 12px; margin: 0 0 10px; background: #f1f5f9; color: var(--ink); border: 2px solid var(--line); }
+.cloud-live b { display: block; font-size: 17px; }
+.cloud-live div { font-weight: 700; color: var(--soft); margin: 2px 0; }
+.cloud-live small { color: var(--soft); }
+.cloud-live.online { background: #ecfdf5; border-color: #6ee7b7; }
+.cloud-live.err { background: #fef2f2; border-color: #fca5a5; }
+.cloud-live.slow { background: #fff7ed; border-color: #fdba74; }
+.cloud-live.busy { background: #eff6ff; border-color: #93c5fd; }
+.cloud-log { margin: 0 0 12px; font-size: 13px; }
+.cloud-log summary { cursor: pointer; font-weight: 800; color: var(--soft); }
+.cloud-log ol { list-style: none; margin: 6px 0 0; padding: 0; max-height: 170px; overflow-y: auto; border-top: 1px solid var(--line); }
+.cloud-log li { padding: 3px 0; border-bottom: 1px solid var(--line); color: var(--ink); }
+.cloud-log li.err { color: #b91c1c; font-weight: 700; }
+.cloud-log time { color: var(--soft); font-variant-numeric: tabular-nums; margin-right: 4px; }

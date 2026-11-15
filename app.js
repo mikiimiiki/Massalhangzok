@@ -1,6 +1,7 @@
 // ===== Helyesírás Kaland – alkalmazáslogika =====
 // A szóadatok a words.js-ben vannak: export const WORD_SYNONYMS, M_LIST, JLY_RAW, PAIR_TASKS
 import { WORD_SYNONYMS, M_LIST, JLY_RAW, PAIR_TASKS } from "./words.js";
+import { cleanForCloud } from "./cloudkeys.js";
 
 const $ = id => document.getElementById(id);
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
@@ -17,12 +18,15 @@ const firebaseConfig = {
   appId: "1:346262937393:web:b256094d9a777aa6d69a10"
 };
 const FB_BASE = "https://www.gstatic.com/firebasejs/13.2.0/";
-let db = null, fb = null, unsub = null, unsubP = null, unsubD = null, applyingRemote = false, firstSync = true;
+let db = null, fb = null, unsub = null, unsubP = null, unsubD = null, unsubC = null, applyingRemote = false, firstSync = true;
+let fbLoading = false, gotData = false, connSeen = false;
 // Belépés (Firebase Authentication): fa = auth modul, authUser = belépett szülő, member = tagja-e a családnak
 let fa = null, auth = null, authUser = null, member = false, cloudNote = "";
 const EMAIL_KEY = "helyesiras_kaland_login_email";
 
 async function initFirebase() {
+  if (fb || fbLoading) return !!fb;
+  fbLoading = true; setStatus("start");
   try {
     const [app, dbm, am] = await Promise.all([import(FB_BASE + "firebase-app.js"), import(FB_BASE + "firebase-database.js"), import(FB_BASE + "firebase-auth.js")]);
     const fApp = app.initializeApp(firebaseConfig);
@@ -30,15 +34,19 @@ async function initFirebase() {
     fb = dbm;
     auth = am.getAuth(fApp); auth.languageCode = "hu";
     fa = am;
+    fbLoading = false;
     await finishEmailLink();
     fa.onAuthStateChanged(auth, u => {
+      if (u) logSync("Belépve: " + u.email); else if (authUser) logSync("Kijelentkezve");
       authUser = u; member = false; cloudNote = "";
       if (u) joinFamily(); else { connectCloud(); renderCloud(); }
     });
     return true;
   } catch (e) {
+    fbLoading = false;
     console.warn("Firebase nem érhető el, offline mód:", e);
-    setSync("☁️ Offline mód", "");
+    setStatus("offline", "A felhő most nem érhető el (nincs internet, vagy nem töltődött be a Firebase). A játék helyben ment.");
+    logSync("A felhő nem érhető el: " + ((e && e.message) || e), true);
     return false;
   }
 }
@@ -209,7 +217,96 @@ const isMastered = r => !!r && r.days >= 3 && (r.strong || 0) >= 1;
 const masteredCount = u => Object.values(u.srs).filter(isMastered).length;
 const persist = () => localStorage.setItem(STORE_KEY, JSON.stringify(state));
 
-function setSync(text, cls) { const e = $("mon-sync"); if (e) { e.textContent = text; e.className = "sync-badge " + (cls || ""); } }
+// ---------- 3. Szinkron állapotjelző ----------
+// Minden lépésnek saját ikonja van. Ha egy folyamatban lévő lépés 15 mp-nél tovább tart, a jelző narancssárgára vált,
+// és az app magától újrapróbálkozik. A ☁️ panelben élő állapot és időpontos eseménynapló látható.
+const SYNC_ST = {
+  start: ["☁️", "Indítás…", "A felhős mentés betöltése."],
+  login: ["🔑", "Belépés", "Senki nincs belépve – a játék csak ezen az eszközön ment. Kattints a belépéshez!"],
+  signing: ["🔐", "Bejelentkezés…", "A bejelentkező ablak nyitva van."],
+  family: ["👪", "Család keresése…", "A fiókhoz tartozó család keresése."],
+  setup: ["🏠", "Család beállítása", "A fiókhoz még nincs család. Kattints, és hozd létre, vagy kérd meg a másik szülőt, hogy adjon hozzá."],
+  connecting: ["🔌", "Kapcsolódás…", "Kapcsolódás a szerverhez."],
+  download: ["⬇️", "Letöltés…", "A család adatainak letöltése."],
+  upload: ["⬆️", "Mentés…", "Feltöltés a felhőbe."],
+  ok: ["✅", "Szinkronban", "Minden adat fent van a felhőben."],
+  offline: ["📴", "Offline", "Nincs kapcsolat: a játék helyben ment, és visszakapcsoláskor feltölt."],
+  error: ["⛔", "Hiba", "Hiba történt."],
+  warn: ["⚠️", "Figyelem", ""]
+};
+const SYNC_BUSY = new Set(["start", "signing", "family", "connecting", "download", "upload"]);
+const SLOW_MS = 15000;
+let sync = { st: "start", detail: "", since: Date.now(), slow: false }, slowT = null, slowN = 0, inflight = 0;
+const syncLog = [];
+const dirty = new Set(); // feltöltésre váró játékosok
+const hhmm = t => new Date(t).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+function logSync(msg, err = false) {
+  syncLog.push({ t: Date.now(), msg, err });
+  if (syncLog.length > 80) syncLog.shift();
+  if (err) console.warn("[szinkron]", msg);
+  renderSyncLive();
+}
+function setStatus(st, detail = "") {
+  const changed = st !== sync.st;
+  sync = { st, detail, since: changed ? Date.now() : sync.since, slow: changed ? false : sync.slow };
+  if (changed) { clearTimeout(slowT); slowT = null; slowN = 0; if (SYNC_BUSY.has(st)) slowT = setTimeout(onSlow, SLOW_MS); }
+  renderSyncLive();
+}
+// Túl sokáig tartó lépés: narancssárga jelző + automatikus újrapróbálkozás (egyre ritkábban)
+function onSlow() {
+  slowT = null;
+  const st = sync.st;
+  if (!SYNC_BUSY.has(st)) return;
+  sync.slow = true; slowN++;
+  if (!navigator.onLine) { setStatus("offline"); logSync("Nincs internetkapcsolat – helyben mentek tovább"); return; }
+  logSync(`„${SYNC_ST[st][1]}” ${Math.round(SLOW_MS * slowN / 1000)} mp óta tart – újrapróbálom`, true);
+  if (st === "start") initFirebase();
+  else if (st === "family") joinFamily();
+  else if (st === "connecting" || st === "download") reconnect(false);
+  else if (st === "upload") { inflight = 0; pushAll(); }
+  // a bejelentkező ablakra (signing) csak várunk
+  if (SYNC_BUSY.has(sync.st)) { sync.slow = true; slowT = setTimeout(onSlow, SLOW_MS * Math.min(4, slowN + 1)); }
+  renderSyncLive();
+}
+function syncText() {
+  const [ic, label] = SYNC_ST[sync.st];
+  return ic + " " + label + ((sync.st === "ok" || sync.st === "offline") && dirty.size ? ` · ${dirty.size} vár` : "");
+}
+const syncDetail = () => sync.detail || SYNC_ST[sync.st][2];
+const syncCls = () => sync.slow ? "slow" : sync.st === "ok" ? "online" : (sync.st === "error" || sync.st === "warn") ? "err" : sync.st === "offline" ? "off" : SYNC_BUSY.has(sync.st) ? "busy" : "";
+function renderSyncLive() {
+  const e = $("mon-sync");
+  if (e) {
+    e.textContent = syncText(); e.className = "sync-badge " + syncCls();
+    e.title = syncDetail() + `\n(${hhmm(sync.since)} óta${sync.slow ? " – lassú, újrapróbálom" : ""})` + (dirty.size ? `\nFeltöltésre vár: ${dirty.size} játékos` : "") + "\nKattints a részletekért!";
+  }
+  if (!cloudOpen) return;
+  const live = $("cloud-live"), lg = $("cloud-log");
+  if (live) {
+    live.className = "cloud-live " + syncCls(); live.innerHTML = "";
+    live.append(el("b", null, syncText()), el("div", null, syncDetail()),
+      el("small", null, `${hhmm(sync.since)} óta · ` + (dirty.size ? `${dirty.size} játékos változása vár feltöltésre` : "nincs feltöltésre váró változás")));
+  }
+  if (lg) {
+    const list = lg.querySelector("ol"); list.innerHTML = "";
+    lg.querySelector("summary").textContent = `📋 Eseménynapló (${syncLog.length})`;
+    [...syncLog].reverse().forEach(x => { const li = el("li", x.err ? "err" : ""); li.append(el("time", null, hhmm(x.t)), document.createTextNode(" " + x.msg)); list.append(li); });
+    if (!syncLog.length) list.append(el("li", null, "Még nem történt semmi."));
+    const last = syncLog[syncLog.length - 1];
+    if ((last && last.err) || sync.st === "error") lg.open = true; // hiba esetén magától kinyílik
+  }
+}
+addEventListener("offline", () => { if (cloudReady()) { setStatus("offline"); logSync("Megszakadt az internetkapcsolat – helyben mentek tovább"); } });
+addEventListener("online", () => { logSync("Visszajött az internet"); if (!fb) initFirebase(); else if (cloudReady()) reconnect(false); });
+// Újrakapcsolódás: a Firebase-kapcsolatot újranyitja, és újra megkeresi a családot
+function reconnect(manual = true) {
+  if (manual) logSync("Újrakapcsolódás kérve");
+  if (!fb) { initFirebase(); return; }
+  try { fb.goOffline(db); fb.goOnline(db); } catch (e) { /* mindegy */ }
+  if (authUser) joinFamily(); else connectCloud();
+}
+
 const safeKey = n => n.replace(/[.$#\[\]\/]/g, "_");
 const famCode = () => (state.familyCode || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
 // A családkód már csak a család belső azonosítója: hozzáférést a belépett, a családhoz hozzáadott e-mail-cím ad
@@ -226,7 +323,14 @@ let pushT = null;
 function queuePush(name) {
   if (!cloudReady()) return;
   pendingPush.add(name);
+  if (!dirty.has(name)) { dirty.add(name); renderSyncLive(); }
   if (!pushT) pushT = setTimeout(flushPush, PUSH_DELAY);
+}
+// Minden helyi játékos feltöltése (kézi „Mentés most”, illetve elakadt mentés újrapróbálása)
+function pushAll() {
+  if (!cloudReady()) { logSync("Mentés most nem lehetséges: nincs belépve vagy nincs család", true); return; }
+  clearTimeout(pushT); pushT = null; pendingPush.clear();
+  Object.keys(state.users).forEach(n => pushUser(n));
 }
 function flushPush() {
   clearTimeout(pushT); pushT = null;
@@ -242,16 +346,33 @@ const isTomb = (name, u) => { const t = (state.deleted || {})[name]; return !!t 
 function markDeleted(name) {
   const ts = Date.now();
   state.deleted = state.deleted || {}; state.deleted[name] = ts; persist();
-  if (cloudReady()) fb.set(fb.ref(db, `families/${famCode()}/deleted/${safeKey(name)}`), { name, ts }).catch(() => setSync("⚠️ Szinkron hiba", "err"));
+  if (cloudReady()) fb.set(fb.ref(db, `families/${famCode()}/deleted/${safeKey(name)}`), { name, ts })
+    .then(() => logSync(`${name} törlése a felhőben is rögzítve`))
+    .catch(e => { setStatus("error", "A törlés nem került fel a felhőbe: " + fbError(e)); logSync(`${name} törlése nem került fel: ${fbError(e)}`, true); });
 }
 
 // Felhasználónkénti mentés: egy játékos írása nem írja felül a többiekét
 function pushUser(name) {
   const c = famCode();
   if (!cloudReady() || applyingRemote || !state.users[name]) return;
-  if (isTomb(name, state.users[name])) return; // törölt játékost nem töltünk vissza
-  fb.set(fb.ref(db, `families/${c}/users/${safeKey(name)}`), { ...state.users[name], name })
-    .then(() => setSync("☁️ Szinkronban", "online")).catch(() => setSync("⚠️ Szinkron hiba", "err"));
+  if (isTomb(name, state.users[name])) { dirty.delete(name); return; } // törölt játékost nem töltünk vissza
+  const fixed = [], data = cleanForCloud({ ...state.users[name], name }, fixed); // érvénytelen kulcs / érték nem mehet fel
+  if (fixed.length) logSync(`${name}: ${fixed.length} érvénytelen kulcs javítva feltöltés előtt (${fixed.slice(0, 3).join(", ")})`);
+  const upd = state.users[name].upd || 0;
+  dirty.add(name); inflight++;
+  if (sync.st !== "offline") setStatus("upload", `${name} adatainak feltöltése…`);
+  fb.set(fb.ref(db, `families/${c}/users/${safeKey(name)}`), data)
+    .then(() => {
+      inflight = Math.max(0, inflight - 1);
+      if (!state.users[name] || (state.users[name].upd || 0) === upd) dirty.delete(name);
+      logSync(`${name} eredményei elmentve`);
+      if (!inflight) setStatus("ok"); else renderSyncLive();
+    })
+    .catch(e => {
+      inflight = Math.max(0, inflight - 1);
+      setStatus("error", "Mentési hiba: " + fbError(e));
+      logSync(`${name} mentése nem sikerült: ${fbError(e)}`, true);
+    });
 }
 function saveState(touch = true) {
   if (touch) curUser().upd = Date.now();
@@ -263,11 +384,20 @@ function connectCloud() {
   if (unsub) { unsub(); unsub = null; }
   if (unsubP) { unsubP(); unsubP = null; }
   if (unsubD) { unsubD(); unsubD = null; }
+  if (unsubC) { unsubC(); unsubC = null; }
   const c = famCode();
-  if (!fb) { setSync("☁️ Offline mód", ""); return; }
-  if (!authUser) { setSync("☁️ Helyi mód – Belépés", ""); return; }
-  if (!cloudReady()) { setSync("☁️ Család beállítása", ""); return; }
-  setSync("⏳ Kapcsolódás…", ""); firstSync = true;
+  if (!fb) { setStatus("offline", "A felhő most nem érhető el. A játék helyben ment."); return; }
+  if (!authUser) { setStatus("login"); return; }
+  if (!cloudReady()) { setStatus("setup"); return; }
+  setStatus("connecting"); firstSync = true; gotData = false; connSeen = false; inflight = 0;
+  // Kapcsolat a szerverrel (.info/connected): kapcsolódás → letöltés; megszakadás → offline; visszatérés → feltöltés
+  unsubC = fb.onValue(fb.ref(db, ".info/connected"), snap => {
+    if (snap.val()) {
+      const back = connSeen && sync.st === "offline"; connSeen = true;
+      if (!gotData) { setStatus("download"); logSync("Kapcsolódva a szerverhez"); }
+      else if (back) { logSync("Újra van kapcsolat"); setStatus("ok"); if (dirty.size) pushAll(); }
+    } else if (connSeen) { setStatus("offline"); logSync("Megszakadt a kapcsolat a szerverrel – helyben mentek tovább"); }
+  });
   // Szülői PIN (sózott hash): a legújabb felhős érték minden eszközre eljut
   unsubP = fb.onValue(fb.ref(db, `families/${c}/parent`), snap => {
     const r = snap.val();
@@ -298,13 +428,15 @@ function connectCloud() {
     applyingRemote = false;
     if (!state.users[state.current]) state.current = Object.keys(state.users)[0] || "Játékos";
     persist();
+    if (!gotData) { gotData = true; logSync(`Adatok letöltve (${Object.keys(remote).length} játékos a felhőben)`); }
+    else if (changed) logSync("Frissítés érkezett egy másik eszközről");
+    if (!inflight) setStatus("ok");
     if (firstSync) { // első kapcsolódáskor a újabb helyi adatokat feltöltjük
       firstSync = false;
-      Object.keys(state.users).forEach(n => { const r = remote[safeKey(n)]; if (!r || (state.users[n].upd || 0) > (r.upd || 0)) pushUser(n); });
+      Object.keys(state.users).forEach(n => { const r = remote[safeKey(n)]; if (!r || (state.users[n].upd || 0) > (r.upd || 0)) pushUser(n); else dirty.delete(n); });
     }
-    setSync("☁️ Szinkronban", "online");
     if (changed) refreshViews();
-  }, () => setSync("⚠️ Hozzáférés megtagadva", "err"));
+  }, e => { setStatus("error", "Hozzáférés megtagadva: a fiók nem olvashatja a család adatait. " + fbError(e)); logSync("Letöltés megtagadva: " + fbError(e), true); });
 }
 
 // ---------- 4. Kis segédek: felugró ablak, toast, konfetti ----------
@@ -644,26 +776,41 @@ async function finishEmailLink() {
   try { em = localStorage.getItem(EMAIL_KEY); } catch (e) { /* privát mód */ }
   if (!em) em = await modal({ title: "Belépés befejezése", text: "Add meg újra az e-mail-címedet:", value: "", ok: "Belépés" });
   if (!em) return;
-  try { await fa.signInWithEmailLink(auth, em.trim(), link); } catch (e) { toast("❌ " + fbError(e)); }
+  setStatus("signing", "Belépés az e-mailes linkkel…");
+  try { await fa.signInWithEmailLink(auth, em.trim(), link); }
+  catch (e) { toast("❌ " + fbError(e)); logSync("Belépés e-mailes linkkel nem sikerült: " + fbError(e), true); setStatus("login"); }
   try { localStorage.removeItem(EMAIL_KEY); } catch (e) { /* mindegy */ }
 }
 
 // Belépés után: megkeressük a családot. Ha még nincs, de ezen az eszközön van régi szinkronkód,
 // azt a családot „igényeljük” – így a felhőben már meglévő adatok a helyükön maradnak.
+let joinTok = 0;
 async function joinFamily() {
-  setSync("⏳ Kapcsolódás…", "");
+  if (!authUser) return;
+  const tok = ++joinTok;
+  setStatus("family");
+  let err = null;
   try {
     const mine = Object.keys((await fb.get(fb.ref(db, `memberOf/${myKey()}`))).val() || {});
+    if (tok !== joinTok) return; // közben újabb próbálkozás indult
     if (mine.length) {
       if (!mine.includes(famCode())) { state.familyCode = mine[0]; persist(); }
-      member = true;
+      member = true; logSync("Család megtalálva");
     } else if (famCode().length >= 6) {
       member = await claimFamily(famCode());
-      if (!member) cloudNote = "❌ Ezt a családot már egy másik szülő igényelte. Kérd meg, hogy a Felhős mentés panelen adja hozzá az e-mail-címedet, aztán nyomd meg az „Újra ellenőrzöm” gombot.";
-    }
-  } catch (e) { console.warn(e); cloudNote = "❌ " + fbError(e); }
+      if (tok !== joinTok) return;
+      if (member) logSync("A régi családkódhoz tartozó család igényelve");
+      else logSync("A családot már egy másik szülő igényelte", true);
+      if (!member) cloudNote ="❌ Ezt a családot már egy másik szülő igényelte. Kérd meg, hogy a Felhős mentés panelen adja hozzá az e-mail-címedet, aztán nyomd meg az „Újra ellenőrzöm” gombot.";
+    } else logSync("Ehhez a fiókhoz még nincs család");
+  } catch (e) {
+    if (tok !== joinTok) return;
+    err = fbError(e); cloudNote = "❌ " + err; logSync("Család keresése nem sikerült: " + err, true);
+  }
   firstSync = true;
-  connectCloud(); renderCloud();
+  connectCloud();
+  if (err) setStatus(navigator.onLine ? "error" : "offline", "A család keresése nem sikerült: " + err);
+  renderCloud();
 }
 async function claimFamily(code) {
   try {
@@ -709,8 +856,13 @@ async function removeMember(k, count) {
 }
 async function googleLogin() {
   cloudNote = "";
+  setStatus("signing", "A Google bejelentkező ablaka nyitva van.");
   try { await fa.signInWithPopup(auth, new fa.GoogleAuthProvider()); }
-  catch (e) { if (!/popup-closed-by-user|cancelled-popup-request/.test(e.code || "")) { cloudNote = "❌ " + fbError(e); renderCloud(); } }
+  catch (e) {
+    if (sync.st === "signing") connectCloud();
+    if (/popup-closed-by-user|cancelled-popup-request/.test(e.code || "")) logSync("Bejelentkezés megszakítva");
+    else { cloudNote = "❌ " + fbError(e); logSync("Bejelentkezés nem sikerült: " + fbError(e), true); renderCloud(); }
+  }
 }
 async function sendLink(em) {
   em = (em || "").trim();
@@ -718,19 +870,19 @@ async function sendLink(em) {
   try {
     await fa.sendSignInLinkToEmail(auth, em, { url: location.origin + location.pathname, handleCodeInApp: true });
     try { localStorage.setItem(EMAIL_KEY, em); } catch (e) { /* privát mód */ }
+    logSync("Belépő link elküldve: " + em);
     cloudNote = `📧 Elküldtem a belépő linket ide: ${em}. Nyisd meg a levelet ezen az eszközön, és kattints a linkre. (Ha nem jön, nézd meg a spam mappát is.)`;
   } catch (e) { cloudNote = "❌ " + fbError(e); }
   renderCloud();
 }
 async function logout() {
   const ok = await modal({ title: "Kijelentkezés", text: "Az ezen az eszközön lévő játékosok és haladásuk megmaradnak, csak nem szinkronizálódnak tovább.", ok: "Kijelentkezés" });
-  if (ok) await fa.signOut(auth); else openCloud();
+  if (ok) { await fa.signOut(auth); dirty.clear(); renderSyncLive(); } else openCloud();
 }
 
 // A panel a meglévő felugró ablakban jelenik meg
 let cloudOpen = false, cloudTok = 0;
 function openCloud() {
-  if (!fb) { toast("Most nincs kapcsolat a felhővel – a játék helyben ment."); return; }
   cloudOpen = true; $("modal").classList.add("on"); renderCloud();
 }
 function closeCloud() { cloudOpen = false; cloudNote = ""; $("modal").classList.remove("on"); }
@@ -743,7 +895,15 @@ async function renderCloud() {
   const row = (...bs) => { const r = el("div", "mbtns"); r.style.cssText = "flex-wrap:wrap;justify-content:flex-start;margin-bottom:10px"; r.append(...bs); box.append(r); };
   const input = ph => { const i = el("input", "minp"); i.type = "email"; i.placeholder = ph; i.autocomplete = "email"; box.append(i); return i; };
   const note = el("p"); // a megjegyzés mindig a gombok fölött
-  if (!authUser) {
+  // Élő állapot és eseménynapló (a renderSyncLive frissíti őket helyben, a beírt szöveg nem vész el)
+  const live = el("div", "cloud-live"); live.id = "cloud-live"; box.append(live);
+  const lg = el("details", "cloud-log"); lg.id = "cloud-log"; lg.append(el("summary"), el("ol")); box.append(lg);
+  renderSyncLive();
+  const saveNow = () => { logSync("Kézi mentés indítva"); pushAll(); };
+  if (!fb) {
+    p("A felhő most nem érhető el (nincs internet, vagy nem töltődött be). A játék közben helyben ment, és a kapcsolat visszatérésekor feltölt.");
+    row(btn("primary", "🔄 Újrakapcsolódás", () => reconnect()));
+  } else if (!authUser) {
     p("Lépj be szülőként, és a játékosok haladása minden eszközön meglesz – a másik szülő is láthatja a saját telefonján. Belépés nélkül a haladás csak ezen az eszközön van elmentve.");
     row(btn("primary", "Belépés Google-fiókkal", googleLogin));
     const i = input("vagy e-mail-cím a belépő linkhez");
@@ -753,7 +913,7 @@ async function renderCloud() {
     p(`Belépve: ${authUser.email}`);
     p("Ez a cím még nem tartozik családhoz. Ha a másik szülő már létrehozta, kérd meg, hogy adja hozzá a címedet, aztán nyomd meg az „Újra ellenőrzöm” gombot. Ha te vagy az első, hozd létre a családot – az ezen az eszközön lévő játékosok felkerülnek a felhőbe.");
     box.append(note);
-    row(btn("primary", "👨‍👩‍👧 Család létrehozása", createFamily), btn("secondary", "🔄 Újra ellenőrzöm", joinFamily), btn("secondary", "Kijelentkezés", logout));
+    row(btn("primary", "👨‍👩‍👧 Család létrehozása", createFamily), btn("secondary", "🔄 Újra ellenőrzöm", joinFamily), btn("secondary", "🚪 Kilépés", logout));
   } else {
     p(`Belépve: ${authUser.email}`);
     box.append(el("b", null, "A család tagjai"), el("p", null, "Ők látják és folytathatják a játékosok haladását."));
@@ -761,7 +921,8 @@ async function renderCloud() {
     const i = input("Másik szülő e-mail-címe");
     i.addEventListener("keydown", e => { if (e.key === "Enter") addMember(i.value); });
     box.append(note);
-    row(btn("secondary", "➕ Hozzáadás", () => addMember(i.value)), btn("secondary", "Kijelentkezés", logout));
+    row(btn("secondary", "➕ Hozzáadás", () => addMember(i.value)));
+    row(btn("secondary", "⬆️ Mentés most", saveNow), btn("secondary", "🔄 Újrakapcsolódás", () => reconnect()), btn("secondary", "🚪 Kilépés", logout));
     try {
       const m = Object.keys((await fb.get(fb.ref(db, `families/${famCode()}/members`))).val() || {});
       if (tok !== cloudTok) return;
@@ -1232,7 +1393,8 @@ async function hashPin(pin, saltHex) {
 function pushParent() {
   const c = famCode();
   if (!cloudReady() || !state.parent) return;
-  fb.set(fb.ref(db, `families/${c}/parent`), state.parent).catch(() => setSync("⚠️ Szinkron hiba", "err"));
+  fb.set(fb.ref(db, `families/${c}/parent`), state.parent).then(() => logSync("Szülői PIN elmentve"))
+    .catch(e => { setStatus("error", "A szülői PIN nem került fel: " + fbError(e)); logSync("Szülői PIN mentése nem sikerült: " + fbError(e), true); });
 }
 async function setPin(pin) { state.parent = await hashPin(pin); delete state.parentPin; persist(); pushParent(); }
 async function checkPin(pin) { const p = state.parent; return !!p && (await hashPin(pin, p.salt)).hash === p.hash; }
