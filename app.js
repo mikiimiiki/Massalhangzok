@@ -1414,7 +1414,7 @@ function renderAlbum() {
 const SYL_V = "aáeéiíoóöőuúüű";
 const SYL_LONG = [["ddzs", "dzs"], ["ccs", "cs"], ["ddz", "dz"], ["ggy", "gy"], ["lly", "ly"], ["nny", "ny"], ["ssz", "sz"], ["tty", "ty"], ["zzs", "zs"]];
 const SYL_DI = ["dzs", "cs", "dz", "gy", "ly", "ny", "sz", "ty", "zs"];
-const SYL_FIX = { "fogkrém": "fog-krém", "kisasszony": "kis-asz-szony", "bélyeggyűjtés": "bé-lyeg-gyűj-tés", "ellenőrző": "el-len-őr-ző" }; // összetett szavak, ahol a szóhatár szerinti vágás a helyes
+const SYL_FIX = { "fogkrém": "fog-krém", "kisasszony": "kis-asz-szony", "bélyeggyűjtés": "bé-lyeg-gyűj-tés", "ellenőrző": "el-len-őr-ző", "álarc": "ál-arc", "hónalj": "hón-alj", "azóta": "az-ó-ta", "megálló": "meg-ál-ló", "délelőtt": "dél-e-lőtt", "kilogramm": "ki-lo-gramm", "dekagramm": "de-ka-gramm", "haddelhadd": "hadd-el-hadd", "hüvelykujj": "hü-velyk-ujj", "fészekalja": "fé-szek-al-ja" }; // összetett szavak, ahol a szóhatár szerinti vágás a helyes
 function sylUnits(word) {
   const w = word.toLowerCase(), out = []; let i = 0;
   while (i < w.length) {

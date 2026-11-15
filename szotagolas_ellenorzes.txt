@@ -76,7 +76,7 @@ ok-kal
 pa-kol
 pó-kot
 si-kál
-á-larc
+ál-arc  [ÖSSZEV.]
 ál-lás
 ál-lat
 bá-mul
@@ -228,7 +228,7 @@ rez-zen
 ziz-zen
 fe-lejt
 fúj-jon
-hó-nalj
+hón-alj  [ÖSSZEV.]
 já-cint
 jöj-jön
 ra-jong
@@ -489,7 +489,7 @@ ten-gely
 tűz-hely
 I-lo-na
 u-tá-na
-a-zó-ta
+az-ó-ta  [ÖSSZEV.]
 ő-zi-ke
 öcs-cse  [VÁLASZTÓS]
 any-nyi  [VÁLASZTÓS]
@@ -539,7 +539,7 @@ buk-ka-nó
 hu-pi-kék
 ál-lo-más
 ka-mil-la
-me-gál-ló
+meg-ál-ló  [ÖSSZEV.]
 vá-lo-gat
 fog-krém  [ÖSSZEV.]
 var-ró-nő
@@ -591,7 +591,7 @@ zsöly-lye  [VÁLASZTÓS]
 hal-lot-ta
 kel-le-mes
 pil-la-nat
-dé-le-lőtt
+dél-e-lőtt  [ÖSSZEV.]
 fröcs-csen  [VÁLASZTÓS]
 tüsz-szent  [VÁLASZTÓS]
 füty-tyent  [VÁLASZTÓS]
@@ -644,13 +644,13 @@ tá-mo-lyog
 tu-laj-don
 ün-ne-pély
 gom-bóc-cal
-ki-log-ramm
+ki-lo-gramm  [ÖSSZEV.]
 ma-dár-toll
-de-kag-ramm
+de-ka-gramm  [ÖSSZEV.]
 Zsu-zsan-na
 sza-bá-lyos
 ne-fe-lejcs
-had-del-hadd
+hadd-el-hadd  [ÖSSZEV.]
 ő-szi-es
 ki-ál-tás
 Ad-ri-enn
@@ -688,7 +688,7 @@ füg-gő-le-ges
 hal-pik-kely
 egy-hely-ben
 göm-böly-ded
-hü-vely-kujj
+hü-velyk-ujj  [ÖSSZEV.]
 rej-tek-hely
 szen-ve-dély
 ó-ri-á-si
@@ -707,7 +707,7 @@ pör-gety-tyű  [VÁLASZTÓS]
 ki-ál-lí-tás
 orr-szar-vú
 kis-asz-szony  [VÁLASZTÓS]  [ÖSSZEV.]
-fé-sze-kal-ja
+fé-szek-al-ja  [ÖSSZEV.]
 o-laj-kály-ha
 é-let-ve-szély
 go-moly-fel-hő
