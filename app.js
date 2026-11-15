@@ -241,8 +241,19 @@ const syncLog = [];
 const dirty = new Set(); // feltöltésre váró játékosok
 const hhmm = t => new Date(t).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
+// Az eseménynapló bejegyzéseinek ikonja a szövegből adódik (az első illeszkedő szabály nyer)
+const LOG_ICONS = [
+  [/megszakadt|nincs internetkapcsolat/i, "🔴"], [/kapcsolat a szerverrel: él/i, "🟢"], [/visszajött az internet/i, "🌐"],
+  [/újrapróbálom/i, "⏳"], [/^belépve/i, "🔑"], [/kijelentkezve/i, "🚪"], [/bejelentkezés megszakítva/i, "↩️"],
+  [/család megtalálva|család igényelve/i, "👪"], [/nincs család/i, "🏠"], [/letöltve|frissült/i, "⬇️"],
+  [/elmentve|kézi mentés/i, "⬆️"], [/újrakapcsolódás/i, "🔄"], [/belépő link/i, "📧"], [/törlése/i, "🗑️"],
+  [/kulcs javítva/i, "🛠️"], [/PIN/, "🔐"]
+];
+const logIcon = (msg, err) => { const r = LOG_ICONS.find(([re]) => re.test(msg)); return r && !(err && r[1] === "⬆️") ? r[1] : err ? "⛔" : "ℹ️"; };
+const LOG_SHOW = 20; // ennyi bejegyzés látszik a naplóban (görgethető)
+let lastDown = 0, lastUp = 0;
 function logSync(msg, err = false) {
-  syncLog.push({ t: Date.now(), msg, err });
+  syncLog.push({ t: Date.now(), msg, err, icon: logIcon(msg, err) });
   if (syncLog.length > 80) syncLog.shift();
   if (err) console.warn("[szinkron]", msg);
   renderSyncLive();
@@ -259,7 +270,7 @@ function onSlow() {
   const st = sync.st;
   if (!SYNC_BUSY.has(st)) return;
   sync.slow = true; slowN++;
-  if (!navigator.onLine) { setStatus("offline"); logSync("Nincs internetkapcsolat – helyben mentek tovább"); return; }
+  if (!navigator.onLine) { setStatus("offline"); logSync("Nincs internetkapcsolat – helyben mentünk tovább."); return; }
   logSync(`„${SYNC_ST[st][1]}” ${Math.round(SLOW_MS * slowN / 1000)} mp óta tart – újrapróbálom`, true);
   if (st === "start") initFirebase();
   else if (st === "family") joinFamily();
@@ -273,7 +284,9 @@ function syncText() {
   const [ic, label] = SYNC_ST[sync.st];
   return ic + " " + label + ((sync.st === "ok" || sync.st === "offline") && dirty.size ? ` · ${dirty.size} vár` : "");
 }
-const syncDetail = () => sync.detail || SYNC_ST[sync.st][2];
+const syncDetail = () => sync.detail || (sync.st === "ok"
+  ? `Utolsó letöltés: ${lastDown ? hhmm(lastDown) : "–"}, utolsó mentés: ${lastUp ? hhmm(lastUp) : "–"}.` + (dirty.size ? ` ${dirty.size} változás vár feltöltésre (legkésőbb egy percen belül megy, vagy nyomd meg a „Mentés most” gombot).` : "")
+  : SYNC_ST[sync.st][2]);
 const syncCls = () => sync.slow ? "slow" : sync.st === "ok" ? "online" : (sync.st === "error" || sync.st === "warn") ? "err" : sync.st === "offline" ? "off" : SYNC_BUSY.has(sync.st) ? "busy" : "";
 function renderSyncLive() {
   const e = $("mon-sync");
@@ -282,22 +295,26 @@ function renderSyncLive() {
     e.title = syncDetail() + `\n(${hhmm(sync.since)} óta${sync.slow ? " – lassú, újrapróbálom" : ""})` + (dirty.size ? `\nFeltöltésre vár: ${dirty.size} játékos` : "") + "\nKattints a részletekért!";
   }
   if (!cloudOpen) return;
-  const live = $("cloud-live"), lg = $("cloud-log");
-  if (live) {
-    live.className = "cloud-live " + syncCls(); live.innerHTML = "";
-    live.append(el("b", null, syncText()), el("div", null, syncDetail()),
-      el("small", null, `${hhmm(sync.since)} óta · ` + (dirty.size ? `${dirty.size} játékos változása vár feltöltésre` : "nincs feltöltésre váró változás")));
+  // ☁️ panel: állapotdoboz (ikon + cím + részletek), családsor, eseménynapló (az utolsó 20, görgethető)
+  const stBox = $("cl-status"), fam = $("cl-fam"), lg = $("cl-log");
+  if (stBox) {
+    const [ic, label] = SYNC_ST[sync.st];
+    stBox.className = "cl-status " + syncCls(); stBox.innerHTML = "";
+    const txt = el("div");
+    txt.append(el("b", null, label + ((sync.st === "ok" || sync.st === "offline") && dirty.size ? ` · ${dirty.size} vár` : "")), el("div", "small", syncDetail() + (sync.slow ? " (lassú, újrapróbálom)" : "")));
+    stBox.append(el("span", "cl-ic", ic), txt);
   }
+  if (fam) { fam.textContent = cloudReady() ? `Család: ${famCode().slice(0, 7)}… · Feltöltésre vár: ${dirty.size}` : ""; fam.style.display = cloudReady() ? "" : "none"; }
   if (lg) {
-    const list = lg.querySelector("ol"); list.innerHTML = "";
-    lg.querySelector("summary").textContent = `📋 Eseménynapló (${syncLog.length})`;
-    [...syncLog].reverse().forEach(x => { const li = el("li", x.err ? "err" : ""); li.append(el("time", null, hhmm(x.t)), document.createTextNode(" " + x.msg)); list.append(li); });
-    if (!syncLog.length) list.append(el("li", null, "Még nem történt semmi."));
-    const last = syncLog[syncLog.length - 1];
-    if ((last && last.err) || sync.st === "error") lg.open = true; // hiba esetén magától kinyílik
+    const ev = syncLog.slice(-LOG_SHOW).reverse(), list = lg.querySelector(".cl-list");
+    lg.style.display = ev.length ? "" : "none";
+    lg.querySelector("summary").textContent = `Eseménynapló (${ev.length})`;
+    list.innerHTML = "";
+    ev.forEach(x => { const d = el("div", x.err ? "bad" : ""); d.append(el("span", "soft", hhmm(x.t)), document.createTextNode(` ${x.icon} ${x.msg}`)); list.append(d); });
+    if (sync.st === "error" || sync.st === "warn" || (ev[0] && ev[0].err)) lg.open = true; // hiba esetén magától kinyílik
   }
 }
-addEventListener("offline", () => { if (cloudReady()) { setStatus("offline"); logSync("Megszakadt az internetkapcsolat – helyben mentek tovább"); } });
+addEventListener("offline", () => { if (cloudReady()) { setStatus("offline"); logSync("Megszakadt az internetkapcsolat – helyben mentünk tovább."); } });
 addEventListener("online", () => { logSync("Visszajött az internet"); if (!fb) initFirebase(); else if (cloudReady()) reconnect(false); });
 // Újrakapcsolódás: a Firebase-kapcsolatot újranyitja, és újra megkeresi a családot
 function reconnect(manual = true) {
@@ -365,7 +382,7 @@ function pushUser(name) {
     .then(() => {
       inflight = Math.max(0, inflight - 1);
       if (!state.users[name] || (state.users[name].upd || 0) === upd) dirty.delete(name);
-      logSync(`${name} eredményei elmentve`);
+      lastUp = Date.now(); logSync(`${name} eredményei elmentve.`);
       if (!inflight) setStatus("ok"); else renderSyncLive();
     })
     .catch(e => {
@@ -394,9 +411,9 @@ function connectCloud() {
   unsubC = fb.onValue(fb.ref(db, ".info/connected"), snap => {
     if (snap.val()) {
       const back = connSeen && sync.st === "offline"; connSeen = true;
-      if (!gotData) { setStatus("download"); logSync("Kapcsolódva a szerverhez"); }
-      else if (back) { logSync("Újra van kapcsolat"); setStatus("ok"); if (dirty.size) pushAll(); }
-    } else if (connSeen) { setStatus("offline"); logSync("Megszakadt a kapcsolat a szerverrel – helyben mentek tovább"); }
+      if (!gotData) { setStatus("download"); logSync("Kapcsolat a szerverrel: él."); }
+      else if (back) { logSync("Kapcsolat a szerverrel: él."); setStatus("ok"); if (dirty.size) pushAll(); }
+    } else if (connSeen) { setStatus("offline"); logSync("Kapcsolat a szerverrel megszakadt – helyben mentünk tovább."); }
   });
   // Szülői PIN (sózott hash): a legújabb felhős érték minden eszközre eljut
   unsubP = fb.onValue(fb.ref(db, `families/${c}/parent`), snap => {
@@ -418,18 +435,19 @@ function connectCloud() {
   });
   unsub = fb.onValue(fb.ref(db, `families/${c}/users`), snap => {
     const remote = snap.val() || {};
-    let changed = false;
+    let changed = 0;
     applyingRemote = true;
     Object.entries(remote).forEach(([k, r]) => {
       const name = r.name || k, l = state.users[name];
       if (isTomb(name, r)) { fb.remove(fb.ref(db, `families/${c}/users/${k}`)).catch(() => {}); return; } // törölt játékos
-      if (!l || (r.upd || 0) > (l.upd || 0)) { state.users[name] = normUser(r); delete state.users[name].name; changed = true; }
+      if (!l || (r.upd || 0) > (l.upd || 0)) { state.users[name] = normUser(r); delete state.users[name].name; changed++; }
     });
     applyingRemote = false;
     if (!state.users[state.current]) state.current = Object.keys(state.users)[0] || "Játékos";
     persist();
-    if (!gotData) { gotData = true; logSync(`Adatok letöltve (${Object.keys(remote).length} játékos a felhőben)`); }
-    else if (changed) logSync("Frissítés érkezett egy másik eszközről");
+    lastDown = Date.now();
+    if (!gotData) { gotData = true; logSync(`Adatok letöltve (${Object.keys(remote).length} játékos a felhőben).`); }
+    else if (changed) logSync(`${changed} játékos adata frissült egy másik eszközről.`);
     if (!inflight) setStatus("ok");
     if (firstSync) { // első kapcsolódáskor a újabb helyi adatokat feltöltjük
       firstSync = false;
@@ -443,7 +461,7 @@ function connectCloud() {
 function modal({ title, text = "", value = null, ok = "OK", cancel = "Mégse", secret = false }) {
   return new Promise(res => {
     const m = $("modal"), box = m.firstElementChild;
-    box.innerHTML = "";
+    box.innerHTML = ""; box.classList.remove("cloud-panel");
     box.append(el("h3", null, title));
     if (text) box.append(el("p", null, text));
     let inp = null;
@@ -918,52 +936,61 @@ let cloudOpen = false, cloudTok = 0;
 function openCloud() {
   cloudOpen = true; $("modal").classList.add("on"); renderCloud();
 }
-function closeCloud() { cloudOpen = false; cloudNote = ""; $("modal").classList.remove("on"); }
+function closeCloud() { cloudOpen = false; cloudNote = ""; $("modal").classList.remove("on"); $("modal").firstElementChild.classList.remove("cloud-panel"); }
 async function renderCloud() {
   if (!cloudOpen) return;
   const tok = ++cloudTok, box = $("modal").firstElementChild;
-  box.innerHTML = "";
-  box.append(el("h3", null, "☁️ Felhős mentés és család"));
-  const p = t => { const e = el("p", null, t); box.append(e); return e; };
-  const row = (...bs) => { const r = el("div", "mbtns"); r.style.cssText = "flex-wrap:wrap;justify-content:flex-start;margin-bottom:10px"; r.append(...bs); box.append(r); };
-  const input = ph => { const i = el("input", "minp"); i.type = "email"; i.placeholder = ph; i.autocomplete = "email"; box.append(i); return i; };
-  const note = el("p"); // a megjegyzés mindig a gombok fölött
-  // Élő állapot és eseménynapló (a renderSyncLive frissíti őket helyben, a beírt szöveg nem vész el)
-  const live = el("div", "cloud-live"); live.id = "cloud-live"; box.append(live);
-  const lg = el("details", "cloud-log"); lg.id = "cloud-log"; lg.append(el("summary"), el("ol")); box.append(lg);
+  box.innerHTML = ""; box.classList.add("cloud-panel");
+  box.append(el("h3", null, "☁️ Felhős mentés"));
+  const p = (t, cls) => { const e = el("p", cls || null, t); box.append(e); return e; };
+  const row = (...bs) => { const r = el("div", "form-row"); r.append(...bs); box.append(r); return r; };
+  const input = ph => { const i = el("input"); i.type = "email"; i.placeholder = ph; i.autocomplete = "email"; return i; };
+  const who = () => { const e = el("p"); e.append("Belépve: ", el("b", null, authUser.email || "")); box.append(e); };
+  // Élő állapot, családsor és eseménynapló (a renderSyncLive frissíti őket helyben, a beírt szöveg nem vész el)
+  const stBox = el("div", "cl-status"); stBox.id = "cl-status";
+  const fam = el("div", "small soft"); fam.id = "cl-fam";
+  const lg = el("details", "cl-log"); lg.id = "cl-log"; lg.append(el("summary"), el("div", "cl-list"));
+  box.append(stBox, fam, lg);
   renderSyncLive();
-  const saveNow = () => { logSync("Kézi mentés indítva"); pushAll(); };
+  const saveNow = () => { logSync("Kézi mentés indítva."); pushAll(); };
+  const tools = () => row(...(cloudReady() ? [btn("secondary", "⬆️ Mentés most", saveNow)] : []),
+    btn("secondary", "🔄 Újrakapcsolódás", () => reconnect()), btn("secondary", "🚪 Kilépés", logout));
   if (!fb) {
     p("A felhő most nem érhető el (nincs internet, vagy nem töltődött be). A játék közben helyben ment, és a kapcsolat visszatérésekor feltölt.");
-    row(btn("primary", "🔄 Újrakapcsolódás", () => reconnect()));
+    row(btn("secondary", "🔄 Újrakapcsolódás", () => reconnect()));
   } else if (!authUser) {
-    p("Lépj be szülőként, és a játékosok haladása minden eszközön meglesz – a másik szülő is láthatja a saját telefonján. Belépés nélkül a haladás csak ezen az eszközön van elmentve.");
-    row(btn("primary", "Belépés Google-fiókkal", googleLogin));
-    const i = input("vagy e-mail-cím a belépő linkhez");
+    p("Lépj be Google-fiókkal, hogy az eredmények minden eszközön megjelenjenek, és a másik szülő is lássa őket.");
+    row(btn("primary", "Belépés Google-lel", googleLogin));
+    p("Vagy kérj belépő linket e-mailben:", "small");
+    const i = input("szulo@gmail.com");
     i.addEventListener("keydown", e => { if (e.key === "Enter") sendLink(i.value); });
-    row(btn("secondary", "📧 Belépő link küldése", () => sendLink(i.value)));
+    row(i, btn("secondary", "📧 Link küldése", () => sendLink(i.value)));
   } else if (!member) {
-    p(`Belépve: ${authUser.email}`);
-    p("Ez a cím még nem tartozik családhoz. Ha a másik szülő már létrehozta, kérd meg, hogy adja hozzá a címedet, aztán nyomd meg az „Újra ellenőrzöm” gombot. Ha te vagy az első, hozd létre a családot – az ezen az eszközön lévő játékosok felkerülnek a felhőbe.");
-    box.append(note);
-    row(btn("primary", "👨‍👩‍👧 Család létrehozása", createFamily), btn("secondary", "🔄 Újra ellenőrzöm", joinFamily), btn("secondary", "🚪 Kilépés", logout));
+    who();
+    p("Ehhez a fiókhoz még nem tartozik család. Hozz létre egyet – a jelenlegi adatok feltöltődnek –, vagy kérd meg a másik szülőt, hogy adja hozzá az e-mail-címedet, aztán nyomd meg az „Újra ellenőrzöm” gombot.");
+    row(btn("primary", "Család létrehozása", createFamily), btn("secondary", "🔄 Újra ellenőrzöm", joinFamily));
+    tools();
   } else {
-    p(`Belépve: ${authUser.email}`);
-    box.append(el("b", null, "A család tagjai"), el("p", null, "Ők látják és folytathatják a játékosok haladását."));
-    const list = el("div"); box.append(list);
-    const i = input("Másik szülő e-mail-címe");
+    who();
+    const ml = p("Családtagok betöltése…", "small soft");
+    const i = input("masik.szulo@gmail.com");
     i.addEventListener("keydown", e => { if (e.key === "Enter") addMember(i.value); });
-    box.append(note);
-    row(btn("secondary", "➕ Hozzáadás", () => addMember(i.value)));
-    row(btn("secondary", "⬆️ Mentés most", saveNow), btn("secondary", "🔄 Újrakapcsolódás", () => reconnect()), btn("secondary", "🚪 Kilépés", logout));
+    p("Másik szülő hozzáadása (a Google-fiókja e-mail-címével):", "small");
+    row(i, btn("secondary", "Hozzáadás", () => addMember(i.value)));
+    tools();
     try {
       const m = Object.keys((await fb.get(fb.ref(db, `families/${famCode()}/members`))).val() || {});
       if (tok !== cloudTok) return;
-      m.forEach(k => { const r = el("div", "setrow"); r.append(el("span", null, "👤 " + k.replace(/,/g, ".")), btn("secondary", "✖", () => removeMember(k, m.length))); list.append(r); });
-    } catch (e) { if (tok === cloudTok) list.append(el("p", null, "❌ " + fbError(e))); }
+      // a tagok egy sorban, mint a matekban; a kis ✕ eltávolítja az adott tagot (szülői PIN kell hozzá)
+      ml.textContent = "Családtagok: ";
+      m.forEach((k, n) => {
+        const x = btn("cl-x", "✕", () => removeMember(k, m.length)); x.title = (k === myKey() ? "Kilépés a családból: " : "Eltávolítás: ") + k.replace(/,/g, ".");
+        ml.append(k.replace(/,/g, "."), x, n < m.length - 1 ? ", " : "");
+      });
+    } catch (e) { if (tok === cloudTok) ml.textContent = "❌ " + fbError(e); }
   }
-  if (cloudNote) { note.textContent = cloudNote; if (!note.parentNode) box.append(note); }
-  row(btn("primary", "Bezárás", closeCloud));
+  if (cloudNote) p(cloudNote, "small");
+  const end = el("div", "mbtns"); end.append(btn("primary", "Bezár", closeCloud)); box.append(end);
 }
 function exportData() {
   const a = el("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(state.users, null, 2)], { type: "application/json" }));

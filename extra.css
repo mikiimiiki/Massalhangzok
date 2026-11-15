@@ -123,20 +123,30 @@ body[data-theme=peach] { --bg1: #ffe4e6; --bg2: #ffedd5; }
 .sync-badge.slow { background: #c2410c; color: #fff7ed; }
 .sync-badge.off { background: #475569; color: #e2e8f0; }
 .mbox { max-height: 92vh; overflow-y: auto; }
-.cloud-live { border-radius: 14px; padding: 10px 12px; margin: 0 0 10px; background: #f1f5f9; color: var(--ink); border: 2px solid var(--line); }
-.cloud-live b { display: block; font-size: 17px; }
-.cloud-live div { font-weight: 700; color: var(--soft); margin: 2px 0; }
-.cloud-live small { color: var(--soft); }
-.cloud-live.online { background: #ecfdf5; border-color: #6ee7b7; }
-.cloud-live.err { background: #fef2f2; border-color: #fca5a5; }
-.cloud-live.slow { background: #fff7ed; border-color: #fdba74; }
-.cloud-live.busy { background: #eff6ff; border-color: #93c5fd; }
-.cloud-log { margin: 0 0 12px; font-size: 13px; }
-.cloud-log summary { cursor: pointer; font-weight: 800; color: var(--soft); }
-.cloud-log ol { list-style: none; margin: 6px 0 0; padding: 0; max-height: 170px; overflow-y: auto; border-top: 1px solid var(--line); }
-.cloud-log li { padding: 3px 0; border-bottom: 1px solid var(--line); color: var(--ink); }
-.cloud-log li.err { color: #b91c1c; font-weight: 700; }
-.cloud-log time { color: var(--soft); font-variant-numeric: tabular-nums; margin-right: 4px; }
+/* ☁️ panel – a matek app felhő ablakával azonos kinézet */
+.mbox.cloud-panel { max-width: 520px; border-radius: 22px; }
+.cloud-panel h3 { font-size: 22px; margin-bottom: 8px; }
+.cloud-panel p { color: var(--ink); font-weight: 400; margin: 0 0 10px; }
+.cloud-panel .soft { color: var(--soft); } .cloud-panel .small { font-size: 14px; }
+.cl-status { display: flex; gap: 12px; align-items: flex-start; border-radius: 14px; padding: 10px 14px; background: #f1f5f9; margin: 6px 0 8px; }
+.cl-status.online { background: #dcfce7; } .cl-status.err { background: #fee2e2; } .cl-status.slow { background: #fef3c7; } .cl-status.busy { background: #eff6ff; }
+.cl-status b { font-size: 17px; }
+.cl-ic { font-size: 28px; line-height: 1; }
+.cl-log { margin: 8px 0; font-size: 14px; }
+.cl-log summary { cursor: pointer; font-weight: 700; color: var(--soft); }
+.cl-list { max-height: 260px; overflow-y: auto; }
+.cl-list div { padding: 3px 0; border-bottom: 1px solid var(--line); }
+.cl-list div.bad { color: #dc2626; }
+.cl-list .soft { font-variant-numeric: tabular-nums; }
+.cloud-panel .form-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+.cloud-panel .form-row input { font: inherit; font-size: 16px; padding: 8px 10px; border: 2px solid var(--line); border-radius: 10px; flex: 1 1 200px; min-width: 0; user-select: text; }
+.cloud-panel .primary, .cloud-panel .secondary { border: 0; border-radius: 14px; padding: 10px 18px; font-size: 16px; font-weight: 800; }
+.cloud-panel .primary { background: #7c3aed; color: #fff; box-shadow: 0 4px 0 #5b21b6; }
+.cloud-panel .secondary { background: #ede9fe; color: #7c3aed; box-shadow: 0 4px 0 #ddd6fe; }
+.cloud-panel .primary:active, .cloud-panel .secondary:active { transform: translateY(3px); box-shadow: none; }
+.cloud-panel .mbtns { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+.cl-x { border: 0; background: none; color: var(--soft); font-size: 12px; padding: 0 3px; margin-left: 2px; cursor: pointer; vertical-align: 1px; }
+.cl-x:hover { color: #dc2626; }
 
 /* Serlegeső: napi 100 jó megoldás */
 .trophy-rain { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 71; }
