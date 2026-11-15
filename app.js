@@ -193,6 +193,7 @@ function normUser(u) {
   const arr = x => Array.isArray(x) ? x : Object.values(x || {});
   u.pts = u.pts || 0; u.avatar = u.avatar || "🦉";
   u.mastered = arr(u.mastered); u.practiced = arr(u.practiced); u.mistakes = arr(u.mistakes); u.badges = arr(u.badges);
+  u.giftLog = arr(u.giftLog);
   u.daily = u.daily || {}; u.srs = u.srs || {}; u.stats = u.stats || {};
   u.streak = u.streak || { n: 0, last: "" }; u.upd = u.upd || 0;
   // régi "mastered" lista átvétele a Leitner-rendszerbe
@@ -494,6 +495,56 @@ function confetti() {
 
 // Serlegeső: egy napon belül a 100. jó megoldásnál
 const TROPHY_DAILY = 100;
+
+// ---------- Ajándékdobozok: a napi 100 után, a kör végén ----------
+// 6 különböző színű doboz; a tartalmuk és a színük minden alkalommal újra összekeveredik. Naponta egyszer lehet választani.
+// A „+10/+20 pont holnap” ajándék másnapra előleget ad a 100-hoz (u.bonus = { day: holnap, n }).
+const bonusToday = u => (u.bonus && u.bonus.day === todayKey()) ? (+u.bonus.n || 0) : 0;
+const dayProgress = u => (u.daily[todayKey()] || 0) + bonusToday(u);
+const GIFTS = [
+  { id: "b10", ic: "🎟️", t: "+10 pont holnap!", d: "Holnap már csak 90 jó válasz kell a 100 eléréséhez.", bonus: 10 },
+  { id: "b20", ic: "🎫", t: "+20 pont holnap!", d: "Holnap már csak 80 jó válasz kell a 100 eléréséhez.", bonus: 20 },
+  { id: "kissMom", ic: "💋", t: "Puszi anyától!", d: "Szólj anyának, hogy jár egy puszi!" },
+  { id: "kissDad", ic: "😘", t: "Puszi apától!", d: "Szólj apának, hogy jár egy puszi!" },
+  { id: "hugSib", ic: "🤗", t: "Ölelés a tesónak!", d: "Menj, és öleld meg a tesódat!" },
+  { id: "empty", ic: "💨", t: "Én üres voltam…", d: "Ez most üres volt. Holnap újra próbálkozhatsz!" }
+];
+const GIFT_COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#a855f7"];
+const giftPending = u => !!u.gift && u.gift.due === todayKey() && !u.gift.picked;
+function openGifts(u) {
+  if (!giftPending(u) || document.querySelector(".gift-ov")) return;
+  const order = shuffle(GIFTS), colors = shuffle(GIFT_COLORS); // minden alkalommal máshol van minden
+  const ov = el("div", "gift-ov"), box = el("div", "gift-box");
+  box.setAttribute("role", "dialog"); box.setAttribute("aria-modal", "true");
+  box.append(el("h3", null, "🎁 Válassz egy ajándékot!"), el("p", null, "Ma elérted a 100 jó választ! Koppints az egyik dobozra."));
+  const grid = el("div", "gift-grid"), res = el("div", "gift-res");
+  const close = btn("primary", "Szuper! 🎉", () => ov.remove()); close.hidden = true;
+  let done = false;
+  order.forEach((g, i) => {
+    const b = btn("gift", ""); b.style.setProperty("--c", colors[i]); b.style.setProperty("--i", i);
+    b.setAttribute("aria-label", `${i + 1}. ajándékdoboz`);
+    b.append(el("span", "gift-body"), el("span", "gift-lid"), el("span", "gift-in", g.ic));
+    b.addEventListener("click", () => {
+      if (done) return; done = true;
+      b.classList.add("open", "mine"); b.setAttribute("aria-label", g.t);
+      applyGift(u, g);
+      res.append(el("div", "gift-big", g.ic), el("b", null, g.t), el("div", null, g.d));
+      if (g.id !== "empty") confetti();
+      // a többi doboz is kinyílik, hogy lássa, mi lett volna máshol
+      setTimeout(() => grid.querySelectorAll(".gift:not(.open)").forEach((x, k) => { x.classList.add("open", "other"); x.title = order[[...grid.children].indexOf(x)].t; }), 1300);
+      close.hidden = false; close.focus();
+    });
+    grid.append(b);
+  });
+  const row = el("div", "mbtns"); row.append(close);
+  box.append(grid, res, row); ov.append(box); document.body.append(ov);
+}
+function applyGift(u, g) {
+  u.gift = { ...(u.gift || {}), due: todayKey(), picked: g.id };
+  if (g.bonus) u.bonus = { day: dateKey(dayNum() + 1), n: g.bonus };
+  u.giftLog = [...(u.giftLog || []), { d: todayKey(), id: g.id }].slice(-30);
+  saveState(); updateBar();
+}
 function trophyRain() {
   document.querySelectorAll(".trophy-banner").forEach(x => x.remove());
   const msg = el("div", "trophy-banner");
@@ -546,7 +597,13 @@ function checkBadges(u) { BADGES.forEach(b => b.t(u) && awardBadge(u, b)); }
 
 // ---------- 6. Képernyők ----------
 function syncMascots() { const av = curUser().avatar; document.querySelectorAll(".mascot").forEach(e => e.textContent = av); }
-function updateBar() { document.body.dataset.theme = curUser().theme || ""; syncMascots(); $("mon-today").textContent = curUser().daily[todayKey()] || 0; }
+function updateBar() {
+  const u = curUser(), b = bonusToday(u), prog = dayProgress(u);
+  document.body.dataset.theme = u.theme || ""; syncMascots(); $("mon-today").textContent = u.daily[todayKey()] || 0;
+  $("mon-prog").textContent = Math.min(prog, TROPHY_DAILY);
+  $("mon-100").classList.toggle("done", prog >= TROPHY_DAILY);
+  $("mon-100").title = `Napi 100 jó válasz: ${Math.min(prog, TROPHY_DAILY)}/100` + (b ? ` (ebből +${b} ajándék tegnapról)` : "") + (prog >= TROPHY_DAILY ? " – megvan! 🏆" : "");
+}
 function applySettings() { document.body.classList.toggle("dys", !!state.settings.dyslexia); }
 
 const RANKS = [{ min: 0, name: "Kezdő Betűvadász" }, { min: 150, name: "Helyesírás Inas" }, { min: 400, name: "Mássalhangzó Mester" }, { min: 800, name: "Betűvarázsló" }, { min: 1500, name: "Nyelvtan Bajnok" }];
@@ -589,6 +646,7 @@ function updateHome() {
   Object.entries(MODE_TOPIC).forEach(([m, tp]) => { const b = $("btn-" + m), off = bl.includes(tp); b.disabled = off; b.title = off ? "Lezárva" : ""; });
   $("lock-note").textContent = bl.length ? "🔒 Néhány feladatot lezártak, hogy a nehezebbekre jusson idő." : "";
   renderLevels(); updateBar();
+  if (giftPending(u)) setTimeout(() => { if ($("scr-home").classList.contains("on")) openGifts(curUser()); }, 800); // ha a kör végén nem választott
 }
 
 function showScreen(id) {
@@ -1361,8 +1419,9 @@ function finishAnswer(ok, full, meta = {}) {
     u.mistakes = u.mistakes.filter(w => w !== full);
     if (meta.syl) { const S2 = sylState(u); S2.miss = S2.miss.filter(w => w !== meta.word); }
     sheet.className = "sheet ok on"; hideRetype();
-    $("sh-head").textContent = (combo >= 3 ? `Szuper! (+${gain} pont, ${combo}x sorozat!)` : `Helyes! (+${gain} pont)`) + (before + 1 === S.goal ? " 🎉 Napi cél teljesítve!" : "") + (before + 1 === TROPHY_DAILY ? " 🏆 100 jó megoldás ma!" : "");
-    if (before + 1 === TROPHY_DAILY) trophyRain(); // naponta egyszer, a 100. jó megoldásnál
+    const hit100 = before + 1 + bonusToday(u) === TROPHY_DAILY; // a tegnapi ajándék-előny is beszámít
+    $("sh-head").textContent = (combo >= 3 ? `Szuper! (+${gain} pont, ${combo}x sorozat!)` : `Helyes! (+${gain} pont)`) + (before + 1 === S.goal ? " 🎉 Napi cél teljesítve!" : "") + (hit100 ? " 🏆 100 jó megoldás ma!" : "");
+    if (hit100) { trophyRain(); u.gift = { due: key, picked: "" }; } // naponta egyszer; a kör végén ajándékdobozok jönnek
     $("sh-full").textContent = (meta.syl ? "Helyes szótagolás: " : "Helyes alak: ") + full + (newCard ? "   🃏 Új szókártya az albumban!" : "");
     $("sh-why").textContent = "";
     u.best = Math.max(u.best || 0, u.streak.n); u.maxM = Math.max(u.maxM || 0, masteredCount(u));
@@ -1418,6 +1477,7 @@ function showResults() {
   const g = $("res-badges"); g.innerHTML = "";
   sessionBadges.forEach(b => { const d = el("div", "badge"); d.append(el("span", null, b.ic), document.createTextNode(b.n)); g.append(d); });
   if (errors === 0) confetti(); // konfetti csak hibátlan körnél
+  if (giftPending(u)) setTimeout(() => openGifts(curUser()), 1400); // napi 100 után: ajándékdobozok
 }
 
 // ---------- 12. Billentyűzet ----------
@@ -1535,6 +1595,14 @@ function renderParent() {
     selRow("Szint", [1, 2, 3, 4, 5].map(n => [n, n + ". " + SYL_LVL_NAMES[n]]), sy.lvl, v => { sylState(u).lvl = +v; saveOther(parentUser); renderParent(); });
     (sy.hist || []).slice(-5).reverse().forEach(h => sp.append(el("div", null, `📅 ${h.d} · ${h.lvl}. szint · ${h.ok}/${h.n} jó`)));
     if (u.syl && u.syl.miss.length) sp.append(el("div", null, "❌ Gyakorlandó szavak: " + u.syl.miss.join(", ")));
+  }
+  { // Ajándékdobozok: mit nyert a gyerek (a puszit, ölelést a szülőnek kell „kiosztania”)
+    const gp = panel("🎁 Ajándékdobozok (napi 100 jó válasz után)");
+    const tb = u.bonus && u.bonus.day >= key ? u.bonus : null;
+    if (tb) gp.append(el("div", null, `🎟️ Előny a 100-hoz: +${tb.n} (${tb.day === key ? "ma" : tb.day})`));
+    const log = (u.giftLog || []).slice(-10).reverse();
+    if (!log.length) gp.append(el("p", null, "Még nem nyitott ajándékdobozt."));
+    log.forEach(x => { const g = GIFTS.find(y => y.id === x.id); if (g) gp.append(el("div", null, `📅 ${x.d} · ${g.ic} ${g.t}`)); });
   }
   const bp = panel("Feladatzár");
   bp.append(el("p", null, "A lezárt feladattípust a gyerek nem tudja elindítani, így több idő jut a gyengébb részekre. A zár napokon át megmarad, amíg itt fel nem oldod."));
