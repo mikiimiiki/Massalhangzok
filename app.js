@@ -857,14 +857,38 @@ function renderTyping(body, word, meta, mask) {
   if (mask) { body.append(el("div", "word-display", mask)); }
   const inp = el("input", "typeinp"); inp.id = "type-inp"; inp.autocomplete = "off"; inp.autocapitalize = "off"; inp.spellcheck = false;
   inp.placeholder = "Írd be a szót…"; inp.setAttribute("aria-label", "Írd be a helyes szót");
-  const go = () => { if (answered) return; const v = inp.value.trim(); if (!v) return; answered = true; inp.disabled = true; finishAnswer(v === word, word, meta); };
+  const go = () => { if (answered) return; const v = inp.value.trim(); if (!v) return; answered = true; keepKeyboard(); inp.disabled = true; finishAnswer(v === word, word, meta); };
   const ok = btn("primary", "Ellenőriz", go); ok.id = "type-ok";
   body.append(inp, el("br"), ok);
-  setTimeout(() => inp.focus(), 60);
+  inp.focus(); // iOS: csak koppintásból indított hívásban jelenik meg a billentyűzet
 }
 
+// iOS csak koppintás közben nyitja meg a billentyűzetet. A „tartó” mező a billentyűzetet nyitva tartja a válasz és a következő
+// (automatikusan betöltődő) gépelős kérdés között; ha a következő kérdés nem gépelős, elengedjük.
+let kbKeeper = null;
+function keepKeyboard() {
+  if (!kbKeeper) {
+    kbKeeper = el("input"); kbKeeper.tabIndex = -1; kbKeeper.setAttribute("aria-hidden", "true"); kbKeeper.autocomplete = "off";
+    kbKeeper.style.cssText = "position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;border:0;padding:0;font-size:16px;pointer-events:none";
+    document.body.append(kbKeeper);
+  }
+  kbKeeper.focus({ preventScroll: true });
+}
+function releaseKeyboardSoon() {
+  setTimeout(() => { if (kbKeeper && document.activeElement === kbKeeper) kbKeeper.blur(); }, 200);
+}
+
+// A helyes alak begépeléséhez tartozó stílusok (az extra.css-t nem kell módosítani)
+document.head.append(Object.assign(el("style"), { textContent: `
+.retype-wrap { position: fixed; left: 50%; top: 34%; transform: translate(-50%, -50%); width: min(92vw, 440px); box-sizing: border-box; z-index: 55; background: #fff; border-radius: 22px; padding: 14px 16px 18px; box-shadow: 0 10px 40px rgba(0,0,0,.28), 0 0 0 3px #fca5a5; text-align: center; }
+.retype-label { font-weight: 800; color: var(--soft); }
+.retype-word { font-size: 34px; font-weight: 900; margin: 4px 0 2px; letter-spacing: .02em; }
+.retype-in { display: block; margin: 8px auto 0; }
+.retype-in.done { border-color: #16a34a; background: #dcfce7; }
+` }));
+
 function renderQuestion() {
-  answered = false; clearTimeout(autoT); hideRetype();
+  answered = false; clearTimeout(autoT); hideRetype(); releaseKeyboardSoon();
   $("sheet").classList.remove("on");
   $("q-prog").style.width = (qIndex / queue.length * 100) + "%";
   $("q-score").textContent = sessionScore + " p";
@@ -1033,10 +1057,20 @@ function clearUnlocked() { if (answered) return; tileSlots.forEach((s, i) => { i
 
 // ---------- 11. Kiértékelés ----------
 let retype = null;
-function hideRetype() { retype = null; const i = $("sh-retype"); i.style.display = "none"; i.value = ""; i.disabled = false; i.classList.remove("done"); $("sh-next").disabled = false; }
+function hideRetype() { retype = null; $("sh-next").disabled = false; document.querySelectorAll(".retype-wrap").forEach(x => x.remove()); }
 function showRetype(w) {
-  retype = w; const i = $("sh-retype"); i.value = ""; i.disabled = false; i.classList.remove("done"); i.style.display = "block";
-  i.placeholder = "✍️ Írd le a helyes alakot, hogy tovább léphess"; $("sh-next").disabled = true; setTimeout(() => i.focus(), 350);
+  retype = w; $("sh-next").disabled = true;
+  // A mező a képernyő közepén lévő panelben van; a helyes alakot is ide írjuk ki, mert iPhone-on a billentyűzet eltakarja az alsó sávot.
+  const wrap = el("div", "retype-wrap");
+  const i = el("input", "typeinp retype-in");
+  i.autocomplete = "off"; i.autocapitalize = "off"; i.spellcheck = false; i.setAttribute("autocorrect", "off"); i.setAttribute("enterkeyhint", "done");
+  i.setAttribute("aria-label", "Írd le a helyes alakot"); i.placeholder = "Írd le ide…";
+  i.addEventListener("input", () => { // a helyes alak begépelése után lehet továbblépni
+    if (retype && i.value.trim() === retype) { retype = null; i.classList.add("done"); i.disabled = true; $("sh-next").disabled = false; $("sh-next").focus(); }
+  });
+  wrap.append(el("div", "retype-label", "✍️ Írd le a helyes alakot:"), el("div", "retype-word", w), i);
+  document.body.append(wrap);
+  i.focus(); // közvetlenül a koppintás kezelőjében, különben iOS nem nyitja meg a billentyűzetet
 }
 function finishAnswer(ok, full, meta = {}) {
   clearTimeout(autoT);
@@ -1333,10 +1367,6 @@ $("btn-parent").addEventListener("click", openParent);
 $("btn-parent-back").addEventListener("click", goHome);
 $("btn-album").addEventListener("click", () => showScreen("scr-album"));
 $("btn-album-back").addEventListener("click", goHome);
-$("sh-retype").addEventListener("input", () => { // a helyes alak begépelése után lehet továbblépni
-  const i = $("sh-retype");
-  if (retype && i.value.trim() === retype) { retype = null; i.classList.add("done"); i.disabled = true; $("sh-next").disabled = false; $("sh-next").focus(); }
-});
 $("btn-stats-back").addEventListener("click", goHome);
 $("btn-add-user").addEventListener("click", addUser);
 $("new-user-inp").addEventListener("keydown", e => { if (e.key === "Enter") addUser(); });
