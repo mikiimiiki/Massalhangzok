@@ -215,6 +215,25 @@ const emailKey = e => (e || "").trim().toLowerCase().replace(/\./g, ",");
 const myKey = () => emailKey(authUser && authUser.email);
 const cloudReady = () => !!(fb && db && authUser && member && famCode().length >= 6);
 
+// Felhőbe küldés kötegelve: játék közben nem minden válasz után, hanem a kör végén,
+// legkésőbb percenként, illetve amikor a lap háttérbe kerül / bezárják. Helyben (localStorage) mindig azonnal ment,
+// így ha a felhőbe küldés elmaradna, a következő kapcsolódáskor a frissebb helyi adat felmegy.
+const PUSH_DELAY = 60000;
+const pendingPush = new Set();
+let pushT = null;
+function queuePush(name) {
+  if (!cloudReady()) return;
+  pendingPush.add(name);
+  if (!pushT) pushT = setTimeout(flushPush, PUSH_DELAY);
+}
+function flushPush() {
+  clearTimeout(pushT); pushT = null;
+  const names = [...pendingPush]; pendingPush.clear();
+  names.forEach(pushUser);
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushPush(); });
+addEventListener("pagehide", flushPush);
+
 // Felhasználónkénti mentés: egy játékos írása nem írja felül a többiekét
 function pushUser(name) {
   const c = famCode();
@@ -225,7 +244,7 @@ function pushUser(name) {
 function saveState(touch = true) {
   if (touch) curUser().upd = Date.now();
   persist();
-  pushUser(state.current);
+  queuePush(state.current);
 }
 
 function connectCloud() {
@@ -372,7 +391,7 @@ function showScreen(id) {
   updateBar();
   scrollTo(0, 0);
 }
-function goHome() { clearTimeout(autoT); $("sheet").classList.remove("on"); showScreen("scr-home"); }
+function goHome() { clearTimeout(autoT); flushPush(); $("sheet").classList.remove("on"); showScreen("scr-home"); }
 function refreshViews() {
   if ($("scr-home").classList.contains("on")) updateHome();
   if ($("scr-users").classList.contains("on")) renderUsers();
@@ -1083,6 +1102,7 @@ function showResults() {
   $("sheet").classList.remove("on");
   const u = curUser(), ratio = sessionRoundOk / queue.length;
   if (ratio === 1) { const b = BADGES.find(x => x.id === "perfect"); awardBadge(u, b); saveState(); }
+  flushPush(); // kör vége: most megy fel a felhőbe
   showScreen("scr-res");
   $("res-stars").textContent = ratio === 1 ? "⭐⭐⭐" : ratio >= .7 ? "⭐⭐☆" : "⭐☆☆";
   $("res-head").textContent = ratio === 1 ? "Hibátlan teljesítmény!" : "Kör teljesítve!";
