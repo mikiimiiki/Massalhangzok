@@ -474,6 +474,37 @@ function confetti() {
   })(t0);
 }
 
+// Serlegeső: egy napon belül a 100. jó megoldásnál
+const TROPHY_DAILY = 100;
+function trophyRain() {
+  document.querySelectorAll(".trophy-banner").forEach(x => x.remove());
+  const msg = el("div", "trophy-banner");
+  msg.append(el("div", "trophy-big", "🏆"), el("div", null, "Ma már 100 jó megoldás!"), el("small", null, "Igazi bajnok vagy!"));
+  msg.setAttribute("role", "status");
+  document.body.append(msg); setTimeout(() => msg.remove(), 5000);
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  // külön vászon, hogy a konfettivel egyszerre is futhasson
+  const cv = el("canvas", "trophy-rain"), ctx = cv.getContext("2d"), dpr = devicePixelRatio || 1;
+  cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; ctx.scale(dpr, dpr);
+  document.body.append(cv);
+  const ics = ["🏆", "🏆", "🏆", "🥇", "🏅", "⭐"], W = innerWidth, H = innerHeight;
+  const ps = Array.from({ length: Math.round(Math.min(90, W / 8)) }, () => ({
+    x: Math.random() * W, y: -60 - Math.random() * H * 1.2, vy: 2.2 + Math.random() * 3, sw: Math.random() * Math.PI * 2,
+    s: 26 + Math.random() * 26, r: Math.random() * .6 - .3, vr: Math.random() * .04 - .02, ic: ics[Math.random() * ics.length | 0]
+  }));
+  const t0 = performance.now();
+  (function frame(t) {
+    ctx.clearRect(0, 0, W, H);
+    const fade = Math.min(1, Math.max(0, (5200 - (t - t0)) / 800));
+    ctx.globalAlpha = fade; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ps.forEach(p => {
+      p.y += p.vy; p.sw += .04; p.r += p.vr;
+      ctx.save(); ctx.translate(p.x + Math.sin(p.sw) * 18, p.y); ctx.rotate(p.r); ctx.font = `${p.s}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`; ctx.fillText(p.ic, 0, 0); ctx.restore();
+    });
+    if (t - t0 < 5200) requestAnimationFrame(frame); else cv.remove();
+  })(t0);
+}
+
 // ---------- 5. Jelvények ----------
 const total = u => Object.values(u.stats).reduce((a, s) => a + (s.ok || 0), 0);
 const okOf = (u, k) => (u.stats[k] && u.stats[k].ok) || 0;
@@ -507,7 +538,9 @@ function dueWords(u) {
   return [...new Set([...u.mistakes, ...Object.keys(u.srs).filter(w => u.srs[w].due <= t)])].filter(w => ALL_UNIQUE_WORDS.has(w));
 }
 const MODE_TOPIC = { choice: "hosszu", gap: "hosszu", jly: "jly", tiles: "tiles", pairs: "pair", szotag: "szotag" };
-const blockedTopics = u => (u.block && u.block.day === todayKey()) ? Object.values(u.block.topics || {}) : [];
+// Feladatzár: a szülő feloldásáig érvényes (perm). A régi, napra szóló zárak (perm nélkül) csak az adott napon élnek,
+// hogy egy rég lejárt zár ne kapcsoljon vissza.
+const blockedTopics = u => (u.block && (u.block.perm || u.block.day === todayKey())) ? Object.values(u.block.topics || {}) : [];
 const topicOf = t => t.type === "pair" ? "pair" : t.type === "jly" ? "jly" : t.type === "tiles" ? "tiles" : t.type === "syl" ? "szotag" : "hosszu";
 function streakNow(u) { const t = dayNum(); return (u.streak.last === dateKey(t) || u.streak.last === dateKey(t - 1)) ? u.streak.n : 0; }
 
@@ -535,8 +568,8 @@ function updateHome() {
   $("btn-mistakes").style.display = n ? "flex" : "none";
   $("mistake-cnt").textContent = n;
   const bl = blockedTopics(u);
-  Object.entries(MODE_TOPIC).forEach(([m, tp]) => { const b = $("btn-" + m), off = bl.includes(tp); b.disabled = off; b.title = off ? "Ma lezárva" : ""; });
-  $("lock-note").textContent = bl.length ? "🔒 Ma néhány feladatot lezártak, hogy a nehezebbekre jusson idő." : "";
+  Object.entries(MODE_TOPIC).forEach(([m, tp]) => { const b = $("btn-" + m), off = bl.includes(tp); b.disabled = off; b.title = off ? "Lezárva" : ""; });
+  $("lock-note").textContent = bl.length ? "🔒 Néhány feladatot lezártak, hogy a nehezebbekre jusson idő." : "";
   renderLevels(); updateBar();
 }
 
@@ -1301,7 +1334,8 @@ function finishAnswer(ok, full, meta = {}) {
     u.mistakes = u.mistakes.filter(w => w !== full);
     if (meta.syl) { const S2 = sylState(u); S2.miss = S2.miss.filter(w => w !== meta.word); }
     sheet.className = "sheet ok on"; hideRetype();
-    $("sh-head").textContent = (combo >= 3 ? `Szuper! (+${gain} pont, ${combo}x sorozat!)` : `Helyes! (+${gain} pont)`) + (before + 1 === S.goal ? " 🎉 Napi cél teljesítve!" : "");
+    $("sh-head").textContent = (combo >= 3 ? `Szuper! (+${gain} pont, ${combo}x sorozat!)` : `Helyes! (+${gain} pont)`) + (before + 1 === S.goal ? " 🎉 Napi cél teljesítve!" : "") + (before + 1 === TROPHY_DAILY ? " 🏆 100 jó megoldás ma!" : "");
+    if (before + 1 === TROPHY_DAILY) trophyRain(); // naponta egyszer, a 100. jó megoldásnál
     $("sh-full").textContent = (meta.syl ? "Helyes szótagolás: " : "Helyes alak: ") + full + (newCard ? "   🃏 Új szókártya az albumban!" : "");
     $("sh-why").textContent = "";
     u.best = Math.max(u.best || 0, u.streak.n); u.maxM = Math.max(u.maxM || 0, masteredCount(u));
@@ -1475,11 +1509,11 @@ function renderParent() {
     (sy.hist || []).slice(-5).reverse().forEach(h => sp.append(el("div", null, `📅 ${h.d} · ${h.lvl}. szint · ${h.ok}/${h.n} jó`)));
     if (u.syl && u.syl.miss.length) sp.append(el("div", null, "❌ Gyakorlandó szavak: " + u.syl.miss.join(", ")));
   }
-  const bp = panel("Mai feladatzár (csak ma érvényes)");
-  bp.append(el("p", null, "A lezárt feladattípust a gyerek ma nem tudja elindítani, így több idő jut a gyengébb részekre. Holnap magától feloldódik."));
+  const bp = panel("Feladatzár");
+  bp.append(el("p", null, "A lezárt feladattípust a gyerek nem tudja elindítani, így több idő jut a gyengébb részekre. A zár napokon át megmarad, amíg itt fel nem oldod."));
   const setBlock = arr => {
     if (arr.length >= ALL_TOPICS.length) { toast("Legalább egy feladattípusnak nyitva kell maradnia."); return false; }
-    u.block = { day: key, topics: arr }; saveOther(parentUser); renderParent(); return true;
+    u.block = { day: key, perm: true, topics: arr }; saveOther(parentUser); renderParent(); return true;
   };
   const cur = new Set(blockedTopics(u));
   ALL_TOPICS.forEach(k => {
@@ -1493,7 +1527,7 @@ function renderParent() {
     if (!auto.length) { toast("Egyik téma sem éri el még a 90%-ot (min. 10 válasz)."); return; }
     if (auto.length >= ALL_TOPICS.length) { const w = ALL_TOPICS.slice().sort((a, b) => pcts[a].pct - pcts[b].pct)[0]; auto = auto.filter(k => k !== w); }
     setBlock(auto);
-  }), btn("secondary", "🔓 Minden feloldása", () => { u.block = { day: key, topics: [] }; saveOther(parentUser); renderParent(); }));
+  }), btn("secondary", "🔓 Minden feloldása", () => { u.block = { day: key, perm: true, topics: [] }; saveOther(parentUser); renderParent(); }));
   bp.append(row);
 
   const fr = el("div", "btnrow");
