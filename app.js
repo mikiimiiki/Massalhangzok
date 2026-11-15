@@ -17,7 +17,7 @@ const firebaseConfig = {
   appId: "1:346262937393:web:b256094d9a777aa6d69a10"
 };
 const FB_BASE = "https://www.gstatic.com/firebasejs/13.2.0/";
-let db = null, fb = null, unsub = null, unsubP = null, applyingRemote = false, firstSync = true;
+let db = null, fb = null, unsub = null, unsubP = null, unsubD = null, applyingRemote = false, firstSync = true;
 // Belépés (Firebase Authentication): fa = auth modul, authUser = belépett szülő, member = tagja-e a családnak
 let fa = null, auth = null, authUser = null, member = false, cloudNote = "";
 const EMAIL_KEY = "helyesiras_kaland_login_email";
@@ -236,10 +236,20 @@ function flushPush() {
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushPush(); });
 addEventListener("pagehide", flushPush);
 
+// Törlési jelölő („sírkő”): a törölt játékos nem tölthető vissza se a felhőből, se egy másik eszközről.
+// Csak az érvényes, ha a játékos utolsó módosítása nem újabb a törlésnél (így ugyanazzal a névvel újra létre lehet hozni).
+const isTomb = (name, u) => { const t = (state.deleted || {})[name]; return !!t && (u.upd || 0) <= t; };
+function markDeleted(name) {
+  const ts = Date.now();
+  state.deleted = state.deleted || {}; state.deleted[name] = ts; persist();
+  if (cloudReady()) fb.set(fb.ref(db, `families/${famCode()}/deleted/${safeKey(name)}`), { name, ts }).catch(() => setSync("⚠️ Szinkron hiba", "err"));
+}
+
 // Felhasználónkénti mentés: egy játékos írása nem írja felül a többiekét
 function pushUser(name) {
   const c = famCode();
   if (!cloudReady() || applyingRemote || !state.users[name]) return;
+  if (isTomb(name, state.users[name])) return; // törölt játékost nem töltünk vissza
   fb.set(fb.ref(db, `families/${c}/users/${safeKey(name)}`), { ...state.users[name], name })
     .then(() => setSync("☁️ Szinkronban", "online")).catch(() => setSync("⚠️ Szinkron hiba", "err"));
 }
@@ -252,6 +262,7 @@ function saveState(touch = true) {
 function connectCloud() {
   if (unsub) { unsub(); unsub = null; }
   if (unsubP) { unsubP(); unsubP = null; }
+  if (unsubD) { unsubD(); unsubD = null; }
   const c = famCode();
   if (!fb) { setSync("☁️ Offline mód", ""); return; }
   if (!authUser) { setSync("☁️ Helyi mód – Belépés", ""); return; }
@@ -263,12 +274,25 @@ function connectCloud() {
     if (r && r.hash && r.salt) { if (!state.parent || r.hash !== state.parent.hash) { state.parent = { salt: r.salt, hash: r.hash }; persist(); } }
     else if (state.parent) pushParent();
   });
+  // Törlési jelölők: a más eszközön törölt játékos itt is törlődik; az offline törlések feltöltődnek
+  unsubD = fb.onValue(fb.ref(db, `families/${c}/deleted`), snap => {
+    const remote = snap.val() || {}; let gone = false;
+    state.deleted = state.deleted || {};
+    Object.values(remote).forEach(r => { if (r && r.name && (r.ts || 0) > (state.deleted[r.name] || 0)) state.deleted[r.name] = r.ts; });
+    Object.entries(state.deleted).forEach(([n, ts]) => {
+      const r = remote[safeKey(n)];
+      if (!r || (r.ts || 0) < ts) fb.set(fb.ref(db, `families/${c}/deleted/${safeKey(n)}`), { name: n, ts }).catch(() => {});
+      if (state.users[n] && isTomb(n, state.users[n]) && (state.users[n].upd || 0) > 0) { delete state.users[n]; gone = true; }
+    });
+    if (gone) { if (!state.users[state.current]) state.current = Object.keys(state.users)[0] || "Játékos"; curUser(); persist(); refreshViews(); }
+  });
   unsub = fb.onValue(fb.ref(db, `families/${c}/users`), snap => {
     const remote = snap.val() || {};
     let changed = false;
     applyingRemote = true;
     Object.entries(remote).forEach(([k, r]) => {
       const name = r.name || k, l = state.users[name];
+      if (isTomb(name, r)) { fb.remove(fb.ref(db, `families/${c}/users/${k}`)).catch(() => {}); return; } // törölt játékos
       if (!l || (r.upd || 0) > (l.upd || 0)) { state.users[name] = normUser(r); delete state.users[name].name; changed = true; }
     });
     applyingRemote = false;
@@ -527,7 +551,7 @@ async function renameUser(old) {
   state.users[name] = state.users[old]; delete state.users[old];
   if (state.current === old) state.current = name;
   state.users[name].upd = Date.now();
-  persist(); pushUser(name);
+  persist(); pushUser(name); markDeleted(old);
   if (cloudReady()) fb.remove(fb.ref(db, `families/${famCode()}/users/${safeKey(old)}`));
   renderUsers();
 }
@@ -537,7 +561,8 @@ async function deleteUser(name) {
   const ok = await modal({ title: `Törlöd: ${name}?`, text: "A játékos pontjai és haladása végleg elvesznek.", ok: "Törlés" });
   if (!ok) return;
   delete state.users[name];
-  if (cloudReady()) fb.remove(fb.ref(db, `families/${famCode()}/users/${safeKey(name)}`));
+  markDeleted(name);
+  if (cloudReady()) fb.remove(fb.ref(db, `families/${famCode()}/users/${safeKey(name)}`)).catch(() => toast("A felhőből most nem sikerült törölni."));
   if (state.current === name) state.current = Object.keys(state.users)[0] || "Játékos";
   curUser(); persist(); renderUsers(); updateBar();
 }
