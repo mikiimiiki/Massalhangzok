@@ -8,6 +8,11 @@
 <link rel="stylesheet" href="extra.css">   <!-- az új stílusok -->
 </head>
 <body>
+<!-- Felső információs sáv (a részletek a Statisztika képernyőn vannak) -->
+<header class="monitor-bar">
+  <span class="mon-chip">✅ Ma: <b id="mon-today">0</b></span>
+  <button id="mon-sync" class="sync-badge">☁️ Helyi mód</button>
+</header>
 
 <section id="scr-home" class="screen on">
   <div class="hero">
@@ -125,12 +130,6 @@
 <div id="modal" class="modal"><div class="mbox" role="dialog" aria-modal="true"></div></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <canvas id="confetti" aria-hidden="true"></canvas>
-
-<!-- Vékony állapotsáv (a részletek a Statisztika képernyőn vannak) -->
-<footer class="monitor-bar">
-  <span>✅ Ma: <b id="mon-today">0</b></span>
-  <button id="mon-sync" class="sync-badge">☁️ Helyi mód</button>
-</footer>
 
 <script type="module" src="app.js"></script>
 </body>
