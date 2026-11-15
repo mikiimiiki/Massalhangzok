@@ -193,6 +193,8 @@ function normUser(u) {
   // a régi, már 3 napos szavak megtartják az elsajátított státuszt
   Object.values(u.srs).forEach(r => { if (r.days >= 3 && r.strong === undefined) { r.strong = 1; r.rf = 0; r.due = Math.max(r.due || 0, dayNum() + 30); } });
   u.theme = u.theme || "";
+  if (u.syl) { u.syl.lvl = Math.min(5, Math.max(1, +u.syl.lvl || 1)); ["hist", "recent", "miss"].forEach(k => { u.syl[k] = arr(u.syl[k]); }); }
+  u.grade = +u.grade || 0;
   u.best = Math.max(u.best || 0, u.streak.n || 0);          // legjobb sorozat (nem veszik el, ha megszakad)
   u.maxM = Math.max(u.maxM || 0, masteredCount(u));         // legtöbb elsajátított szó
   if (!Array.isArray(u.unl)) u.unl = Array.isArray(u.unl) ? u.unl : (u.unl ? Object.values(u.unl) : REWARDS.filter(r => isUnlocked(u, r)).map(rewardKey));
@@ -329,6 +331,8 @@ const BADGES = [
   { id: "streak7", ic: "🌋", n: "7 napos sorozat", t: u => u.streak.n >= 7 },
   { id: "m25", ic: "🏆", n: "25 elsajátított szó", t: u => masteredCount(u) >= 25 },
   { id: "pts500", ic: "💎", n: "500 pont", t: u => u.pts >= 500 },
+  { id: "syl25", ic: "✂️", n: "25 helyes szótagolás", t: u => okOf(u, "szotag") >= 25 },
+  { id: "sylmax", ic: "🧩", n: "Szótagolás: 5. szint", t: u => !!u.syl && u.syl.lvl >= 5 },
   { id: "perfect", ic: "🎯", n: "Hibátlan kör", t: () => false } // a kör végén adjuk
 ];
 let sessionBadges = [];
@@ -346,9 +350,9 @@ function dueWords(u) {
   const t = dayNum();
   return [...new Set([...u.mistakes, ...Object.keys(u.srs).filter(w => u.srs[w].due <= t)])].filter(w => ALL_UNIQUE_WORDS.has(w));
 }
-const MODE_TOPIC = { choice: "hosszu", gap: "hosszu", jly: "jly", tiles: "tiles", pairs: "pair" };
+const MODE_TOPIC = { choice: "hosszu", gap: "hosszu", jly: "jly", tiles: "tiles", pairs: "pair", szotag: "szotag" };
 const blockedTopics = u => (u.block && u.block.day === todayKey()) ? Object.values(u.block.topics || {}) : [];
-const topicOf = t => t.type === "pair" ? "pair" : t.type === "jly" ? "jly" : t.type === "tiles" ? "tiles" : "hosszu";
+const topicOf = t => t.type === "pair" ? "pair" : t.type === "jly" ? "jly" : t.type === "tiles" ? "tiles" : t.type === "syl" ? "szotag" : "hosszu";
 function streakNow(u) { const t = dayNum(); return (u.streak.last === dateKey(t) || u.streak.last === dateKey(t - 1)) ? u.streak.n : 0; }
 
 function renderLevels() {
@@ -539,7 +543,7 @@ async function deleteUser(name) {
 }
 
 // ---------- 8. Statisztika képernyő ----------
-const TOPICS = { jly: "j / ly", hosszu: "Hosszú mássalhangzó", pair: "Jelentéskülönbség", tiles: "Betűkirakó" };
+const TOPICS = { jly: "j / ly", hosszu: "Hosszú mássalhangzó", pair: "Jelentéskülönbség", tiles: "Betűkirakó", szotag: "Szótagolás" };
 
 function renderStats() {
   const u = curUser(), t = dayNum(), box = $("stats-body"); box.innerHTML = "";
@@ -766,6 +770,7 @@ function startQuiz(mode) {
   const u = curUser();
   lastMode = mode; qIndex = 0; sessionScore = 0; sessionRoundOk = 0; combo = 0; sessionBadges = [];
   if (mode === "pairs") queue = shuffle(PAIR_TASKS).slice(0, 10).map(p => ({ type: "pair", data: p }));
+  else if (mode === "szotag") queue = sylQueue(u);
   else if (mode === "jly") queue = pickFrom(JLY_LIST.map(x => x.w), 10, u).map(w => ({ type: "jly", item: JLY_MAP[w] }));
   else if (mode === "mistakes") {
     queue = shuffle(dueWords(u)).slice(0, 10).map(w => (JLY_MAP[w] && analyzeJlyWord(w)) ? { type: "jly", item: JLY_MAP[w] } : { type: "choice", word: w });
@@ -900,6 +905,7 @@ function renderQuestion() {
   const setTag = (txt, col, ttl) => { tag.textContent = txt; tag.style.background = col; title.textContent = ttl; };
   const clue = txt => body.append(el("div", "clue-box", txt));
 
+  if (T.type === "syl") { renderSyl(T, body, setTag); return; }
   if (T.type === "jly" && !analyzeJlyWord(T.item.w)) { T.type = "tiles"; T.word = T.item.w; }
   if ((T.type === "choice" || T.type === "gap") && !analyzeWord(T.word)) T.type = "tiles";
 
@@ -1099,25 +1105,27 @@ function finishAnswer(ok, full, meta = {}) {
   const sheet = $("sheet");
   if (ok) {
     combo++; st.ok++;
-    const gain = Math.max(3, 10 + (combo >= 3 ? 5 : 0) + (S.level - 1) * 5 - (meta.penalty || 0));
+    const base = meta.syl ? 8 + 2 * sylState(u).lvl : 10 + (S.level - 1) * 5;
+    const gain = Math.max(3, base + (combo >= 3 ? 5 : 0) - (meta.penalty || 0));
     sessionScore += gain; sessionRoundOk++; u.pts += gain;
     if (u.streak.last !== key) { u.streak.n = u.streak.last === dateKey(t - 1) ? u.streak.n + 1 : 1; u.streak.last = key; }
     const before = u.daily[key] || 0;
     u.daily[key] = before + 1;
     u.mistakes = u.mistakes.filter(w => w !== full);
+    if (meta.syl) { const S2 = sylState(u); S2.miss = S2.miss.filter(w => w !== meta.word); }
     sheet.className = "sheet ok on"; hideRetype();
     $("sh-head").textContent = (combo >= 3 ? `Szuper! (+${gain} pont, ${combo}x sorozat!)` : `Helyes! (+${gain} pont)`) + (before + 1 === S.goal ? " 🎉 Napi cél teljesítve!" : "");
-    $("sh-full").textContent = "Helyes alak: " + full + (newCard ? "   🃏 Új szókártya az albumban!" : "");
+    $("sh-full").textContent = (meta.syl ? "Helyes szótagolás: " : "Helyes alak: ") + full + (newCard ? "   🃏 Új szókártya az albumban!" : "");
     $("sh-why").textContent = "";
     u.best = Math.max(u.best || 0, u.streak.n); u.maxM = Math.max(u.maxM || 0, masteredCount(u));
     checkBadges(u); checkUnlocks(u);
     if (S.autoNext) autoT = setTimeout(nextQuestion, 1200); // csak helyes válasznál
   } else {
     combo = 0;
-    if (!u.mistakes.includes(full)) u.mistakes.push(full);
-    sheet.className = "sheet bad on"; showRetype(full);
+    if (meta.syl) { const S2 = sylState(u); if (!S2.miss.includes(meta.word)) S2.miss = [...S2.miss, meta.word].slice(-20); sheet.className = "sheet bad on"; }
+    else { if (!u.mistakes.includes(full)) u.mistakes.push(full); sheet.className = "sheet bad on"; showRetype(full); }
     $("sh-head").textContent = "Most nem talált!";
-    $("sh-full").textContent = "A helyes írásmód: " + full;
+    $("sh-full").textContent = (meta.syl ? "A helyes szótagolás: " : "A helyes írásmód: ") + full;
     $("sh-why").textContent = "📖 " + (meta.explain || explainWord(full));
   }
   saveState(); updateBar();
@@ -1152,7 +1160,12 @@ function showResults() {
   $("res-stars").textContent = "⭐".repeat(stars) + "☆".repeat(5 - stars);
   $("res-stars").setAttribute("aria-label", `${stars} csillag az 5-ből`);
   $("res-head").textContent = errors === 0 ? "Hibátlan teljesítmény!" : stars >= 4 ? "Remek munka!" : stars >= 2 ? "Szép munka!" : "Gyakorolj még, menni fog!";
-  $("res-sub").textContent = `${queue.length} szóból ${sessionRoundOk} jó • Szerzett pontok: ${sessionScore} p`;
+  let lvlNote = "";
+  if (lastMode === "szotag") {
+    const d = sylAdapt(u, sessionRoundOk, queue.length), L = u.syl.lvl;
+    lvlNote = d > 0 ? ` • ⬆️ Új szint: ${L}. (${SYL_LVL_NAMES[L]})` : d < 0 ? ` • ⬇️ Könnyebb szint: ${L}.` : ` • Szint: ${L}. (${SYL_LVL_NAMES[L]})`;
+  }
+  $("res-sub").textContent = `${queue.length} szóból ${sessionRoundOk} jó • Szerzett pontok: ${sessionScore} p` + lvlNote;
   const g = $("res-badges"); g.innerHTML = "";
   sessionBadges.forEach(b => { const d = el("div", "badge"); d.append(el("span", null, b.ic), document.createTextNode(b.n)); g.append(d); });
   if (errors === 0) confetti(); // konfetti csak hibátlan körnél
@@ -1163,6 +1176,7 @@ document.addEventListener("keydown", e => {
   if ($("modal").classList.contains("on") || !$("scr-quiz").classList.contains("on")) return;
   const sheetOn = $("sheet").classList.contains("on");
   if (e.key === "Enter" && sheetOn) { e.preventDefault(); nextQuestion(); return; }
+  if (e.key === "Enter" && !sheetOn && currentTask && currentTask.type === "syl" && $("syl-ok")) { e.preventDefault(); $("syl-ok").click(); return; }
   if (e.target.tagName === "INPUT") { if (e.key === "Enter") { e.preventDefault(); $("type-ok") && $("type-ok").click(); } return; }
   if (answered || e.ctrlKey || e.metaKey || e.altKey) return;
   if (/^[1-4]$/.test(e.key)) { const b = document.querySelectorAll(".opt")[+e.key - 1]; if (b) b.click(); return; }
@@ -1177,7 +1191,7 @@ document.addEventListener("keydown", e => {
 
 
 // ---------- 12b. Szülői nézet ----------
-const ALL_TOPICS = ["jly", "hosszu", "pair", "tiles"];
+const ALL_TOPICS = ["jly", "hosszu", "pair", "tiles", "szotag"];
 let parentUser = null;
 
 // --- PIN: PBKDF2-SHA256 sózott hash, a Firebase-ben tárolva ---
@@ -1263,6 +1277,15 @@ function renderParent() {
   bad.forEach(([w, r]) => { const d = el("div", "badge"); d.append(el("span", null, "✗" + r.miss), document.createTextNode(w)); wrap.append(d); });
   pw.append(wrap);
 
+  {
+    const sp = panel("✂️ Szótagolás"), sy = u.syl || { lvl: u.grade === 4 ? 2 : 1, hist: [] };
+    sp.append(el("p", null, "A szint a körök eredménye alapján magától változik (90% fölött feljebb, 50% alatt lejjebb). Itt kézzel is átállítható."));
+    const selRow = (label, opts, val, fn) => { const r = el("label", "setrow"), s2 = el("select"); opts.forEach(([v, t]) => { const o = el("option", null, t); o.value = v; if (String(v) === String(val)) o.selected = true; s2.append(o); }); s2.addEventListener("change", () => fn(s2.value)); r.append(el("span", null, label), s2); sp.append(r); };
+    selRow("Osztály", [[0, "nincs megadva"], [3, "3. osztály"], [4, "4. osztály"]], u.grade || 0, v => { u.grade = +v; if (!u.syl || !u.syl.hist.length) sylState(u).lvl = u.grade === 4 ? 2 : 1; saveOther(parentUser); renderParent(); });
+    selRow("Szint", [1, 2, 3, 4, 5].map(n => [n, n + ". " + SYL_LVL_NAMES[n]]), sy.lvl, v => { sylState(u).lvl = +v; saveOther(parentUser); renderParent(); });
+    (sy.hist || []).slice(-5).reverse().forEach(h => sp.append(el("div", null, `📅 ${h.d} · ${h.lvl}. szint · ${h.ok}/${h.n} jó`)));
+    if (u.syl && u.syl.miss.length) sp.append(el("div", null, "❌ Gyakorlandó szavak: " + u.syl.miss.join(", ")));
+  }
   const bp = panel("Mai feladatzár (csak ma érvényes)");
   bp.append(el("p", null, "A lezárt feladattípust a gyerek ma nem tudja elindítani, így több idő jut a gyengébb részekre. Holnap magától feloldódik."));
   const setBlock = arr => {
@@ -1357,9 +1380,210 @@ function renderAlbum() {
   cp.append(grid);
 }
 
+// ---------- 12d. Szótagolás ----------
+// Kiejtés szerinti szótagolás: minden szótagban egy magánhangzó van. Két magánhangzó között nincs mássalhangzó → közöttük vágunk;
+// egy mássalhangzó a következő szótagba kerül; több mássalhangzónál csak az utolsó. A kétjegyű betűk (cs, sz, ty …) nem vághatók;
+// a hosszú kettős betűt (ssz, tty, nny …) vágáskor kétszer írjuk le: asz-szony. Összetett szavaknál is a szótagolás szabálya érvényes.
+const SYL_V = "aáeéiíoóöőuúüű";
+const SYL_LONG = [["ddzs", "dzs"], ["ccs", "cs"], ["ddz", "dz"], ["ggy", "gy"], ["lly", "ly"], ["nny", "ny"], ["ssz", "sz"], ["tty", "ty"], ["zzs", "zs"]];
+const SYL_DI = ["dzs", "cs", "dz", "gy", "ly", "ny", "sz", "ty", "zs"];
+const SYL_FIX = { "fogkrém": "fog-krém", "kisasszony": "kis-asz-szony", "bélyeggyűjtés": "bé-lyeg-gyűj-tés", "ellenőrző": "el-len-őr-ző" }; // összetett szavak, ahol a szóhatár szerinti vágás a helyes
+function sylUnits(word) {
+  const w = word.toLowerCase(), out = []; let i = 0;
+  while (i < w.length) {
+    const c = w[i];
+    if (SYL_V.includes(c)) { out.push({ s: i, e: i + 1, v: true, t: c }); i++; continue; }
+    const L = SYL_LONG.find(([lg]) => w.startsWith(lg, i));
+    if (L) { out.push({ s: i, e: i + L[0].length, t: L[1], half: 1, long: L[0] }, { s: i, e: i + L[0].length, t: L[1], half: 2, long: L[0] }); i += L[0].length; continue; }
+    const D = SYL_DI.find(d => w.startsWith(d, i));
+    if (D) { out.push({ s: i, e: i + D.length, t: D }); i += D.length; continue; }
+    out.push({ s: i, e: i + 1, t: c }); i++;
+  }
+  return out;
+}
+function sylCuts(u) {
+  const vi = u.map((x, i) => x.v ? i : -1).filter(i => i >= 0), cuts = [];
+  for (let k = 0; k < vi.length - 1; k++) { const a = vi[k], b = vi[k + 1]; cuts.push(b - a - 1 === 0 ? b : b - 1); }
+  return cuts;
+}
+function sylSplit(word, u = sylUnits(word), cuts = new Set(sylCuts(u))) {
+  const out = []; let cur = "";
+  for (let i = 0; i < u.length; i++) {
+    const x = u[i];
+    if (cuts.has(i)) { out.push(cur); cur = ""; }
+    if (x.long) { if (x.half === 1 && !cuts.has(i + 1)) { cur += word.slice(x.s, x.e); i++; } else cur += word.slice(x.s + 1, x.e); }
+    else cur += word.slice(x.s, x.e);
+  }
+  out.push(cur); return out;
+}
+// Hány betű előtt van kötőjel (a "gap" = a betűk közötti hely sorszáma)
+const sylGaps = syl => { const g = []; let n = 0; for (const ch of syl) { if (ch === "-") g.push(n); else n++; } return g; };
+
+// Nehézség: szótagszám + a nehezítő jelenségek; az 5 szint a szólista százalékos arányai szerint alakul
+let SYL_ITEMS = null;
+function sylItems() {
+  if (SYL_ITEMS) return SYL_ITEMS;
+  const items = [];
+  ALL_UNIQUE_WORDS.forEach(w => {
+    if (!/^[a-záéíóöőúüű]+$/i.test(w)) return;
+    const u = sylUnits(w), cuts = sylCuts(u); if (!cuts.length) return;
+    const syl = SYL_FIX[w] || sylSplit(w, u).join("-"), n = cuts.length + 1;
+    const choice = syl.replace(/-/g, "").toLowerCase() !== w.toLowerCase(); // hosszú kettős betű vágása: a betűk kétszer szerepelnek
+    let s = n === 2 ? 0 : n === 3 ? 3 : n === 4 ? 5 : 7;
+    if (choice) s += 3;
+    if (u.some(x => x.long) && !choice) s += 1;
+    if (u.some(x => !x.v && !x.long && x.e - x.s > 1)) s += 1;                        // kétjegyű betű
+    if (cuts.some(c => u[c].v)) s += 2;                                                // magánhangzó-találkozás
+    if (cuts.some(c => !u[c].v && u[c - 1] && !u[c - 1].v && u[c - 1].t !== u[c].t)) s += 1; // különböző mássalhangzók (ab-lak)
+    let m = 0, run = 0; u.forEach(x => { if (x.v) run = 0; else { run++; m = Math.max(m, run); } });
+    if (m >= 3) s += 2;
+    if (w.length >= 8) s += 1;
+    items.push({ w, syl, n, choice, s: s + w.length / 100 });
+  });
+  items.sort((a, b) => a.s - b.s);
+  [.3, .55, .78, .92].forEach((q, k) => items.forEach((it, i) => { if (i >= Math.floor(items.length * q)) it.lvl = k + 2; }));
+  items.forEach(it => { it.lvl = it.lvl || 1; });
+  return SYL_ITEMS = items;
+}
+const SYL_LVL_NAMES = ["", "Kezdő", "Haladó", "Ügyes", "Mester", "Szótagoló bajnok"];
+function sylState(u) {
+  if (!u.syl) u.syl = { lvl: u.grade === 4 ? 2 : 1, hist: [], recent: [], miss: [] };
+  return u.syl;
+}
+function askGrade(u) {
+  return new Promise(res => {
+    const m = el("div", "modal on"), box = el("div", "mbox");
+    box.append(el("h3", null, "Hanyadikos vagy?"), el("p", null, "Ehhez igazítjuk a szótagolás nehézségét. A szülői nézetben később átállítható."));
+    const row = el("div", "mbtns");
+    [3, 4].forEach(g => row.append(btn("primary", g + ". osztály", () => { m.remove(); u.grade = g; sylState(u).lvl = g === 4 ? 2 : 1; saveState(); res(true); })));
+    row.append(btn("secondary", "Mégse", () => { m.remove(); res(false); }));
+    box.append(row); m.append(box); document.body.append(m);
+  });
+}
+// 10 feladat: többnyire a jelenlegi szintről, néhány könnyebb és nehezebb; a legutóbbi szavak és a hibásak külön kezelve; könnyűtől a nehézig
+function sylQueue(u) {
+  const S = sylState(u), all = sylItems(), L = S.lvl, recent = new Set(S.recent);
+  const pool = lv => shuffle(all.filter(i => i.lvl === lv && !recent.has(i.w))).concat(shuffle(all.filter(i => i.lvl === lv && recent.has(i.w))));
+  const chosen = [], used = new Set();
+  const take = (list, n) => { for (const i of list) { if (n <= 0) break; if (!used.has(i.w)) { used.add(i.w); chosen.push(i); n--; } } };
+  take(shuffle(S.miss.map(w => all.find(i => i.w === w)).filter(i => i && i.lvl <= L + 1)), 2);
+  take(pool(L), 10 - chosen.length - 2 - (L < 5 ? 2 : 0));
+  take(pool(Math.max(1, L - 1)), 2);
+  if (L < 5) take(pool(L + 1), 2);
+  take(pool(L), 10 - chosen.length);
+  take(shuffle(all), 10 - chosen.length);
+  chosen.sort((a, b) => a.lvl - b.lvl || Math.random() - .5);
+  S.recent = [...S.recent, ...chosen.map(i => i.w)].slice(-60);
+  return chosen.map(i => ({ type: "syl", word: i.w, item: i }));
+}
+// Kör végén: ≥90% → egy szinttel feljebb, ≤50% → egy szinttel lejjebb
+function sylAdapt(u, ok, n) {
+  const S = sylState(u), r = ok / n, before = S.lvl;
+  S.hist = [...S.hist, { d: todayKey(), lvl: before, ok, n }].slice(-12);
+  if (r >= .9 && S.lvl < 5) S.lvl++; else if (r <= .5 && S.lvl > 1) S.lvl--;
+  saveState();
+  return S.lvl - before;
+}
+function sylExplain(word, syl) {
+  const u = sylUnits(word), cuts = sylCuts(u), n = cuts.length + 1, msg = [`${n} magánhangzó van, ezért ${n} szótag: ${syl}.`];
+  if (SYL_FIX[word]) { msg.push("Ennél a szónál a szóhatárnál (szóelemnél) vágunk."); return msg.join(" "); }
+  if (cuts.some(c => u[c].v)) msg.push("Két magánhangzó között nincs mássalhangzó: a két magánhangzó külön szótagba kerül.");
+  if (cuts.some(c => !u[c].v && u[c].long)) msg.push("A hosszú kettős betűt (pl. ssz, tty, nny) vágáskor kétszer írjuk le.");
+  else if (cuts.some(c => !u[c].v && u[c - 1] && !u[c - 1].v)) msg.push("Két magánhangzó között több mássalhangzó van: csak az utolsó kerül a következő szótagba.");
+  else if (cuts.some(c => !u[c].v)) msg.push("Két magánhangzó között egy mássalhangzó van: az a következő szótagba kerül.");
+  if (u.some(x => !x.v && !x.long && x.e - x.s > 1)) msg.push("A kétjegyű betűt (cs, sz, ty, gy, ny, ly, zs, dz, dzs) nem vágjuk szét.");
+  return msg.slice(0, 3).join(" ");
+}
+function sylChoices(it) { // hosszú kettős betűs szavak: melyik a helyes szótagolás?
+  const w = it.w, u = sylUnits(w), cuts = sylCuts(u), ci = cuts.find(c => u[c].long && u[c].half === 2);
+  if (ci === undefined) return [it.syl];
+  const x = u[ci], others = cuts.filter(c => c !== ci).map(c => u[c].s);
+  const build = gaps => { let o = ""; [...w].forEach((ch, i) => { if (gaps.includes(i)) o += "-"; o += ch; }); return o; };
+  const wrong = SYL_FIX[w] ? [sylSplit(w, u).join("-")] : [];
+  for (let g = x.s; g < x.e; g++) { if (g > 0) wrong.push(build([...others, g])); }
+  return shuffle([it.syl, ...shuffle([...new Set(wrong)].filter(s => s !== it.syl)).slice(0, 2)]);
+}
+
+function renderSyl(T, body, setTag) {
+  const it = T.item, w = it.w, meta = { topic: "szotag", syl: true, explain: sylExplain(w, it.syl), word: w };
+  const lvl = sylState(curUser()).lvl;
+  setTag("Szótagolás", "#0891b2", it.choice ? "Melyik a helyes szótagolás?" : "Koppints a betűk közé, ahol a szót szótagokra kell bontani!");
+  body.append(el("div", "clue-box", `✂️ ${lvl}. szint · ${SYL_LVL_NAMES[lvl]}`));
+  if (it.choice) {
+    body.append(el("div", "word-display", w));
+    const opts = sylChoices(it);
+    makeOptionButtons(opts, it.syl, it.syl, body, meta);
+    return;
+  }
+  const want = new Set(sylGaps(it.syl)), on = new Set(), lock = new Set(), letters = [...w];
+  let tries = 0, vowelHelp = false, pen = false;
+  const row = el("div", "sylrow"); row.setAttribute("role", "group");
+  const gapBtns = new Map();
+  letters.forEach((ch, i) => {
+    const cell = el("span", "sylcell");
+    cell.append(el("span", "sylch" + (SYL_V.includes(ch.toLowerCase()) ? " v" : ""), ch));
+    if (i < letters.length - 1) {
+      const g = i + 1, b = btn("sylgap", "", () => {
+        if (answered || lock.has(g)) return;
+        on.has(g) ? on.delete(g) : on.add(g); paint();
+      });
+      b.setAttribute("aria-label", `Vágás a(z) ${i + 1}. és ${i + 2}. betű között`);
+      gapBtns.set(g, b); cell.append(b);
+    }
+    row.append(cell);
+  });
+  const paint = () => gapBtns.forEach((b, g) => { b.className = "sylgap" + (lock.has(g) ? " lock" : on.has(g) ? " on" : ""); b.textContent = on.has(g) || lock.has(g) ? "-" : ""; });
+  paint();
+  const hint = el("div", "clue-box"); hint.style.display = "none";
+  const bar = el("div", "help-bar");
+  const h1 = btn("help-btn", "🔢 Hány szótag?", () => { hint.textContent = `💡 Ahány magánhangzó, annyi szótag. Itt ${want.size + 1} szótag van, tehát ${want.size} vágás kell.`; hint.style.display = "block"; h1.disabled = true; });
+  const h2 = btn("help-btn pay", "🅰️ Magánhangzók (−5 p)", () => {
+    if (answered || vowelHelp) return; vowelHelp = pen = true; row.classList.add("showv"); h2.disabled = true; penaltyEffect(5);
+  });
+  bar.append(h1, h2);
+  const ok = btn("primary", "✓ Ellenőriz", () => {
+    if (answered) return;
+    const mine = [...on, ...lock], same = mine.length === want.size && mine.every(g => want.has(g));
+    if (same) { answered = true; ok.disabled = true; [...gapBtns.values()].forEach(b => { b.disabled = true; }); gapBtns.forEach((b, g) => { if (want.has(g)) b.className = "sylgap lock"; }); finishAnswer(true, it.syl, { ...meta, penalty: (pen ? 5 : 0) + (tries ? 4 : 0) }); return; }
+    if (!tries) { // egy újabb próba: a jó vágások zölden maradnak, a rosszak törlődnek
+      tries = 1; [...on].forEach(g => { if (want.has(g)) lock.add(g); on.delete(g); });
+      paint(); toast("Majdnem! A jó vágások zölden maradtak, próbáld újra!"); return;
+    }
+    $("toast").classList.remove("on");
+    answered = true; ok.disabled = true; gapBtns.forEach((b, g) => { b.disabled = true; b.className = "sylgap" + (want.has(g) ? " lock" : ""); b.textContent = want.has(g) ? "-" : ""; });
+    finishAnswer(false, it.syl, meta);
+  });
+  ok.id = "syl-ok";
+  const act = el("div"); act.style.marginTop = "14px"; act.append(ok);
+  body.append(row, hint, bar, act);
+}
+
+document.head.append(Object.assign(el("style"), { textContent: `
+.sylrow { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; row-gap: 10px; margin: 14px auto 6px; max-width: 100%; }
+.sylcell { display: inline-flex; align-items: center; }
+.sylch { font-size: clamp(26px, 8vw, 40px); font-weight: 900; line-height: 1.2; min-width: .62em; text-align: center; }
+.showv .sylch.v { color: #dc2626; text-decoration: underline; }
+.sylgap { width: clamp(18px, 5.2vw, 26px); height: 56px; margin: 0 1px; padding: 0; border: 0; border-left: 2px dashed #cbd5e1; border-right: 2px dashed transparent; background: transparent; font: inherit; font-size: 34px; font-weight: 900; color: #7c3aed; line-height: 1; cursor: pointer; border-radius: 8px; touch-action: manipulation; }
+.sylgap:hover:not(:disabled) { background: #ede9fe; }
+.sylgap.on { border-left-color: transparent; background: #ede9fe; }
+.sylgap.lock { border-left-color: transparent; background: #dcfce7; color: #16a34a; cursor: default; }
+.b-szotag { background: linear-gradient(135deg, #22d3ee, #0891b2) !important; color: #fff !important; box-shadow: 0 5px 0 #0e7490 !important; }
+` }));
+// A főmenü gombját itt hozzuk létre, így az index.html-hez nem kell nyúlni
+(function addSylButton() {
+  if ($("btn-szotag")) return;
+  const b = btn("big b-szotag", "");
+  b.id = "btn-szotag"; b.style.cssText = "font-size:16px;padding:14px 10px;";
+  const ic = el("span", "ic", "✂️"); ic.style.fontSize = "24px";
+  const sm = el("small", null, "Vágd szótagokra a szavakat!"); sm.style.fontSize = "11px";
+  b.append(ic, document.createTextNode("Szótagolás"), sm);
+  const ref = $("btn-pairs"); ref.parentNode.insertBefore(b, ref);
+})();
+
 // ---------- 13. Eseménykezelők és indítás ----------
 [["mixed", "btn-mixed"], ["choice", "btn-choice"], ["jly", "btn-jly"], ["gap", "btn-gap"], ["tiles", "btn-tiles"], ["pairs", "btn-pairs"], ["mistakes", "btn-mistakes"]]
   .forEach(([mode, id]) => $(id).addEventListener("click", () => startQuiz(mode)));
+$("btn-szotag").addEventListener("click", async () => { const u = curUser(); if (!u.grade && !(await askGrade(u))) return; startQuiz("szotag"); });
 $("btn-switch-user").addEventListener("click", () => showScreen("scr-users"));
 $("btn-users-back").addEventListener("click", goHome);
 $("btn-stats").addEventListener("click", () => showScreen("scr-stats"));
