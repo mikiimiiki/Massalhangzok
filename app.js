@@ -18,12 +18,23 @@ const firebaseConfig = {
 };
 const FB_BASE = "https://www.gstatic.com/firebasejs/13.2.0/";
 let db = null, fb = null, unsub = null, unsubP = null, applyingRemote = false, firstSync = true;
+// Belépés (Firebase Authentication): fa = auth modul, authUser = belépett szülő, member = tagja-e a családnak
+let fa = null, auth = null, authUser = null, member = false, cloudNote = "";
+const EMAIL_KEY = "helyesiras_kaland_login_email";
 
 async function initFirebase() {
   try {
-    const [app, dbm] = await Promise.all([import(FB_BASE + "firebase-app.js"), import(FB_BASE + "firebase-database.js")]);
-    db = dbm.getDatabase(app.initializeApp(firebaseConfig));
+    const [app, dbm, am] = await Promise.all([import(FB_BASE + "firebase-app.js"), import(FB_BASE + "firebase-database.js"), import(FB_BASE + "firebase-auth.js")]);
+    const fApp = app.initializeApp(firebaseConfig);
+    db = dbm.getDatabase(fApp);
     fb = dbm;
+    auth = am.getAuth(fApp); auth.languageCode = "hu";
+    fa = am;
+    await finishEmailLink();
+    fa.onAuthStateChanged(auth, u => {
+      authUser = u; member = false; cloudNote = "";
+      if (u) joinFamily(); else { connectCloud(); renderCloud(); }
+    });
     return true;
   } catch (e) {
     console.warn("Firebase nem érhető el, offline mód:", e);
@@ -199,25 +210,50 @@ const persist = () => localStorage.setItem(STORE_KEY, JSON.stringify(state));
 function setSync(text, cls) { const e = $("mon-sync"); if (e) { e.textContent = text; e.className = "sync-badge " + (cls || ""); } }
 const safeKey = n => n.replace(/[.$#\[\]\/]/g, "_");
 const famCode = () => (state.familyCode || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+// A családkód már csak a család belső azonosítója: hozzáférést a belépett, a családhoz hozzáadott e-mail-cím ad
+const emailKey = e => (e || "").trim().toLowerCase().replace(/\./g, ",");
+const myKey = () => emailKey(authUser && authUser.email);
+const cloudReady = () => !!(fb && db && authUser && member && famCode().length >= 6);
+
+// Felhőbe küldés kötegelve: játék közben nem minden válasz után, hanem a kör végén,
+// legkésőbb percenként, illetve amikor a lap háttérbe kerül / bezárják. Helyben (localStorage) mindig azonnal ment,
+// így ha a felhőbe küldés elmaradna, a következő kapcsolódáskor a frissebb helyi adat felmegy.
+const PUSH_DELAY = 60000;
+const pendingPush = new Set();
+let pushT = null;
+function queuePush(name) {
+  if (!cloudReady()) return;
+  pendingPush.add(name);
+  if (!pushT) pushT = setTimeout(flushPush, PUSH_DELAY);
+}
+function flushPush() {
+  clearTimeout(pushT); pushT = null;
+  const names = [...pendingPush]; pendingPush.clear();
+  names.forEach(pushUser);
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushPush(); });
+addEventListener("pagehide", flushPush);
 
 // Felhasználónkénti mentés: egy játékos írása nem írja felül a többiekét
 function pushUser(name) {
   const c = famCode();
-  if (!fb || !db || c.length < 6 || applyingRemote || !state.users[name]) return;
+  if (!cloudReady() || applyingRemote || !state.users[name]) return;
   fb.set(fb.ref(db, `families/${c}/users/${safeKey(name)}`), { ...state.users[name], name })
     .then(() => setSync("☁️ Szinkronban", "online")).catch(() => setSync("⚠️ Szinkron hiba", "err"));
 }
 function saveState(touch = true) {
   if (touch) curUser().upd = Date.now();
   persist();
-  pushUser(state.current);
+  queuePush(state.current);
 }
 
 function connectCloud() {
   if (unsub) { unsub(); unsub = null; }
   if (unsubP) { unsubP(); unsubP = null; }
   const c = famCode();
-  if (!fb || c.length < 6) { setSync(fb ? "☁️ Helyi mód (kód beállítása)" : "☁️ Offline mód", ""); return; }
+  if (!fb) { setSync("☁️ Offline mód", ""); return; }
+  if (!authUser) { setSync("☁️ Helyi mód – Belépés", ""); return; }
+  if (!cloudReady()) { setSync("☁️ Család beállítása", ""); return; }
   setSync("⏳ Kapcsolódás…", ""); firstSync = true;
   // Szülői PIN (sózott hash): a legújabb felhős érték minden eszközre eljut
   unsubP = fb.onValue(fb.ref(db, `families/${c}/parent`), snap => {
@@ -355,7 +391,7 @@ function showScreen(id) {
   updateBar();
   scrollTo(0, 0);
 }
-function goHome() { clearTimeout(autoT); $("sheet").classList.remove("on"); showScreen("scr-home"); }
+function goHome() { clearTimeout(autoT); flushPush(); $("sheet").classList.remove("on"); showScreen("scr-home"); }
 function refreshViews() {
   if ($("scr-home").classList.contains("on")) updateHome();
   if ($("scr-users").classList.contains("on")) renderUsers();
@@ -488,7 +524,7 @@ async function renameUser(old) {
   if (state.current === old) state.current = name;
   state.users[name].upd = Date.now();
   persist(); pushUser(name);
-  if (fb && db && famCode().length >= 6) fb.remove(fb.ref(db, `families/${famCode()}/users/${safeKey(old)}`));
+  if (cloudReady()) fb.remove(fb.ref(db, `families/${famCode()}/users/${safeKey(old)}`));
   renderUsers();
 }
 
@@ -497,7 +533,7 @@ async function deleteUser(name) {
   const ok = await modal({ title: `Törlöd: ${name}?`, text: "A játékos pontjai és haladása végleg elvesznek.", ok: "Törlés" });
   if (!ok) return;
   delete state.users[name];
-  if (fb && db && famCode().length >= 6) fb.remove(fb.ref(db, `families/${famCode()}/users/${safeKey(name)}`));
+  if (cloudReady()) fb.remove(fb.ref(db, `families/${famCode()}/users/${safeKey(name)}`));
   if (state.current === name) state.current = Object.keys(state.users)[0] || "Játékos";
   curUser(); persist(); renderUsers(); updateBar();
 }
@@ -549,16 +585,161 @@ function renderStats() {
   sel.addEventListener("change", () => { state.settings.goal = +sel.value; persist(); });
   row("Napi cél", sel);
   const br = el("div", "btnrow");
-  br.append(btn("secondary", "☁️ Szinkronkód", setSyncCode), btn("secondary", "⬇️ Adatok exportálása", exportData));
+  br.append(btn("secondary", "☁️ Felhős mentés", openCloud), btn("secondary", "⬇️ Adatok exportálása", exportData));
   st.append(br);
 }
 
-async function setSyncCode() {
-  const v = await modal({ title: "Családi szinkronkód", text: "Legalább 6 karakter (betű, szám, - vagy _). Ugyanezt írd be a többi eszközön is.", value: state.familyCode || "", ok: "Mentés" });
-  if (v === null) return;
-  state.familyCode = v.trim(); persist();
-  if (!fb) await initFirebase();
-  connectCloud();
+// ---------- Felhős mentés: belépés és család ----------
+// Adatbázis: families/{kód}/members/{e-mail} = true, families/{kód}/users/..., families/{kód}/parent
+//            memberOf/{e-mail}/{kód} = true  (ebből tudja egy új eszköz, melyik családhoz tartozol)
+// Az e-mail-címben a pont vesszőre cserélődik (a Firebase kulcsban nem lehet pont). Szabályok: database.rules.json
+function fbError(e) {
+  const c = (e && e.code) || "";
+  if (/permission.denied|PERMISSION_DENIED/i.test(c + (e && e.message))) return "Nincs jogosultság.";
+  if (c.includes("network")) return "Nincs internetkapcsolat – később újrapróbálom.";
+  if (c.includes("invalid-action-code") || c.includes("expired-action-code")) return "A belépő link lejárt vagy már felhasználták. Kérj újat!";
+  if (c.includes("invalid-email")) return "Hibás e-mail-cím.";
+  if (c.includes("unauthorized-domain") || c.includes("unauthorized-continue-uri")) return "Ez a webcím nincs engedélyezve a Firebase-ben (Authentication → Settings → Authorized domains).";
+  if (c.includes("operation-not-allowed")) return "Ez a belépési mód nincs bekapcsolva a Firebase-ben (Authentication → Sign-in method).";
+  if (c.includes("popup-blocked")) return "A böngésző letiltotta a felugró ablakot. Engedélyezd, vagy lépj be e-mailes linkkel.";
+  return (e && e.message) || "Ismeretlen hiba.";
+}
+
+// Ha az e-mailben kapott belépő linkről érkeztünk vissza, befejezzük a belépést
+async function finishEmailLink() {
+  if (!fa.isSignInWithEmailLink(auth, location.href)) return;
+  const link = location.href;
+  history.replaceState(null, "", location.pathname); // a kódot eltüntetjük a címsorból
+  let em = null;
+  try { em = localStorage.getItem(EMAIL_KEY); } catch (e) { /* privát mód */ }
+  if (!em) em = await modal({ title: "Belépés befejezése", text: "Add meg újra az e-mail-címedet:", value: "", ok: "Belépés" });
+  if (!em) return;
+  try { await fa.signInWithEmailLink(auth, em.trim(), link); } catch (e) { toast("❌ " + fbError(e)); }
+  try { localStorage.removeItem(EMAIL_KEY); } catch (e) { /* mindegy */ }
+}
+
+// Belépés után: megkeressük a családot. Ha még nincs, de ezen az eszközön van régi szinkronkód,
+// azt a családot „igényeljük” – így a felhőben már meglévő adatok a helyükön maradnak.
+async function joinFamily() {
+  setSync("⏳ Kapcsolódás…", "");
+  try {
+    const mine = Object.keys((await fb.get(fb.ref(db, `memberOf/${myKey()}`))).val() || {});
+    if (mine.length) {
+      if (!mine.includes(famCode())) { state.familyCode = mine[0]; persist(); }
+      member = true;
+    } else if (famCode().length >= 6) {
+      member = await claimFamily(famCode());
+      if (!member) cloudNote = "❌ Ezt a családot már egy másik szülő igényelte. Kérd meg, hogy a Felhős mentés panelen adja hozzá az e-mail-címedet, aztán nyomd meg az „Újra ellenőrzöm” gombot.";
+    }
+  } catch (e) { console.warn(e); cloudNote = "❌ " + fbError(e); }
+  firstSync = true;
+  connectCloud(); renderCloud();
+}
+async function claimFamily(code) {
+  try {
+    await fb.set(fb.ref(db, `families/${code}/members/${myKey()}`), true); // előbb tag leszünk…
+    await fb.set(fb.ref(db, `memberOf/${myKey()}/${code}`), true);        // …utána írhatjuk a mutatót
+    return true;
+  } catch (e) { console.warn(e); return false; }
+}
+async function createFamily() {
+  const code = "f" + [...crypto.getRandomValues(new Uint8Array(12))].map(b => b.toString(16).padStart(2, "0")).join("");
+  if (await claimFamily(code)) { state.familyCode = code; persist(); member = true; cloudNote = ""; firstSync = true; connectCloud(); }
+  else cloudNote = "❌ Nem sikerült létrehozni a családot.";
+  renderCloud();
+}
+async function addMember(em) {
+  em = (em || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { cloudNote = "❌ Ez nem tűnik e-mail-címnek."; return renderCloud(); }
+  cloudOpen = false;
+  const ok = await requirePin("Családtag hozzáadása", "Írd be a szülői PIN-kódot.");
+  if (ok) {
+    try {
+      await fb.set(fb.ref(db, `families/${famCode()}/members/${emailKey(em)}`), true);
+      await fb.set(fb.ref(db, `memberOf/${emailKey(em)}/${famCode()}`), true);
+      cloudNote = `✅ ${em} hozzáadva. Ha ezzel a címmel belép, látni fogja a családot.`;
+    } catch (e) { cloudNote = "❌ " + fbError(e); }
+  }
+  openCloud();
+}
+async function removeMember(k, count) {
+  const me = k === myKey(), em = k.replace(/,/g, ".");
+  if (me && count <= 1) { cloudNote = "❌ Te vagy az egyetlen tag – előbb adj hozzá valaki mást."; return renderCloud(); }
+  cloudOpen = false;
+  const ok = await requirePin(me ? "Kilépés a családból" : `${em} eltávolítása`, "Írd be a szülői PIN-kódot.");
+  if (ok) {
+    try {
+      await fb.remove(fb.ref(db, `memberOf/${k}/${famCode()}`));          // amíg még tag vagyunk
+      await fb.remove(fb.ref(db, `families/${famCode()}/members/${k}`));
+      if (me) { member = false; state.familyCode = ""; persist(); connectCloud(); }
+      cloudNote = me ? "Kiléptél a családból. Az ezen az eszközön lévő adatok megmaradtak." : `${em} eltávolítva.`;
+    } catch (e) { cloudNote = "❌ " + fbError(e); }
+  }
+  openCloud();
+}
+async function googleLogin() {
+  cloudNote = "";
+  try { await fa.signInWithPopup(auth, new fa.GoogleAuthProvider()); }
+  catch (e) { if (!/popup-closed-by-user|cancelled-popup-request/.test(e.code || "")) { cloudNote = "❌ " + fbError(e); renderCloud(); } }
+}
+async function sendLink(em) {
+  em = (em || "").trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { cloudNote = "❌ Ez nem tűnik e-mail-címnek."; return renderCloud(); }
+  try {
+    await fa.sendSignInLinkToEmail(auth, em, { url: location.origin + location.pathname, handleCodeInApp: true });
+    try { localStorage.setItem(EMAIL_KEY, em); } catch (e) { /* privát mód */ }
+    cloudNote = `📧 Elküldtem a belépő linket ide: ${em}. Nyisd meg a levelet ezen az eszközön, és kattints a linkre. (Ha nem jön, nézd meg a spam mappát is.)`;
+  } catch (e) { cloudNote = "❌ " + fbError(e); }
+  renderCloud();
+}
+async function logout() {
+  const ok = await modal({ title: "Kijelentkezés", text: "Az ezen az eszközön lévő játékosok és haladásuk megmaradnak, csak nem szinkronizálódnak tovább.", ok: "Kijelentkezés" });
+  if (ok) await fa.signOut(auth); else openCloud();
+}
+
+// A panel a meglévő felugró ablakban jelenik meg
+let cloudOpen = false, cloudTok = 0;
+function openCloud() {
+  if (!fb) { toast("Most nincs kapcsolat a felhővel – a játék helyben ment."); return; }
+  cloudOpen = true; $("modal").classList.add("on"); renderCloud();
+}
+function closeCloud() { cloudOpen = false; cloudNote = ""; $("modal").classList.remove("on"); }
+async function renderCloud() {
+  if (!cloudOpen) return;
+  const tok = ++cloudTok, box = $("modal").firstElementChild;
+  box.innerHTML = "";
+  box.append(el("h3", null, "☁️ Felhős mentés és család"));
+  const p = t => { const e = el("p", null, t); box.append(e); return e; };
+  const row = (...bs) => { const r = el("div", "mbtns"); r.style.cssText = "flex-wrap:wrap;justify-content:flex-start;margin-bottom:10px"; r.append(...bs); box.append(r); };
+  const input = ph => { const i = el("input", "minp"); i.type = "email"; i.placeholder = ph; i.autocomplete = "email"; box.append(i); return i; };
+  const note = el("p"); // a megjegyzés mindig a gombok fölött
+  if (!authUser) {
+    p("Lépj be szülőként, és a játékosok haladása minden eszközön meglesz – a másik szülő is láthatja a saját telefonján. Belépés nélkül a haladás csak ezen az eszközön van elmentve.");
+    row(btn("primary", "Belépés Google-fiókkal", googleLogin));
+    const i = input("vagy e-mail-cím a belépő linkhez");
+    i.addEventListener("keydown", e => { if (e.key === "Enter") sendLink(i.value); });
+    row(btn("secondary", "📧 Belépő link küldése", () => sendLink(i.value)));
+  } else if (!member) {
+    p(`Belépve: ${authUser.email}`);
+    p("Ez a cím még nem tartozik családhoz. Ha a másik szülő már létrehozta, kérd meg, hogy adja hozzá a címedet, aztán nyomd meg az „Újra ellenőrzöm” gombot. Ha te vagy az első, hozd létre a családot – az ezen az eszközön lévő játékosok felkerülnek a felhőbe.");
+    box.append(note);
+    row(btn("primary", "👨‍👩‍👧 Család létrehozása", createFamily), btn("secondary", "🔄 Újra ellenőrzöm", joinFamily), btn("secondary", "Kijelentkezés", logout));
+  } else {
+    p(`Belépve: ${authUser.email}`);
+    box.append(el("b", null, "A család tagjai"), el("p", null, "Ők látják és folytathatják a játékosok haladását."));
+    const list = el("div"); box.append(list);
+    const i = input("Másik szülő e-mail-címe");
+    i.addEventListener("keydown", e => { if (e.key === "Enter") addMember(i.value); });
+    box.append(note);
+    row(btn("secondary", "➕ Hozzáadás", () => addMember(i.value)), btn("secondary", "Kijelentkezés", logout));
+    try {
+      const m = Object.keys((await fb.get(fb.ref(db, `families/${famCode()}/members`))).val() || {});
+      if (tok !== cloudTok) return;
+      m.forEach(k => { const r = el("div", "setrow"); r.append(el("span", null, "👤 " + k.replace(/,/g, ".")), btn("secondary", "✖", () => removeMember(k, m.length))); list.append(r); });
+    } catch (e) { if (tok === cloudTok) list.append(el("p", null, "❌ " + fbError(e))); }
+  }
+  if (cloudNote) { note.textContent = cloudNote; if (!note.parentNode) box.append(note); }
+  row(btn("primary", "Bezárás", closeCloud));
 }
 function exportData() {
   const a = el("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(state.users, null, 2)], { type: "application/json" }));
@@ -931,6 +1112,7 @@ function showResults() {
   $("sheet").classList.remove("on");
   const u = curUser(), ratio = sessionRoundOk / queue.length;
   if (ratio === 1) { const b = BADGES.find(x => x.id === "perfect"); awardBadge(u, b); saveState(); }
+  flushPush(); // kör vége: most megy fel a felhőbe
   showScreen("scr-res");
   const stars = starsFor(sessionRoundOk, queue.length), errors = queue.length - sessionRoundOk;
   $("res-stars").textContent = "⭐".repeat(stars) + "☆".repeat(5 - stars);
@@ -974,7 +1156,7 @@ async function hashPin(pin, saltHex) {
 }
 function pushParent() {
   const c = famCode();
-  if (!fb || !db || c.length < 6 || !state.parent) return;
+  if (!cloudReady() || !state.parent) return;
   fb.set(fb.ref(db, `families/${c}/parent`), state.parent).catch(() => setSync("⚠️ Szinkron hiba", "err"));
 }
 async function setPin(pin) { state.parent = await hashPin(pin); delete state.parentPin; persist(); pushParent(); }
@@ -984,7 +1166,7 @@ const PIN_OK = /^\d{6,10}$/;
 async function requirePin(title, text) {
   if (!(window.crypto && crypto.subtle)) { toast("A PIN-hez biztonságos (https) kapcsolat kell."); return false; }
   // új eszközön először megnézzük, van-e már PIN a felhőben
-  if (!state.parent && fb && db && famCode().length >= 6) {
+  if (!state.parent && cloudReady()) {
     try { const r = (await fb.get(fb.ref(db, `families/${famCode()}/parent`))).val(); if (r && r.hash && r.salt) { state.parent = { salt: r.salt, hash: r.hash }; persist(); } } catch (e) { /* offline */ }
   }
   // régi, helyi PIN átalakítása hash-sé
@@ -1162,8 +1344,8 @@ $("btn-quit").addEventListener("click", goHome);
 $("btn-again").addEventListener("click", () => startQuiz(lastMode));
 $("btn-home").addEventListener("click", goHome);
 $("sh-next").addEventListener("click", nextQuestion);
-$("mon-sync").addEventListener("click", setSyncCode);
+$("mon-sync").addEventListener("click", openCloud);
 
 applySettings();
 updateHome();
-initFirebase().then(connectCloud); // a játék a felhő nélkül is azonnal indul
+initFirebase(); // a játék a felhő nélkül is azonnal indul; a kapcsolódást a belépés állapota indítja
