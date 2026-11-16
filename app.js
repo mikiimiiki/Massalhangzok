@@ -502,7 +502,12 @@ const TROPHY_DAILY = 100;
 const bonusToday = u => (u.bonus && u.bonus.day === todayKey()) ? (+u.bonus.n || 0) : 0;
 // Pontszorzó (szülői nézet): egy jó válasz 1, 2 vagy 3 pontot ér, de CSAK a napi 100 felé (u.p100).
 // A „Ma” számláló, a pontok, a statisztika és a sorozat ugyanúgy 1-gyel nő.
-const multOf = u => [2, 3].includes(+u.mult) ? +u.mult : 1;
+// Csak aznap érvényes (u.mult = { v, day }): napváltáskor magától visszaáll ×1-re.
+// A korábbi, nap nélküli számértéket (ez is csak ma kerülhetett be) mai beállításnak vesszük.
+const multOf = u => {
+  if (typeof u.mult === "number" || typeof u.mult === "string") u.mult = { v: +u.mult, day: todayKey() };
+  return u.mult && u.mult.day === todayKey() && [2, 3].includes(+u.mult.v) ? +u.mult.v : 1;
+};
 const p100Today = u => (u.p100 && u.p100.day === todayKey()) ? (+u.p100.n || 0) : (u.daily[todayKey()] || 0); // régi adatnál a napi jó válaszok
 const dayProgress = u => p100Today(u) + bonusToday(u);
 const GIFTS = [
@@ -1604,10 +1609,10 @@ function renderParent() {
   }
   { // Pontszorzó: csak a napi 100 felé számít gyorsabban, minden más számláló marad
     const mp = panel("⚡ Pontszorzó a napi 100-hoz");
-    mp.append(el("p", null, "Bekapcsolva egy jó válasz 2 vagy 3 pontot ér a napi 100 felé, így hamarabb elérhető a serlegeső és az ajándékdoboz. A „Ma” számláló, a pontszám, a statisztika és a sorozat ugyanúgy nő, mint eddig. Addig marad bekapcsolva, amíg vissza nem állítod."));
+    mp.append(el("p", null, "Bekapcsolva egy jó válasz 2 vagy 3 pontot ér a napi 100 felé, így hamarabb elérhető a serlegeső és az ajándékdoboz. A „Ma” számláló, a pontszám, a statisztika és a sorozat ugyanúgy nő, mint eddig. Csak ma érvényes: éjfélkor magától visszaáll ×1-re."));
     const mr = el("div", "levels");
     [[1, "×1 Normál"], [2, "⚡ ×2 Duplázó"], [3, "⚡ ×3 Triplázó"]].forEach(([v, txt]) =>
-      mr.append(btn("lvl" + (multOf(u) === v ? " on" : ""), txt, () => { u.mult = v; saveOther(parentUser); renderParent(); toast(v > 1 ? `⚡ ${txt.slice(2)} bekapcsolva: ${parentUser}` : `Pontszorzó kikapcsolva: ${parentUser}`); })));
+      mr.append(btn("lvl" + (multOf(u) === v ? " on" : ""), txt, () => { u.mult = { v, day: todayKey() }; saveOther(parentUser); renderParent(); toast(v > 1 ? `⚡ ${txt.slice(2)} bekapcsolva ma: ${parentUser}` : `Pontszorzó kikapcsolva: ${parentUser}`); })));
     mp.append(mr);
   }
   { // Ajándékdobozok: mit nyert a gyerek (a puszit, ölelést a szülőnek kell „kiosztania”)
