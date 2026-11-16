@@ -467,7 +467,8 @@ function modal({ title, text = "", value = null, ok = "OK", cancel = "Mégse", s
     if (text) box.append(el("p", null, text));
     let inp = null;
     if (value !== null) { inp = el("input", "minp"); inp.value = value; inp.maxLength = 40; if (secret) { inp.type = "password"; inp.inputMode = "numeric"; } box.append(inp); }
-    const done = v => { m.classList.remove("on"); res(v); };
+    const done = v => { m.classList.remove("on"); m._esc = null; res(v); };
+    m._esc = () => done(cancel ? null : true); // Esc = Mégse (ha nincs Mégse gomb, akkor OK)
     const row = el("div", "mbtns");
     if (cancel) row.append(btn("secondary", cancel, () => done(null)));
     row.append(btn("primary", ok, () => done(inp ? inp.value : true)));
@@ -1508,6 +1509,21 @@ function showResults() {
 }
 
 // ---------- 12. Billentyűzet ----------
+// Esc: előbb a nyitott felugró ablakot zárja be (mint a Mégse), különben bármelyik képernyőről a főmenübe ugrik.
+// Elkapó (capture) fázisban fut, hogy a beviteli mezők saját Esc-kezelője ne fusson le kétszer.
+addEventListener("keydown", e => {
+  if (e.key !== "Escape" || e.repeat) return;
+  e.preventDefault(); e.stopPropagation();
+  const greet = document.querySelector(".turbo-greet"); if (greet) { greet.remove(); return; }
+  const gift = document.querySelector(".gift-ov");
+  if (gift) { const c = gift.querySelector(".mbtns button:not([hidden])"); if (c) c.click(); return; } // ajándékot előbb választani kell
+  const m = $("modal");
+  if (m.classList.contains("on")) { if (cloudOpen) closeCloud(); else if (m._esc) m._esc(); return; }
+  const other = [...document.querySelectorAll(".modal.on")].pop(); // pl. „Hanyadikos vagy?”
+  if (other) { const c = [...other.querySelectorAll("button")].find(b => b.textContent.trim() === "Mégse"); if (c) c.click(); return; }
+  if (!$("scr-home").classList.contains("on")) goHome();
+}, true);
+
 document.addEventListener("keydown", e => {
   if ($("modal").classList.contains("on") || !$("scr-quiz").classList.contains("on")) return;
   const sheetOn = $("sheet").classList.contains("on");
