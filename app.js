@@ -513,15 +513,6 @@ const TURBO = {
   2: { ic: "🚀", name: "DUPLA PONT", tip: "Ma DUPLA PONT nap van: minden jó válasz 2 pontot ér a napi 100-hoz!" },
   3: { ic: "🌈", name: "TRIPLA PONT", tip: "Ma TRIPLA PONT nap van: minden jó válasz 3 pontot ér a napi 100-hoz!" }
 };
-const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-function flyPoints(m) {
-  const chip = $("mon-100"); if (!chip) return;
-  chip.classList.remove("bump"); void chip.offsetWidth; chip.classList.add("bump"); // a 🏆 jelző egyet ugrik
-  if (reducedMotion()) return;
-  const r = chip.getBoundingClientRect(), f = el("div", "fly-pts x" + m, "+" + m);
-  f.style.left = (r.left + r.width / 2) + "px"; f.style.top = (r.bottom + 4) + "px";
-  document.body.append(f); setTimeout(() => f.remove(), 1100);
-}
 function turboGreet(u) {
   const m = multOf(u), T = TURBO[m], seen = `${todayKey()}:${m}`;
   if (!T || u.turboSeen === seen || document.querySelector(".turbo-greet, .gift-ov")) return;
@@ -633,10 +624,9 @@ function updateBar() {
   const u = curUser(), b = bonusToday(u), prog = dayProgress(u), m = multOf(u);
   document.body.dataset.theme = u.theme || ""; syncMascots(); $("mon-today").textContent = u.daily[todayKey()] || 0;
   $("mon-prog").textContent = Math.min(prog, TROPHY_DAILY);
-  // „Turbó” matrica: csak akkor látszik, ha ma duplázó / triplázó van
-  const tb = $("mon-turbo"), T = TURBO[m];
-  tb.hidden = !T;
-  if (T) { tb.className = "mon-turbo x" + m; tb.innerHTML = ""; tb.append(el("span", "tb-ic", T.ic), el("span", "tb-long", ` ${T.name} `), el("b", null, "×" + m)); tb.title = T.tip; tb.setAttribute("aria-label", T.tip); }
+  // Tüzes 🏆 jelző: ha ma duplázó / triplázó van, lángoló kerete lesz (×3-nál erősebb) és egy apró „×2/×3”
+  $("mon-mult").textContent = m > 1 ? "×" + m : "";
+  $("mon-100").classList.toggle("fire2", m === 2); $("mon-100").classList.toggle("fire3", m === 3);
   $("mon-100").classList.toggle("done", prog >= TROPHY_DAILY);
   $("mon-100").title = `Napi 100 pont: ${Math.min(prog, TROPHY_DAILY)}/100` + (m > 1 ? ` – ${m}-szoros pontszorzó: egy jó válasz ${m} pontot ér` : "") + (b ? ` (ebből +${b} ajándék tegnapról)` : "") + (prog >= TROPHY_DAILY ? " – megvan! 🏆" : "");
 }
@@ -1457,9 +1447,7 @@ function finishAnswer(ok, full, meta = {}) {
     u.mistakes = u.mistakes.filter(w => w !== full);
     if (meta.syl) { const S2 = sylState(u); S2.miss = S2.miss.filter(w => w !== meta.word); }
     sheet.className = "sheet ok on"; hideRetype();
-    const hit100 = prog0 < TROPHY_DAILY && dayProgress(u) >= TROPHY_DAILY; // a tegnapi ajándék-előny és a szorzó is beszámít
-    if (mult > 1 && prog0 < TROPHY_DAILY) flyPoints(mult); // „+2” / „+3” berepül a 🏆 jelzőbe
-    $("sh-head").textContent = (combo >= 3 ? `Szuper! (+${gain} pont, ${combo}x sorozat!)` : `Helyes! (+${gain} pont)`) + (mult > 1 && prog0 < TROPHY_DAILY ? ` ⚡ +${mult} a 100-hoz` : "") + (before + 1 === S.goal ? " 🎉 Napi cél teljesítve!" : "") + (hit100 ? " 🏆 Megvan a napi 100!" : "");
+    const hit100 = prog0 < TROPHY_DAILY && dayProgress(u) >= TROPHY_DAILY; // a tegnapi ajándék-előny és a szorzó is beszámít    $("sh-head").textContent = (combo >= 3 ? `Szuper! (+${gain} pont, ${combo}x sorozat!)` : `Helyes! (+${gain} pont)`) + (mult > 1 && prog0 < TROPHY_DAILY ? ` ⚡ +${mult} a 100-hoz` : "") + (before + 1 === S.goal ? " 🎉 Napi cél teljesítve!" : "") + (hit100 ? " 🏆 Megvan a napi 100!" : "");
     if (hit100) { trophyRain(); u.gift = { due: key, picked: "" }; } // naponta egyszer; a kör végén ajándékdobozok jönnek
     $("sh-full").textContent = (meta.syl ? "Helyes szótagolás: " : "Helyes alak: ") + full + (newCard ? "   🃏 Új szókártya az albumban!" : "");
     $("sh-why").textContent = "";
@@ -1964,7 +1952,7 @@ $("btn-again").addEventListener("click", () => startQuiz(lastMode));
 $("btn-home").addEventListener("click", goHome);
 $("sh-next").addEventListener("click", nextQuestion);
 $("mon-sync").addEventListener("click", openCloud);
-$("mon-turbo").addEventListener("click", () => { const T = TURBO[multOf(curUser())]; if (T) toast(`${T.ic} ${T.tip}`); });
+$("mon-100").addEventListener("click", () => { const T = TURBO[multOf(curUser())]; toast(T ? `${T.ic} ${T.tip}` : "🏆 Napi cél: 100 pont. Minden jó válasz 1 pontot ér."); });
 
 applySettings();
 updateHome();
