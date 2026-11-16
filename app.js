@@ -500,7 +500,11 @@ const TROPHY_DAILY = 100;
 // 6 különböző színű doboz; a tartalmuk és a színük minden alkalommal újra összekeveredik. Naponta egyszer lehet választani.
 // A „+10/+20 pont holnap” ajándék másnapra előleget ad a 100-hoz (u.bonus = { day: holnap, n }).
 const bonusToday = u => (u.bonus && u.bonus.day === todayKey()) ? (+u.bonus.n || 0) : 0;
-const dayProgress = u => (u.daily[todayKey()] || 0) + bonusToday(u);
+// Pontszorzó (szülői nézet): egy jó válasz 1, 2 vagy 3 pontot ér, de CSAK a napi 100 felé (u.p100).
+// A „Ma” számláló, a pontok, a statisztika és a sorozat ugyanúgy 1-gyel nő.
+const multOf = u => [2, 3].includes(+u.mult) ? +u.mult : 1;
+const p100Today = u => (u.p100 && u.p100.day === todayKey()) ? (+u.p100.n || 0) : (u.daily[todayKey()] || 0); // régi adatnál a napi jó válaszok
+const dayProgress = u => p100Today(u) + bonusToday(u);
 const GIFTS = [
   { id: "b10", ic: "🎟️", t: "+10 pont holnap!", d: "Holnap már csak 90 jó válasz kell a 100 eléréséhez.", bonus: 10 },
   { id: "b20", ic: "🎫", t: "+20 pont holnap!", d: "Holnap már csak 80 jó válasz kell a 100 eléréséhez.", bonus: 20 },
@@ -516,7 +520,7 @@ function openGifts(u) {
   const order = shuffle(GIFTS), colors = shuffle(GIFT_COLORS); // minden alkalommal máshol van minden
   const ov = el("div", "gift-ov"), box = el("div", "gift-box");
   box.setAttribute("role", "dialog"); box.setAttribute("aria-modal", "true");
-  box.append(el("h3", null, "🎁 Válassz egy ajándékot!"), el("p", null, "Ma elérted a 100 jó választ! Koppints az egyik dobozra."));
+  box.append(el("h3", null, "🎁 Válassz egy ajándékot!"), el("p", null, "Ma elérted a napi 100 pontot! Koppints az egyik dobozra."));
   const grid = el("div", "gift-grid"), res = el("div", "gift-res");
   const close = btn("primary", "Szuper! 🎉", () => ov.remove()); close.hidden = true;
   let done = false;
@@ -548,7 +552,7 @@ function applyGift(u, g) {
 function trophyRain() {
   document.querySelectorAll(".trophy-banner").forEach(x => x.remove());
   const msg = el("div", "trophy-banner");
-  msg.append(el("div", "trophy-big", "🏆"), el("div", null, "Ma már 100 jó megoldás!"), el("small", null, "Igazi bajnok vagy!"));
+  msg.append(el("div", "trophy-big", "🏆"), el("div", null, "Megvan a napi 100!"), el("small", null, "Igazi bajnok vagy!"));
   msg.setAttribute("role", "status");
   document.body.append(msg); setTimeout(() => msg.remove(), 5000);
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -598,11 +602,12 @@ function checkBadges(u) { BADGES.forEach(b => b.t(u) && awardBadge(u, b)); }
 // ---------- 6. Képernyők ----------
 function syncMascots() { const av = curUser().avatar; document.querySelectorAll(".mascot").forEach(e => e.textContent = av); }
 function updateBar() {
-  const u = curUser(), b = bonusToday(u), prog = dayProgress(u);
+  const u = curUser(), b = bonusToday(u), prog = dayProgress(u), m = multOf(u);
   document.body.dataset.theme = u.theme || ""; syncMascots(); $("mon-today").textContent = u.daily[todayKey()] || 0;
   $("mon-prog").textContent = Math.min(prog, TROPHY_DAILY);
+  $("mon-mult").textContent = m > 1 ? ` ⚡×${m}` : "";
   $("mon-100").classList.toggle("done", prog >= TROPHY_DAILY);
-  $("mon-100").title = `Napi 100 jó válasz: ${Math.min(prog, TROPHY_DAILY)}/100` + (b ? ` (ebből +${b} ajándék tegnapról)` : "") + (prog >= TROPHY_DAILY ? " – megvan! 🏆" : "");
+  $("mon-100").title = `Napi 100 pont: ${Math.min(prog, TROPHY_DAILY)}/100` + (m > 1 ? ` – ${m}-szoros pontszorzó: egy jó válasz ${m} pontot ér` : "") + (b ? ` (ebből +${b} ajándék tegnapról)` : "") + (prog >= TROPHY_DAILY ? " – megvan! 🏆" : "");
 }
 function applySettings() { document.body.classList.toggle("dys", !!state.settings.dyslexia); }
 
@@ -1414,13 +1419,14 @@ function finishAnswer(ok, full, meta = {}) {
     const gain = Math.max(3, base + (combo >= 3 ? 5 : 0) - (meta.penalty || 0));
     sessionScore += gain; sessionRoundOk++; u.pts += gain;
     if (u.streak.last !== key) { u.streak.n = u.streak.last === dateKey(t - 1) ? u.streak.n + 1 : 1; u.streak.last = key; }
-    const before = u.daily[key] || 0;
+    const before = u.daily[key] || 0, prog0 = dayProgress(u), mult = multOf(u);
+    u.p100 = { day: key, n: p100Today(u) + mult }; // a napi 100 felé a szorzóval nő
     u.daily[key] = before + 1;
     u.mistakes = u.mistakes.filter(w => w !== full);
     if (meta.syl) { const S2 = sylState(u); S2.miss = S2.miss.filter(w => w !== meta.word); }
     sheet.className = "sheet ok on"; hideRetype();
-    const hit100 = before + 1 + bonusToday(u) === TROPHY_DAILY; // a tegnapi ajándék-előny is beszámít
-    $("sh-head").textContent = (combo >= 3 ? `Szuper! (+${gain} pont, ${combo}x sorozat!)` : `Helyes! (+${gain} pont)`) + (before + 1 === S.goal ? " 🎉 Napi cél teljesítve!" : "") + (hit100 ? " 🏆 100 jó megoldás ma!" : "");
+    const hit100 = prog0 < TROPHY_DAILY && dayProgress(u) >= TROPHY_DAILY; // a tegnapi ajándék-előny és a szorzó is beszámít
+    $("sh-head").textContent = (combo >= 3 ? `Szuper! (+${gain} pont, ${combo}x sorozat!)` : `Helyes! (+${gain} pont)`) + (mult > 1 && prog0 < TROPHY_DAILY ? ` ⚡ +${mult} a 100-hoz` : "") + (before + 1 === S.goal ? " 🎉 Napi cél teljesítve!" : "") + (hit100 ? " 🏆 Megvan a napi 100!" : "");
     if (hit100) { trophyRain(); u.gift = { due: key, picked: "" }; } // naponta egyszer; a kör végén ajándékdobozok jönnek
     $("sh-full").textContent = (meta.syl ? "Helyes szótagolás: " : "Helyes alak: ") + full + (newCard ? "   🃏 Új szókártya az albumban!" : "");
     $("sh-why").textContent = "";
@@ -1595,6 +1601,14 @@ function renderParent() {
     selRow("Szint", [1, 2, 3, 4, 5].map(n => [n, n + ". " + SYL_LVL_NAMES[n]]), sy.lvl, v => { sylState(u).lvl = +v; saveOther(parentUser); renderParent(); });
     (sy.hist || []).slice(-5).reverse().forEach(h => sp.append(el("div", null, `📅 ${h.d} · ${h.lvl}. szint · ${h.ok}/${h.n} jó`)));
     if (u.syl && u.syl.miss.length) sp.append(el("div", null, "❌ Gyakorlandó szavak: " + u.syl.miss.join(", ")));
+  }
+  { // Pontszorzó: csak a napi 100 felé számít gyorsabban, minden más számláló marad
+    const mp = panel("⚡ Pontszorzó a napi 100-hoz");
+    mp.append(el("p", null, "Bekapcsolva egy jó válasz 2 vagy 3 pontot ér a napi 100 felé, így hamarabb elérhető a serlegeső és az ajándékdoboz. A „Ma” számláló, a pontszám, a statisztika és a sorozat ugyanúgy nő, mint eddig. Addig marad bekapcsolva, amíg vissza nem állítod."));
+    const mr = el("div", "levels");
+    [[1, "×1 Normál"], [2, "⚡ ×2 Duplázó"], [3, "⚡ ×3 Triplázó"]].forEach(([v, txt]) =>
+      mr.append(btn("lvl" + (multOf(u) === v ? " on" : ""), txt, () => { u.mult = v; saveOther(parentUser); renderParent(); toast(v > 1 ? `⚡ ${txt.slice(2)} bekapcsolva: ${parentUser}` : `Pontszorzó kikapcsolva: ${parentUser}`); })));
+    mp.append(mr);
   }
   { // Ajándékdobozok: mit nyert a gyerek (a puszit, ölelést a szülőnek kell „kiosztania”)
     const gp = panel("🎁 Ajándékdobozok (napi 100 jó válasz után)");
