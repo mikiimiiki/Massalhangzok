@@ -210,3 +210,25 @@ body[data-theme=peach] { --bg1: #ffe4e6; --bg2: #ffedd5; }
 @keyframes greetIn { from { opacity: 0; transform: translateX(-50%) translateY(-30px) scale(.8); } to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } }
 @media (prefers-reduced-motion: reduce) { #mon-100.fire2, #mon-100.fire3, .turbo-greet { animation: none !important; } }
 @media (max-width: 480px) { .mon-left { gap: 5px; } }
+
+/* Szülői nézet: fejlődés időben (időszakválasztó, vonaldiagram, előző időszak jele, változásjelvény) */
+.trend-tabs { justify-content: flex-start; flex-wrap: wrap; margin: 0 0 8px; }
+.trend-chart { position: relative; margin: 2px 0 6px; }
+.trend-svg { width: 100%; height: auto; display: block; }
+.trend-svg .tg { stroke: #e2e8f0; stroke-width: 1; }
+.trend-svg .tg.g { stroke: #86efac; stroke-dasharray: 4 4; } .trend-svg .tg.r { stroke: #fca5a5; stroke-dasharray: 4 4; }
+.trend-svg .tl { font-size: 11px; fill: #64748b; font-weight: 700; }
+.trend-svg .tline { fill: none; stroke: #7c3aed; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.trend-svg .tdot { fill: #7c3aed; stroke: #fff; stroke-width: 2; }
+.trend-svg .tdot.g { fill: #22c55e; } .trend-svg .tdot.r { fill: #ef4444; }
+.trend-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 30px; font-weight: 800; color: #64748b; background: rgba(255,255,255,.7); border-radius: 12px; }
+.trend-help { font-size: 13px; color: var(--soft); margin: 0 0 4px; }
+.trow.trend { grid-template-columns: 170px 1fr 170px; }
+.trow.trend .bar { position: relative; }
+.bar .prev { position: absolute; top: 0; bottom: 0; width: 4px; background: #0f172a; border-radius: 2px; box-shadow: 0 0 0 1px #fff; }
+.tval { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.delta { font-style: normal; font-size: 12px; font-weight: 900; padding: 2px 7px; border-radius: 999px; }
+.delta.up { background: #dcfce7; color: #15803d; } .delta.down { background: #fee2e2; color: #b91c1c; }
+.delta.same { background: #f1f5f9; color: #475569; } .delta.few { background: none; color: #94a3b8; font-weight: 700; padding: 0; }
+@media (max-width: 640px) { .trow.trend { grid-template-columns: 1fr auto; grid-template-areas: "name val" "bar bar"; row-gap: 4px; margin: 10px 0; } .trow.trend > span:first-child { grid-area: name; } .trow.trend .bar { grid-area: bar; } .trow.trend .tval { grid-area: val; } }
+.trend-tabs .lvl.on { background: #7c3aed; color: #fff; box-shadow: 0 3px 0 #5b21b6; }

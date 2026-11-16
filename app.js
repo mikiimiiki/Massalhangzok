@@ -194,6 +194,7 @@ function normUser(u) {
   u.pts = u.pts || 0; u.avatar = u.avatar || "🦉";
   u.mastered = arr(u.mastered); u.practiced = arr(u.practiced); u.mistakes = arr(u.mistakes); u.badges = arr(u.badges);
   u.giftLog = arr(u.giftLog);
+  u.hist = u.hist && typeof u.hist === "object" ? u.hist : {};
   u.daily = u.daily || {}; u.srs = u.srs || {}; u.stats = u.stats || {};
   u.streak = u.streak || { n: 0, last: "" }; u.upd = u.upd || 0;
   // régi "mastered" lista átvétele a Leitner-rendszerbe
@@ -1416,6 +1417,7 @@ function finishAnswer(ok, full, meta = {}) {
   const u = curUser(), t = dayNum(), key = todayKey(), S = state.settings;
   const tp = meta.topic || "hosszu", st = u.stats[tp] = u.stats[tp] || { ok: 0, n: 0 };
   st.n++;
+  histAdd(u, tp, ok); // napi, témánkénti bontás a szülői fejlődés-nézethez
 
   let newCard = false;
   if (ALL_UNIQUE_WORDS.has(full)) { // Leitner-rendszer
@@ -1544,6 +1546,50 @@ document.addEventListener("keydown", e => {
 
 // ---------- 12b. Szülői nézet ----------
 const ALL_TOPICS = ["jly", "hosszu", "pair", "tiles", "szotag"];
+
+// ---------- Fejlődés időben: napi, témánkénti {ok, n} (u.hist[dátum][téma]), 120 napig ----------
+const HIST_DAYS = 120, TREND_MIN = 5; // ennél kevesebb válasznál „kevés adat”
+function histAdd(u, tp, ok) {
+  const key = todayKey(), h = u.hist = u.hist || {}, d = h[key] = h[key] || {}, s = d[tp] = d[tp] || { ok: 0, n: 0 };
+  s.n++; if (ok) s.ok++;
+  const keys = Object.keys(h).sort();
+  if (keys.length > HIST_DAYS) keys.slice(0, keys.length - HIST_DAYS).forEach(k => delete h[k]);
+}
+// Összesítés egy napintervallumra (dayNum-ok, mindkét vég benne van); topic nélkül az összes témára
+function histAgg(u, from, to, topic) {
+  const r = { ok: 0, n: 0 }, h = u.hist || {};
+  for (let d = from; d <= to; d++) {
+    const day = h[dateKey(d)]; if (!day) continue;
+    (topic ? [topic] : Object.keys(day)).forEach(k => { const s = day[k]; if (s) { r.ok += +s.ok || 0; r.n += +s.n || 0; } });
+  }
+  return r;
+}
+const pctOf = s => s.n ? Math.round(s.ok / s.n * 100) : null;
+const TREND_PERIODS = {
+  all: { label: "Összesen" },
+  day: { label: "Ma / tegnap", len: 1, cur: "ma", prev: "tegnap" },
+  week: { label: "7 nap / előző 7", len: 7, cur: "az utolsó 7 nap", prev: "az előző 7 nap" },
+  month: { label: "30 nap / előző 30", len: 30, cur: "az utolsó 30 nap", prev: "az előző 30 nap" }
+};
+let trendPeriod = "week";
+// Vonaldiagram: összesített pontosság napi (30 nap), heti (12 hét) vagy havi (6 × 30 nap) pontokkal
+function trendChart(u, period) {
+  const t = dayNum(), step = period === "week" ? 7 : period === "month" ? 30 : 1, cnt = period === "week" ? 12 : period === "month" ? 6 : 30;
+  const pts = [...Array(cnt)].map((_, i) => { const to = t - (cnt - 1 - i) * step, from = to - step + 1, s = histAgg(u, from, to); return { from, to, s, p: s.n >= 3 ? pctOf(s) : null }; });
+  const W = innerWidth < 520 ? 340 : 600, H = innerWidth < 520 ? 170 : 150, L = 34, R = 24, T = 10, B = 24, x = i => L + (cnt === 1 ? 0 : i * (W - L - R) / (cnt - 1)), y = p => T + (100 - p) / 100 * (H - T - B);
+  const ns = "http://www.w3.org/2000/svg", mk = (tag, attrs, txt) => { const e = document.createElementNS(ns, tag); Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)); if (txt != null) e.textContent = txt; return e; };
+  const svg = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "trend-svg", role: "img", "aria-label": "Összesített pontosság időben" });
+  [[100, ""], [90, "g"], [70, "r"], [50, ""], [0, ""]].forEach(([p, c]) => { svg.append(mk("line", { x1: L, x2: W - R, y1: y(p), y2: y(p), class: "tg " + c }), mk("text", { x: L - 6, y: y(p) + 4, class: "tl", "text-anchor": "end" }, p + "%")); });
+  let seg = [];
+  const flush = () => { if (seg.length > 1) svg.append(mk("polyline", { points: seg.join(" "), class: "tline" })); seg = []; };
+  pts.forEach((q, i) => { if (q.p === null) { flush(); return; } seg.push(`${x(i)},${y(q.p)}`); }); flush();
+  pts.forEach((q, i) => {
+    if (q.p !== null) { const c = mk("circle", { cx: x(i), cy: y(q.p), r: 4, class: "tdot" + (q.p < 70 ? " r" : q.p >= 90 ? " g" : "") }); c.append(mk("title", {}, `${dateKey(q.from)}${step > 1 ? " – " + dateKey(q.to) : ""}: ${q.p}% (${q.s.n} válasz)`)); svg.append(c); }
+    const every = step === 1 ? 5 : step === 7 ? 2 : 1, lab = (cnt - 1 - i) % every === 0 ? dateKey(q.to).slice(5).replace("-", ".") : "";
+    if (lab) svg.append(mk("text", { x: x(i), y: H - 6, class: "tl", "text-anchor": "middle" }, lab));
+  });
+  return { svg, has: pts.some(q => q.p !== null) };
+}
 let parentUser = null;
 
 // --- PIN: PBKDF2-SHA256 sózott hash, a Firebase-ben tárolva ---
@@ -1613,14 +1659,37 @@ function renderParent() {
   cp.append(ch);
 
   const tp = panel("Témák pontossága (piros: 70% alatt, zöld: 90% fölött)");
-  const pcts = {};
+  const pcts = {}; // az összesített pontosság (a feladatzár „automatikus” gombja ezt használja)
+  ALL_TOPICS.forEach(k => { const st = u.stats[k] || { ok: 0, n: 0 }; pcts[k] = { pct: pctOf(st), n: st.n }; });
+  // Időszakválasztó: összesen, vagy egy időszak összevetve az előzővel
+  const per = TREND_PERIODS[trendPeriod], segs = el("div", "levels trend-tabs");
+  Object.entries(TREND_PERIODS).forEach(([id, P]) => segs.append(btn("lvl" + (id === trendPeriod ? " on" : ""), P.label, () => { trendPeriod = id; renderParent(); })));
+  tp.append(segs);
+  // Vonaldiagram az összesített pontosságról
+  const tc = trendChart(u, trendPeriod), cbox = el("div", "trend-chart");
+  cbox.append(tc.svg);
+  if (!tc.has) cbox.append(el("div", "trend-empty", "📈 Gyűlik az adat… A napi bontást mostantól gyűjtjük, a görbe az első játékos nap után jelenik meg."));
+  tp.append(cbox);
+  if (per.len) tp.append(el("p", "trend-help", `A sáv ${per.cur} pontossága, a fekete jel ${per.prev} eredménye. ▲ javult, ▼ romlott (min. ${TREND_MIN} válasz kell).`));
+  const t0 = dayNum();
   ALL_TOPICS.forEach(k => {
-    const st = u.stats[k] || { ok: 0, n: 0 }, pct = st.n ? Math.round(st.ok / st.n * 100) : null;
-    pcts[k] = { pct, n: st.n };
-    const row = el("div", "trow"), bar = el("div", "bar"), i = el("i");
+    let cur, prev = null;
+    if (per.len) { cur = histAgg(u, t0 - per.len + 1, t0, k); prev = histAgg(u, t0 - 2 * per.len + 1, t0 - per.len, k); }
+    else cur = u.stats[k] || { ok: 0, n: 0 };
+    const pct = pctOf(cur), row = el("div", "trow trend"), bar = el("div", "bar"), i = el("i");
     i.style.width = (pct || 0) + "%";
     if (pct !== null && pct < 70) i.style.background = "#ef4444"; else if (pct >= 90) i.style.background = "#22c55e";
-    bar.append(i); row.append(el("span", null, TOPICS[k]), bar, el("span", null, st.n ? `${pct}% (${st.n})` : "–")); tp.append(row);
+    bar.append(i);
+    const pp = prev && prev.n >= TREND_MIN ? pctOf(prev) : null;
+    if (pp !== null) { const mk = el("b", "prev"); mk.style.left = `calc(${pp}% - 2px)`; mk.title = `${per.prev}: ${pp}% (${prev.n} válasz)`; bar.append(mk); }
+    const right = el("span", "tval", cur.n ? `${pct}% (${cur.n})` : "–");
+    if (per.len) {
+      let d;
+      if (cur.n < TREND_MIN || pp === null) d = el("em", "delta few", cur.n || (prev && prev.n) ? "kevés adat" : "");
+      else { const diff = pct - pp; d = el("em", "delta " + (diff > 0 ? "up" : diff < 0 ? "down" : "same"), diff > 0 ? `▲ +${diff}%` : diff < 0 ? `▼ ${diff}%` : "= 0%"); d.title = `${per.cur}: ${pct}% · ${per.prev}: ${pp}%`; }
+      right.append(d);
+    }
+    row.append(el("span", null, TOPICS[k]), bar, right); tp.append(row);
   });
 
   const pw = panel("Legtöbbet hibázott szavak");
