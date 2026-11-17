@@ -232,3 +232,30 @@ body[data-theme=peach] { --bg1: #ffe4e6; --bg2: #ffedd5; }
 .delta.same { background: #f1f5f9; color: #475569; } .delta.few { background: none; color: #94a3b8; font-weight: 700; padding: 0; }
 @media (max-width: 640px) { .trow.trend { grid-template-columns: 1fr auto; grid-template-areas: "name val" "bar bar"; row-gap: 4px; margin: 10px 0; } .trow.trend > span:first-child { grid-area: name; } .trow.trend .bar { grid-area: bar; } .trow.trend .tval { grid-area: val; } }
 .trend-tabs .lvl.on { background: #7c3aed; color: #fff; box-shadow: 0 3px 0 #5b21b6; }
+
+/* ---------- Ünnepek: adventi naptár, ünnepi témák, hóesés (közös eseménymotor) ---------- */
+body[data-theme=snowy] { --bg1: #f0f9ff; --bg2: #dbeafe; }
+body[data-theme=xmas] { --bg1: #fee2e2; --bg2: #dcfce7; }
+body[data-theme=newyear] { --bg1: #fef9c3; --bg2: #ede9fe; }
+#snow { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+.advent { background: linear-gradient(135deg, #fff 0%, #fef2f2 100%); border: 2px solid #fecaca; border-radius: 20px; padding: 12px 14px; margin: 10px auto; max-width: 560px; text-align: left; }
+.advent-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.advent h2 { font-size: 20px; margin: 0; }
+.advent-day { font-size: 13px; color: #64748b; font-weight: 700; }
+.advent-note { font-size: 14px; color: #475569; margin: 4px 0 8px; }
+.advent-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+.aw { aspect-ratio: 1; border: 0; border-radius: 12px; font-weight: 900; font-size: 17px; display: grid; place-items: center; position: relative; padding: 0; cursor: pointer; transition: transform .15s; }
+.aw-future { background: #e2e8f0; color: #94a3b8; }
+.aw-future .aw-no::after { content: "🔒"; font-size: 9px; position: absolute; right: 3px; bottom: 1px; }
+.aw-wait { background: #fde68a; color: #92400e; box-shadow: inset 0 0 0 2px #f59e0b; }
+.aw-today { background: linear-gradient(135deg, #dc2626, #f59e0b); color: #fff; animation: awpulse 1.2s ease-in-out infinite; }
+.aw-makeup { background: linear-gradient(135deg, #16a34a, #22d3ee); color: #fff; animation: awpulse 1.6s ease-in-out infinite; }
+.aw-missed { background: #f1f5f9; color: #94a3b8; text-decoration: line-through; }
+.aw-open { background: #fff; box-shadow: inset 0 0 0 2px #fecaca; }
+.aw-got { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; line-height: 1; font-size: 15px; }
+.aw.opening { animation: awopen .45s ease-in forwards; }
+@keyframes awpulse { 50% { transform: scale(1.08); box-shadow: 0 0 14px rgba(245,158,11,.8); } }
+@keyframes awopen { to { transform: rotateY(90deg) scale(1.2); opacity: .2; } }
+.stickers { margin: 8px 0 0; font-size: 20px; }
+@media (max-width: 560px) { .advent-grid { grid-template-columns: repeat(6, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .aw-today, .aw-makeup, .aw.opening { animation: none; } }

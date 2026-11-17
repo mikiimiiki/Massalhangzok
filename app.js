@@ -2,6 +2,11 @@
 // A szóadatok a words.js-ben vannak: export const WORD_SYNONYMS, M_LIST, JLY_RAW, PAIR_TASKS
 import { WORD_SYNONYMS, M_LIST, JLY_RAW, PAIR_TASKS } from "./words.js";
 import { cleanForCloud } from "./cloudkeys.js";
+// Közös keret (a Matek Űrkalandból átvéve, lásd docs: terv-kozos-vaz.md): dátumok, ünnepi események, hóesés
+import { dayNum, dateKey, keyToDay, setToday, isSimulated } from "./js/core/dates.js";
+import { activeEvents, claimOnce, adventState, adventDay, openWindow } from "./js/core/events.js";
+import { setSnow } from "./js/core/snow.js";
+import { EVENTS, PLUS_ROUND } from "./js/game/events.js";
 
 const $ = id => document.getElementById(id);
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
@@ -179,21 +184,24 @@ function explainWord(w) {
 }
 
 // ---------- 3. Dátum, állapot, mentés ----------
-const dayNum = (d = new Date()) => Math.floor((d.getTime() - d.getTimezoneOffset() * 6e4) / 864e5);
-const dateKey = n => new Date(n * 864e5).toISOString().slice(0, 10);
+// dayNum / dateKey a közös keretből jön (js/core/dates.js) – ott a „mai nap” teszteléshez felülírható
 const todayKey = () => dateKey(dayNum());
 const INTERVALS = [1, 1, 3, 7, 14]; // Leitner-dobozok: ennyi nap múlva jön vissza a szó
 
 const newUser = (av = "🦉") => ({ pts: 0, avatar: av, mastered: [], practiced: [], mistakes: [], daily: {}, srs: {}, stats: {}, streak: { n: 0, last: "" }, badges: [], upd: 0 });
-const STORE_KEY = "helyesiras_kaland_v4";
+// Teszteléshez: index.html?nap=2026-12-06#debug → a „mai nap” 2026. dec. 6.; ilyenkor külön tesztadatokkal, felhő nélkül fut
+const SIM_DAY = location.hash === "#debug" ? new URLSearchParams(location.search).get("nap") : null;
+if (SIM_DAY && /^\d{4}-\d{2}-\d{2}$/.test(SIM_DAY)) setToday(keyToDay(SIM_DAY));
+const STORE_KEY = isSimulated() ? "helyesiras_kaland_sim" : "helyesiras_kaland_v4";
 let state = JSON.parse(localStorage.getItem(STORE_KEY) || "null") || { familyCode: "", current: "Játékos", users: { "Játékos": newUser() } };
-state.settings = Object.assign({ level: 1, autoNext: true, dyslexia: false, goal: 10 }, state.settings || {});
+state.settings = Object.assign({ level: 1, autoNext: true, dyslexia: false, goal: 10, events: true, snow: true }, state.settings || {});
 
 function normUser(u) {
   const arr = x => Array.isArray(x) ? x : Object.values(x || {});
   u.pts = u.pts || 0; u.avatar = u.avatar || "🦉";
   u.mastered = arr(u.mastered); u.practiced = arr(u.practiced); u.mistakes = arr(u.mistakes); u.badges = arr(u.badges);
   u.giftLog = arr(u.giftLog);
+  u.owned = arr(u.owned); // ünnepi (eseményből szerzett) tárgyak és matricák: "avatar:🎅", "theme:xmas", "st:🦌"
   u.hist = u.hist && typeof u.hist === "object" ? u.hist : {};
   u.daily = u.daily || {}; u.srs = u.srs || {}; u.stats = u.stats || {};
   u.streak = u.streak || { n: 0, last: "" }; u.upd = u.upd || 0;
@@ -674,6 +682,7 @@ function updateHome() {
   Object.entries(MODE_TOPIC).forEach(([m, tp]) => { const b = $("btn-" + m), off = bl.includes(tp); b.disabled = off; b.title = off ? "Lezárva" : ""; });
   $("lock-note").textContent = bl.length ? "🔒 Néhány feladatot lezártak, hogy a nehezebbekre jusson idő." : "";
   renderLevels(); updateBar();
+  renderAdvent(u); applyWinter(); setTimeout(checkHolidays, 600);
   if (giftPending(u)) setTimeout(() => { if ($("scr-home").classList.contains("on")) openGifts(curUser()); }, 800); // ha a kör végén nem választott
   else turboGreet(u);
 }
@@ -736,7 +745,12 @@ const REWARDS = [
   // édességek
   { k: "avatar", c: "sweet", v: "🍩", by: "pts", n: 140 }, { k: "avatar", c: "sweet", v: "🍪", by: "pts", n: 320 }, { k: "avatar", c: "sweet", v: "🍰", by: "pts", n: 650 },
   { k: "avatar", c: "sweet", v: "🍫", by: "streak", n: 7 }, { k: "avatar", c: "sweet", v: "🥧", by: "streak", n: 30 }, { k: "avatar", c: "sweet", v: "🍨", by: "streak", n: 100 },
-  { k: "avatar", c: "sweet", v: "🧁", by: "words", n: 50 }, { k: "avatar", c: "sweet", v: "🍮", by: "words", n: 150 }, { k: "avatar", c: "sweet", v: "🎂", by: "words", n: 300 }
+  { k: "avatar", c: "sweet", v: "🧁", by: "words", n: 50 }, { k: "avatar", c: "sweet", v: "🍮", by: "words", n: 150 }, { k: "avatar", c: "sweet", v: "🎂", by: "words", n: 300 },
+  // ünnepi tárgyak: az adventi naptárból és az ünnepi eseményekből (js/game/events.js); csak megszerzés után látszanak
+  { k: "avatar", c: "holiday", v: "🎅", by: "event" }, { k: "avatar", c: "holiday", v: "⛄", by: "event" },
+  { k: "avatar", c: "holiday", v: "🎄", by: "event" }, { k: "avatar", c: "holiday", v: "🥳", by: "event" },
+  { k: "theme", v: "snowy", name: "❄️ Hópelyhes", by: "event" }, { k: "theme", v: "xmas", name: "🎄 Karácsonyi", by: "event" },
+  { k: "theme", v: "newyear", name: "🎆 Szilveszteri", by: "event" }
 ];
 // avatar-kategóriák; a "free" lista mindenkinek elérhető
 const AV_CATS = [
@@ -744,7 +758,8 @@ const AV_CATS = [
   { id: "car", label: "🚗 Autók és járművek", free: ["🚗", "🚕", "🚙"] },
   { id: "tech", label: "🔧 Műszaki", free: ["🤖", "🔧", "💡"] },
   { id: "girl", label: "🎀 Lányos", free: ["🎀", "🌸", "💖"] },
-  { id: "sweet", label: "🍭 Édességek", free: ["🍭", "🍬", "🍦"] }
+  { id: "sweet", label: "🍭 Édességek", free: ["🍭", "🍬", "🍦"] },
+  { id: "holiday", label: "🎄 Ünnepi", free: [], special: true } // csak akkor látszik, ha már van benne valami
 ];
 const avCat = v => (AV_CATS.find(c => c.free.includes(v)) || { id: (REWARDS.find(r => r.k === "avatar" && r.v === v) || {}).c || "animal" }).id;
 let avTab = "";
@@ -753,14 +768,14 @@ const BY_ICON = { pts: "⭐", streak: "🔥", words: "🃏" };
 const rewardKey = r => r.k + ":" + r.v;
 const rewardLabel = r => r.k === "avatar" ? r.v : "🎨 " + r.name;
 function progress(u) { return { pts: u.pts || 0, streak: Math.max(u.best || 0, streakNow(u)), words: Math.max(u.maxM || 0, masteredCount(u)) }; }
-function isUnlocked(u, r) { return progress(u)[r.by] >= r.n; }
+function isUnlocked(u, r) { return r.by === "event" ? (u.owned || []).includes(rewardKey(r)) : progress(u)[r.by] >= r.n; }
 const BY_UNIT = { pts: "p", streak: "nap", words: "szó" };
 const shortReq = r => `${BY_ICON[r.by]} ${r.n} ${BY_UNIT[r.by]}`;
 function lockText(u, r) { const have = progress(u)[r.by]; return `Ehhez ${BY_TXT[r.by](r.n)} kell (most: ${have})`; }
 
 // Új jutalmak értesítése (a régieket az első betöltéskor csendben megjegyezzük)
 function checkUnlocks(u) {
-  const fresh = REWARDS.filter(r => isUnlocked(u, r) && !u.unl.includes(rewardKey(r)));
+  const fresh = REWARDS.filter(r => r.by !== "event" && isUnlocked(u, r) && !u.unl.includes(rewardKey(r))); // az ünnepieket saját ablak jelzi
   fresh.forEach(r => u.unl.push(rewardKey(r)));
   if (fresh.length > 3) { setTimeout(() => toast(`🔓 ${fresh.length} új jutalom nyílt meg! Nézd meg a Gyűjteményben.`), 1700); return; }
   fresh.forEach((r, i) => setTimeout(() => toast(`🔓 Új ${r.k === "avatar" ? "avatar" : "kinézet"}: ${rewardLabel(r)}  (${BY_TXT[r.by](r.n)})`), 1700 * (i + 1)));
@@ -770,10 +785,10 @@ function renderAvatarPicker(p = $("avatar-picker"), after = renderUsers) {
   p.innerHTML = "";
   const u = curUser();
   if (!avTab || !AV_CATS.some(c => c.id === avTab)) avTab = avCat(u.avatar);
-  const itemsOf = id => [...AV_CATS.find(c => c.id === id).free.map(v => ({ v, r: null })), ...REWARDS.filter(r => r.k === "avatar" && (r.c || "animal") === id).map(r => ({ v: r.v, r }))];
+  const itemsOf = id => [...AV_CATS.find(c => c.id === id).free.map(v => ({ v, r: null })), ...REWARDS.filter(r => r.k === "avatar" && (r.c || "animal") === id && (r.by !== "event" || isUnlocked(u, r))).map(r => ({ v: r.v, r }))];
 
   const tabs = el("div", "levels"); tabs.style.cssText = "width:100%;margin-bottom:6px";
-  AV_CATS.forEach(c => {
+  AV_CATS.filter(c => !c.special || itemsOf(c.id).length).forEach(c => {
     const it = itemsOf(c.id), got = it.filter(x => !x.r || isUnlocked(u, x.r)).length;
     tabs.append(btn("lvl" + (c.id === avTab ? " on" : ""), `${c.label} (${got}/${it.length})`, () => { avTab = c.id; renderAvatarPicker(p, after); }));
   });
@@ -1494,6 +1509,7 @@ function showResults() {
   if (ratio === 1) { const b = BADGES.find(x => x.id === "perfect"); awardBadge(u, b); saveState(); }
   flushPush(); // kör vége: most megy fel a felhőbe
   showScreen("scr-res");
+  setTimeout(checkHolidays, 1500); // ünnepi jutalom, ha ebben a körben lett meg a napi cél
   const stars = starsFor(sessionRoundOk, queue.length), errors = queue.length - sessionRoundOk;
   $("res-stars").textContent = "⭐".repeat(stars) + "☆".repeat(5 - stars);
   $("res-stars").setAttribute("aria-label", `${stars} csillag az 5-ből`);
@@ -1724,6 +1740,14 @@ function renderParent() {
     if (!log.length) gp.append(el("p", null, "Még nem nyitott ajándékdobozt."));
     log.forEach(x => { const g = GIFTS.find(y => y.id === x.id); if (g) gp.append(el("div", null, `📅 ${x.d} · ${g.ic} ${g.t}`)); });
   }
+  const hp = panel("🎄 Ünnepek (az egész családra)");
+  hp.append(el("p", null, "Adventi naptár, Mikulás, karácsony, szilveszter – ünnepi jutalmak a napi célért. December 1. és január 6. között hó esik a háttérben (csökkentett mozgás beállításnál magától nem)."));
+  [["events", "🎄 Ünnepi események"], ["snow", "❄️ Hóesés decemberben"]].forEach(([k, label]) => {
+    const r = el("label", "setrow"), cb = el("input"); cb.type = "checkbox"; cb.checked = state.settings[k] !== false;
+    cb.addEventListener("change", () => { state.settings[k] = cb.checked; persist(); applyWinter(); });
+    r.append(el("span", null, label), cb); hp.append(r);
+  });
+
   const bp = panel("Feladatzár");
   bp.append(el("p", null, "A lezárt feladattípust a gyerek nem tudja elindítani, így több idő jut a gyengébb részekre. A zár napokon át megmarad, amíg itt fel nem oldod."));
   const setBlock = arr => {
@@ -1772,7 +1796,7 @@ function renderAlbum() {
 
   // Következő célok: kategóriánként a legközelebbi még zárolt jutalom
   const gp = panel("🎯 Következő jutalmak"), pr = progress(u);
-  ["pts", "streak", "words"].forEach(by => {
+  ["pts", "streak", "words"].forEach(by => { // (az ünnepi tárgyak nem itt, hanem az adventi naptárban jönnek)
     const next = REWARDS.filter(r => r.by === by && pr[by] < r.n).sort((x, y) => x.n - y.n)[0];
     const row = el("div", "trow"), bar2 = el("div", "bar"), i2 = el("i");
     if (!next) { i2.style.width = "100%"; bar2.append(i2); row.append(el("span", null, `${BY_ICON[by]} ${{ pts: "Pont", streak: "Sorozat", words: "Szavak" }[by]}`), bar2, el("span", null, "✓ mind megvan")); }
@@ -1783,7 +1807,7 @@ function renderAlbum() {
 
   const tp = panel("🎨 Kinézet"), tr = el("div", "levels");
   tr.append(btn("lvl" + (!u.theme ? " on" : ""), "Alap", () => { u.theme = ""; saveState(); updateBar(); renderAlbum(); }));
-  REWARDS.filter(r => r.k === "theme").forEach(r => {
+  REWARDS.filter(r => r.k === "theme" && (r.by !== "event" || isUnlocked(u, r))).forEach(r => {
     const locked = !isUnlocked(u, r);
     tr.append(btn("lvl" + (u.theme === r.v ? " on" : ""), locked ? `🔒 ${r.name} (${BY_TXT[r.by](r.n)})` : r.name, () => {
       if (locked) { toast(lockText(u, r)); return; }
@@ -2018,6 +2042,67 @@ document.head.append(Object.assign(el("style"), { textContent: `
   const ref = $("btn-pairs"); ref.parentNode.insertBefore(b, ref);
 })();
 
+// ---------- 12b. Ünnepek: egyszeri események, adventi naptár, hóesés (közös eseménymotor) ----------
+const holidaysOn = () => state.settings.events !== false;
+function holidayConds(u) {
+  const d = u.daily[todayKey()] || 0, g = +state.settings.goal || 10;
+  return { missionDone: d >= g, todayOk: d >= g, makeupOk: d >= g + PLUS_ROUND };
+}
+const itemIcon = id => { const [k, v] = [id.slice(0, id.indexOf(":")), id.slice(id.indexOf(":") + 1)]; if (k === "theme") return "🎨"; return v; };
+const itemLabel = id => { if (id.startsWith("st:")) return "matrica"; const r = REWARDS.find(x => rewardKey(x) === id); return r ? (r.k === "theme" ? r.name + " téma" : "avatar") : id; };
+const rewardText = rw => rw.map(r => r.pts ? `+${r.pts} pont` : `${itemIcon(r.item)} ${itemLabel(r.item)}`).join(" · ");
+function applyWinter() {
+  setSnow(holidaysOn() && state.settings.snow !== false && activeEvents(EVENTS, dayNum(), "ambient").some(e => e.effect === "snow"), { color: "rgba(147,197,253,.95)" });
+}
+function holidayModal(title, text, reward) {
+  confetti();
+  modal({ title, text: `${text} ${rewardText(reward)}`, ok: "Szuper! 🎉", cancel: null });
+}
+function checkHolidays() {
+  const u = curUser(); if (!holidaysOn() || $("modal").classList.contains("on") || document.querySelector(".gift-ov")) return;
+  const c = holidayConds(u), won = activeEvents(EVENTS, dayNum(), "once").map(ev => claimOnce(u, ev, c)).filter(Boolean);
+  if (!won.length) return;
+  saveState(); updateBar(); if ($("scr-home").classList.contains("on")) updateHome();
+  const r = won[0]; holidayModal(r.ev.title, r.ev.text, r.ev.reward); // ha több is van, a következő a következő alkalommal jön
+}
+// Az ablakok sorrendje a rácsban (rögzített keverés, mint egy igazi adventi naptárban)
+const ADVENT_ORDER = [7, 18, 3, 12, 22, 1, 15, 9, 24, 5, 20, 11, 2, 16, 8, 23, 13, 6, 19, 4, 14, 21, 10, 17];
+function renderAdvent(u) {
+  const box = $("advent"), ev = holidaysOn() ? activeEvents(EVENTS, dayNum(), "advent")[0] : null;
+  box.hidden = !ev; if (!ev) { box.innerHTML = ""; return; }
+  const c = holidayConds(u), ws = adventState(u, ev, c), byDay = Object.fromEntries(ws.map(w => [w.day, w])), n = adventDay(ev), t = byDay[n];
+  const mk = ws.some(w => w.state === "makeup"), g = +state.settings.goal || 10;
+  const note = t.state === "open" ? (mk ? "🎁 Plusz kört teljesítettél – egy kihagyott ablakot ma még pótolhatsz!" : c.makeupOk ? (ws.some(w => w.state === "missed") ? "Ma már pótoltál egy ablakot – holnap újra lehet! 🙂" : "A mai ablak kinyitva.") : `A mai ablak kinyitva. Kihagytál egyet? Ha ma még ${PLUS_ROUND} helyes választ adsz a napi cél után, pótolhatod.`)
+    : t.state === "today" ? "✨ Megvan a napi cél – nyisd ki a mai ablakot!" : `🎯 Érd el a napi célt (${g} helyes válasz), és kinyithatod a mai ablakot!`;
+  box.innerHTML = "";
+  const head = el("div", "advent-head"); head.append(el("h2", null, ev.title), el("span", "advent-day", `${n}. nap / 24`));
+  box.append(head, el("p", "advent-note", note));
+  const grid = el("div", "advent-grid");
+  ADVENT_ORDER.forEach(d => {
+    const w = byDay[d], b = btn("aw aw-" + w.state, "", () => adventClick(u, ev, w));
+    if (w.state === "open") { const s = el("span", "aw-got"); w.reward.forEach(r => s.append(el("span", null, r.pts ? `+${r.pts}` : itemIcon(r.item)))); b.append(s); }
+    else b.append(el("span", "aw-no", String(d)));
+    b.dataset.day = d; b.title = { open: "Kinyitva", today: "Ma nyitható!", makeup: "Pótolható!", wait: "Előbb a napi cél", missed: "Kihagytad", future: "Még zárva" }[w.state] + ` (${d}.)`;
+    grid.append(b);
+  });
+  box.append(grid);
+  const st = (u.owned || []).filter(id => id.startsWith("st:"));
+  if (st.length) box.append(el("p", "stickers", "Matricáid: " + st.map(id => id.slice(3)).join(" ")));
+}
+function adventClick(u, ev, w) {
+  if (w.state === "today" || w.state === "makeup") {
+    const r = openWindow(u, ev, w.day, holidayConds(u));
+    if (!r) return;
+    saveState(); updateBar();
+    const b = document.querySelector(`#advent .aw[data-day="${w.day}"]`); if (b) b.classList.add("opening");
+    setTimeout(() => { updateHome(); holidayModal(`🎄 ${w.day}. ablak${r.makeup ? " (pótlás)" : ""}`, r.makeup ? "Ügyes! A plusz körrel pótoltad ezt az ablakot:" : "Ezt rejtette a mai ablak:", w.reward); }, 450);
+    return;
+  }
+  const g = +state.settings.goal || 10;
+  toast({ open: `Ezt már kinyitottad: ${rewardText(w.reward)}`, wait: `🎯 Érd el a napi célt (${g} helyes válasz), és kinyithatod!`, future: "🔒 Még nem lehet – türelem! 🎄",
+    missed: holidayConds(u).makeupOk ? "Ma már pótoltál egy ablakot – holnap újra lehet! 🙂" : `Ezt kihagytad. Ha ma a napi cél után még ${PLUS_ROUND} helyes választ adsz, egy kihagyott ablakot pótolhatsz!` }[w.state]);
+}
+
 // ---------- 13. Eseménykezelők és indítás ----------
 [["mixed", "btn-mixed"], ["choice", "btn-choice"], ["jly", "btn-jly"], ["gap", "btn-gap"], ["tiles", "btn-tiles"], ["pairs", "btn-pairs"], ["mistakes", "btn-mistakes"]]
   .forEach(([mode, id]) => $(id).addEventListener("click", () => startQuiz(mode)));
@@ -2041,4 +2126,7 @@ $("mon-100").addEventListener("click", () => { const T = TURBO[multOf(curUser())
 
 applySettings();
 updateHome();
-initFirebase(); // a játék a felhő nélkül is azonnal indul; a kapcsolódást a belépés állapota indítja
+// Tesztelési segéd: a #debug címmel a konzolból elérhető az állapot
+if (location.hash === "#debug") window.__hk = { state: () => state, cur: () => curUser(), home: () => updateHome() };
+if (isSimulated()) setTimeout(() => toast(`🧪 Szimulált nap: ${todayKey()} – külön tesztadatokkal, felhő nélkül.`), 500);
+else initFirebase(); // a játék a felhő nélkül is azonnal indul; a kapcsolódást a belépés állapota indítja
