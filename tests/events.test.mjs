@@ -1,5 +1,4 @@
 // Ünnepi események (közös eseménymotor + a Helyesírás Kaland ünnepei). Futtatás: node tests/events.test.mjs
-import { readFileSync } from "fs";
 import { inRange, activeEvents, claimOnce, adventState, openWindow, adventDay } from "../js/core/events.js";
 import { EVENTS, PLUS_ROUND } from "../js/game/events.js";
 import { keyToDay, dayNum, setToday, dateKey } from "../js/core/dates.js";
@@ -18,17 +17,16 @@ ok(ids("2027-01-01") === "newyear2027,winter" && ids("2027-01-07") === "", "új�
 ok(inRange("12-01", "01-06", D("2027-12-15")), "a hóesés évente ismétlődik");
 ok(ev("advent2026").windows.length === 24, "24 adventi ablak");
 
-// --- minden ünnepi tárgy szerepel az app jutalomlistájában (REWARDS, by: "event")
-const app = readFileSync(new URL("../app.js", import.meta.url), "utf8");
+// --- minden ünnepi tárgy szerepel a tárgykatalógusban (ünnepi, különleges tárgyként)
+const { itemById } = await import("../js/game/cosmetics-catalog.js");
 const items = [...new Set(EVENTS.flatMap(e => [...(e.reward || []), ...(e.windows || []).flatMap(w => w.reward)]).filter(r => r.item && !r.item.startsWith("st:")).map(r => r.item))];
-items.forEach(id => { const [k, v] = [id.slice(0, id.indexOf(":")), id.slice(id.indexOf(":") + 1)]; ok(new RegExp(`k: "${k}"[^}]*v: "${v}"[^}]*by: "event"`).test(app), `jutalomlistában: ${id}`); });
-ok(/body\[data-theme=snowy\]/.test(readFileSync(new URL("../extra.css", import.meta.url), "utf8")), "a hópelyhes téma CSS-e megvan");
+items.forEach(id => ok(itemById(id) && itemById(id).special, `katalógusban (különleges): ${id}`));
 
 // --- egyszeri esemény
 {
   const u = { pts: 0, owned: [] }, S = ev("santa2026");
   ok(!claimOnce(u, S, { missionDone: false }, D("2026-12-06")), "Mikulás: napi cél nélkül nem");
-  ok(claimOnce(u, S, { missionDone: true }, D("2026-12-06")) && u.owned.includes("avatar:🎅") && u.pts === 100, "Mikulás: napi cél után 🎅 + 100 pont");
+  ok(claimOnce(u, S, { missionDone: true }, D("2026-12-06")) && u.owned.includes("av:🎅") && u.pts === 100, "Mikulás: napi cél után 🎅 + 100 pont");
   ok(!claimOnce(u, S, { missionDone: true }, D("2026-12-06")), "Mikulás: csak egyszer");
 }
 // --- advent és pótlás
@@ -41,7 +39,7 @@ ok(/body\[data-theme=snowy\]/.test(readFileSync(new URL("../extra.css", import.m
   ok(!openWindow(u, A, 2, { todayOk: true, makeupOk: true }, D("2026-12-03")), "naponta legfeljebb egy pótlás");
   openWindow(u, A, 13, { todayOk: true }, D("2026-12-13"));
   openWindow(u, A, 24, { todayOk: true }, D("2026-12-24"));
-  ok(u.owned.includes("theme:snowy") && u.owned.includes("theme:xmas") && u.owned.includes("avatar:🎄"), "különleges ablakok: hópelyhes és karácsonyi téma, 🎄 avatar");
+  ok(u.owned.includes("bg:snowy") && u.owned.includes("bg:xmas") && u.owned.includes("av:🎄"), "különleges ablakok: hópelyhes és karácsonyi téma, 🎄 avatar");
   ok(adventDay(A, D("2026-12-25")) === 0 && PLUS_ROUND === 5, "advent vége; plusz kör = 5");
 }
 setToday(D("2026-12-06")); ok(dateKey(dayNum()) === "2026-12-06", "tesztkapcsoló: szimulált nap"); setToday(null);

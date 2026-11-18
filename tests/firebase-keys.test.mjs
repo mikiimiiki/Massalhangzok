@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { cleanForCloud, cloudSafe, fixKey } from "../cloudkeys.js";
-import { M_LIST, JLY_RAW } from "../words.js";
+import { M_LIST, JLY_RAW } from "../js/pack/words.js";
 
 test("érvénytelen karakterek a kulcsban javításra kerülnek", () => {
   const fixed = [];

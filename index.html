@@ -1,140 +1,114 @@
 <!doctype html>
 <html lang="hu">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"> <!-- zoom engedélyezve (akadálymentesség) -->
-<title>Helyesírás Kaland</title>
-<link rel="stylesheet" href="style.css">   <!-- az eredeti <style> tartalma -->
-<link rel="stylesheet" href="extra.css">   <!-- az új stílusok -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Helyesírás Kaland</title>
+  <meta name="description" content="Helyesírás-gyakorló: hosszú mássalhangzók, j–ly, betűpótló, betűkirakó, jelentéskülönbség, szótagolás">
+  <meta name="theme-color" content="#7c3aed">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🦉%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/pack.css">
 </head>
 <body>
-<!-- Felső információs sáv (a részletek a Statisztika képernyőn vannak) -->
-<header class="monitor-bar">
-  <span class="mon-left">
-    <span class="mon-chip">✅ Ma: <b id="mon-today">0</b></span>
-    <span class="mon-chip" id="mon-100">🏆 <b id="mon-prog">0</b>/100<small id="mon-mult"></small></span>
-  </span>
-  <button id="mon-sync" class="sync-badge">☁️ Helyi mód</button>
-</header>
+  <div id="stars" aria-hidden="true"></div>
 
-<section id="scr-home" class="screen on">
-  <div class="hero">
-    <div class="mascot">🦉</div>
-    <h1>Helyesírás Kaland</h1>
-    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin:4px 0 12px;flex-wrap:wrap;">
-      <span class="hello" id="hello-txt" style="margin:0;">Szia!</span>
-      <button id="btn-switch-user" class="smallbtn">👤 Váltás</button>
-      <button id="btn-stats" class="smallbtn">📊 Statisztika</button>
-      <button id="btn-parent" class="smallbtn">👨‍👩‍👧 Szülői nézet</button>
-      <button id="btn-album" class="smallbtn">📖 Gyűjtemény</button>
+  <!-- Felső sáv -->
+  <header class="topbar">
+    <button id="tb-user" class="tb-user" type="button" title="Játékos váltása"><span id="tb-avatar">🧑‍🚀</span> <span id="tb-name">Játékos</span></button>
+    <div class="tb-stats">
+      <span class="pill" id="tb-pts-pill" title="Pontok"><span id="tb-pts-ic">⛽</span> <b id="tb-pts">0</b></span>
+      <span class="pill" title="Napos sorozat">🔥 <b id="tb-streak">0</b></span>
+      <button id="tb-big" class="pill btn-pill" type="button" title="Napi nagy cél">🏆 <b id="tb-big-n">0</b>/<span id="tb-big-goal">30</span><small id="tb-mult" class="mult"></small></button>
     </div>
-    <div class="statsrow">
-      <div class="pill">⭐ <span id="st-pts">0</span> pont</div>
-      <div class="pill">🏆 <span id="st-done">0</span> elsajátított szó</div>
-      <div class="pill">🔥 <span id="st-streak">0</span> nap</div>
-      <div class="pill">🎯 ma <span id="st-goal">0/10</span></div>
+    <div class="tb-right">
+      <button id="tb-cloud" class="pill btn-pill" type="button" title="Felhős mentés"><span id="tb-cloud-ic">☁️</span> <span id="tb-sync">Helyi mód</span></button>
+      <button id="tb-help" class="pill btn-pill" type="button" title="Súgó (F1)">❓ Súgó</button>
+      <button id="tb-gear" class="pill btn-pill gear" type="button" title="Szülői beállítások (PIN)" aria-label="Szülői beállítások">⚙️</button>
     </div>
-    <div class="rankbox">
-      <div class="rankname" id="rank-name">Kezdő Betűvadász</div>
-      <div class="bar"><i id="rank-bar"></i></div>
-      <div class="barlabel"><span id="rank-cur">0 pont</span><span id="rank-next"></span></div>
+  </header>
+
+  <!-- Kezdőképernyő: küldetés, napi nagy cél, rang, témák (a szövegeket a közös váz tölti ki) -->
+  <main id="scr-home" class="screen on">
+    <section class="hero">
+      <div class="mascot" id="mascot" aria-hidden="true">🦉</div>
+      <h1 id="app-title">Helyesírás Kaland</h1>
+      <p class="hello" id="home-hello">Szia!</p>
+    </section>
+
+    <section class="mission card" id="mission">
+      <div class="mission-head">
+        <div>
+          <h2>Mai küldetés</h2>
+          <p class="soft" id="mission-sub">10 feladat vagy 15 perc</p>
+        </div>
+        <button id="btn-mission" class="primary big" type="button">🚀 Indítás</button>
+      </div>
+      <div class="bar"><i id="mission-bar"></i></div>
+      <p class="soft small" id="mission-note"></p>
+      <div class="biggoal" id="biggoal">
+        <div class="bg-top"><b>🏆 Napi nagy cél</b><span class="soft small" id="biggoal-txt"></span></div>
+        <div class="bar gold"><i id="biggoal-bar"></i></div>
+      </div>
+    </section>
+
+    <section class="advent card" id="advent" hidden></section>
+
+    <section class="rankrow">
+      <div class="card rankbox" id="rankbox" role="button" tabindex="0" title="Ranglétra és szekrény (Enter)">
+        <div class="rank-top"><b id="rank-name">Űrkadét</b><span class="rank-more">Ranglétra ›</span></div>
+        <div class="bar"><i id="rank-bar"></i></div>
+        <p class="soft small rank-next" id="rank-next"></p>
+      </div>
+      <div class="card rewardbox" id="reward-box" hidden></div>
+    </section>
+
+    <h2 class="section-title"><span id="map-title">Bolygók</span> <span class="soft small" id="map-hint"></span></h2>
+    <p class="lock-note" id="lock-note" hidden></p>
+    <section class="map" id="map"></section>
+    <p class="keys-hint"></p>
+
+    <h2 class="section-title">Jelvények</h2>
+    <section class="badges" id="badges"></section>
+
+    <p class="pencil" id="home-tip"></p>
+  </main>
+
+  <!-- Gyakorlás -->
+  <main id="scr-play" class="screen">
+    <div class="play-head">
+      <button id="play-exit" class="ghost" type="button" title="Kilépés">✕ Vissza</button>
+      <div class="play-title" id="play-title">Küldetés</div>
+      <div class="dots" id="play-dots"></div>
+      <button id="play-tts" class="ghost" type="button" title="Felolvasás be/ki" aria-pressed="false">🔇</button>
     </div>
-    <section class="advent" id="advent" hidden></section>
-    <div class="levels" id="levels" role="group" aria-label="Nehézségi szint"></div>
-    <div id="lock-note" class="lock-note"></div>
-  </div>
-
-  <div class="menu">
-    <button class="big b-main" id="btn-mixed"><span class="ic">🚀</span>Vegyes kaland (10 feladat)<small>Hosszú mássalhangzók, j–ly, betűpótlás és szókirakó</small></button>
-    <button class="big b-choice" id="btn-choice"><span class="ic">🎯</span>Rövid vagy hosszú?<small>Válaszd ki a helyes mássalhangzót!</small></button>
-    <button class="big b-jly" id="btn-jly"><span class="ic">✍️</span>j vagy ly gyakorló<small>Döntsd el: pontos j vagy ly!</small></button>
-    <button class="big b-gap" id="btn-gap"><span class="ic">🧩</span>Betűpótló<small>Pótold a hiányzó mássalhangzót!</small></button>
-    <button class="big b-tiles" id="btn-tiles"><span class="ic">🔤</span>Betűkirakó<small>Rakd ki a szót, 2 segítséggel!</small></button>
-    <button class="big b-pairs" id="btn-pairs" style="font-size:16px;padding:14px 10px;"><span class="ic" style="font-size:24px;">⚖️</span>Jelentéskülönbségek<small style="font-size:11px;">fejjel–fejel, hal–hall...</small></button>
-    <button class="big b-mistakes" id="btn-mistakes" style="font-size:16px;padding:14px 10px;display:none;"><span class="ic" style="font-size:24px;">🩹</span>Ismétlő kör (<span id="mistake-cnt">0</span> szó)<small style="font-size:11px;">Hibás és esedékes szavak</small></button>
-  </div>
-</section>
-
-<section id="scr-users" class="screen">
-  <div class="namebox">
-    <div style="font-size:56px" class="mascot">🦉</div>
-    <h2>Ki játszik most?</h2>
-    <div class="plist" id="user-list"></div>
-    <div id="avatar-picker" style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:10px 0;"></div>
-    <input type="text" id="new-user-inp" placeholder="Új név beírása..." maxlength="18" aria-label="Új játékos neve">
-    <button class="primary" style="width:100%" id="btn-add-user">Hozzáadás és indítás</button>
-    <button class="secondary" style="width:100%;margin-top:12px" id="btn-users-back">← Vissza</button>
-  </div>
-</section>
-
-<section id="scr-quiz" class="screen">
-  <div class="topbar">
-    <button class="iconbtn" id="btn-quit" aria-label="Kezdőlap">🏠</button>
-    <div class="progress"><i id="q-prog"></i></div>
-    <div class="combo" id="q-combo"></div>
-    <div class="score" id="q-score">0 p</div>
-  </div>
-  <div class="card" id="q-card">
-    <div class="tag" id="q-tag">Feladat</div>
-    <div class="qtitle" id="q-title"></div>
-    <div id="q-body"></div>
-  </div>
-</section>
-
-<section id="scr-res" class="screen">
-  <div class="card result">
-    <div class="stars" id="res-stars">⭐⭐⭐</div>
-    <h2 id="res-head" style="font-size:30px;margin:6px 0">Szép munka!</h2>
-    <p id="res-sub" style="font-size:19px;color:var(--soft);font-weight:700"></p>
-    <div id="res-badges" class="badgegrid"></div>
-    <div style="display:flex;gap:12px;justify-content:center;margin-top:20px;flex-wrap:wrap">
-      <button class="primary" id="btn-again">Újabb kör</button>
-      <button class="secondary" id="btn-home">Kezdőlap</button>
+    <div class="play-grid">
+      <section class="card task" id="task">
+        <div class="task-meta" id="task-meta"></div>
+        <div class="task-q" id="task-q"></div>
+        <div class="task-viz" id="task-viz"></div>
+        <div class="answer" id="answer"></div>
+        <div class="task-actions" id="task-actions"></div>
+        <p class="pencil small" id="play-tip"></p>
+      </section>
+      <aside class="card side" id="side">
+        <div id="side-body" class="side-body">
+          <div class="side-empty">
+            <div class="big-emoji">🧑‍🚀</div>
+            <p>Olvasd el figyelmesen a feladatot!<br>Ha elakadsz, a hiba után itt kapsz segítséget.</p>
+          </div>
+        </div>
+      </aside>
     </div>
-  </div>
-</section>
+  </main>
 
-<section id="scr-stats" class="screen">
-  <div class="topbar">
-    <button class="iconbtn" id="btn-stats-back" aria-label="Vissza">←</button>
-    <h2 style="margin:0">Statisztika</h2>
-  </div>
-  <div id="stats-body"></div>
-</section>
+  <!-- Értesítés, konfetti (a felugró ablakokat a js/core/modal.js hozza létre) -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <canvas id="confetti" aria-hidden="true"></canvas>
 
-<section id="scr-album" class="screen">
-  <div class="topbar">
-    <button class="iconbtn" id="btn-album-back" aria-label="Vissza">←</button>
-    <h2 style="margin:0">Gyűjtemény</h2>
-  </div>
-  <div id="album-body"></div>
-</section>
-
-<section id="scr-parent" class="screen">
-  <div class="topbar">
-    <button class="iconbtn" id="btn-parent-back" aria-label="Vissza">←</button>
-    <h2 style="margin:0">Szülői nézet</h2>
-  </div>
-  <div id="parent-body"></div>
-</section>
-
-<!-- Visszajelző sáv: a képernyőolvasók felolvassák -->
-<div class="sheet" id="sheet" role="status" aria-live="polite">
-  <div class="in">
-    <div>
-      <div class="head" id="sh-head"></div>
-      <div class="full" id="sh-full"></div>
-      <div class="why" id="sh-why"></div>
-      <input id="sh-retype" class="typeinp retype" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Írd le a helyes alakot">
-    </div>
-    <button class="primary" id="sh-next">Tovább ➔</button>
-  </div>
-</div>
-
-<div id="modal" class="modal"><div class="mbox" role="dialog" aria-modal="true"></div></div>
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-<canvas id="confetti" aria-hidden="true"></canvas>
-
-<script type="module" src="app.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

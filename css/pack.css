@@ -1,0 +1,65 @@
+/* ===== Helyesírás Kaland: a feladatcsomag stílusai és a világos téma (a közös váz stílusa: css/style.css) ===== */
+
+/* ---------- Világos téma (GAME.bodyClass = "theme-light") ---------- */
+body.theme-light { --ink: #1e293b; --sky: #334155; color: var(--ink); }
+.theme-light #stars { display: none; }
+.theme-light h1 { background: linear-gradient(90deg, #7c3aed, #db2777, #ea580c); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.theme-light .hero, .theme-light .hello, .theme-light .section-title, .theme-light .lock-note, .theme-light .play-head { color: var(--ink); }
+.theme-light .section-title .soft { color: var(--soft); }
+.theme-light .keys-hint { color: var(--soft); }
+.theme-light .keys-hint b { color: var(--pri); }
+.theme-light .pencil { color: #b45309; }
+.theme-light .tcard { background: #fff; color: var(--ink); box-shadow: 0 5px 0 var(--line), inset 0 0 0 2px var(--line); }
+.theme-light .tcard:hover, .theme-light .tcard:focus-visible { background: #faf5ff; }
+.theme-light .tcard .ptype, .theme-light .tcard .plvl { color: var(--soft); }
+.theme-light .tcard .orb { box-shadow: inset -8px -10px 0 rgba(0,0,0,.12); }
+.theme-light .badge { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 2px var(--line); }
+.theme-light .play-head .ghost { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 2px var(--line); }
+.theme-light .dots i { border-color: #94a3b8; }
+.theme-light .dots i.cur { border-color: var(--pri); box-shadow: 0 0 0 3px #ddd6fe; }
+.theme-light .mascot { animation: none; }
+
+/* ---------- Feladatok ---------- */
+.word-display { font-size: 40px; font-weight: 900; line-height: 1.3; margin: 10px 0; letter-spacing: 1px; text-align: center; }
+.sentence-display { font-size: 24px; font-weight: 800; line-height: 1.4; margin: 10px 0; }
+.clue-box { background: #fef9c3; border: 2px solid #fde047; border-radius: 18px; padding: 10px 14px; font-size: 18px; font-weight: 800; color: #854d0e; margin: 10px 0 6px; line-height: 1.35; }
+.gap { display: inline-block; min-width: 60px; border-bottom: 5px dashed var(--pri2); color: var(--pri); padding: 0 6px; text-align: center; }
+.word-opts { grid-template-columns: 1fr 1fr; }
+.word-opts .opt { font-size: 24px; padding: 14px 12px; }
+.big-word { font-size: 26px; }
+.typeinp { font: inherit; font-size: 28px; font-weight: 800; text-align: center; width: 100%; max-width: 420px; padding: 12px; margin: 14px auto; display: block; border-radius: 16px; border: 3px solid var(--line); }
+.typeinp:focus { outline: none; border-color: var(--pri2); }
+.typeinp.wrong { border-color: var(--bad); background: var(--badbg); animation: shake .4s; }
+.typeinp.right { border-color: var(--ok); background: var(--okbg); }
+@keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+/* betűkirakó */
+.slotrow { display: flex; flex-wrap: wrap; gap: 8px; min-height: 70px; padding: 12px; margin-top: 14px; border-radius: 20px; background: #f8fafc; border: 3px dashed var(--line); justify-content: center; align-items: center; }
+.slot-empty { width: 48px; height: 54px; border-radius: 14px; border: 3px dashed #cbd5e1; background: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; color: #cbd5e1; font-weight: 800; }
+.tiles { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 16px; justify-content: center; }
+.tile { border: 3px solid #ddd6fe; background: #f5f3ff; border-radius: 15px; padding: 10px 14px; font-size: 26px; font-weight: 900; box-shadow: 0 4px 0 #ddd6fe; min-width: 48px; height: 54px; display: inline-flex; align-items: center; justify-content: center; }
+.tile:active { transform: translateY(3px); box-shadow: 0 2px 0 #ddd6fe; }
+.tile.used { visibility: hidden; }
+.tile.placed { background: #fff; border-color: var(--pri2); box-shadow: 0 4px 0 var(--pri2); }
+.tile.locked { background: #dcfce7; border-color: #22c55e; color: #15803d; box-shadow: 0 4px 0 #86efac; cursor: default; }
+.tiles-reset { margin-top: 12px; text-align: center; }
+.help-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 16px; }
+.help-btn { border: 2px solid #fde047; background: #fefce8; color: #854d0e; border-radius: 14px; padding: 8px 14px; font-size: 15px; font-weight: 800; box-shadow: 0 3px 0 #fde047; }
+.help-btn:disabled { opacity: .45; cursor: default; box-shadow: none; }
+.help-btn.pay { border-color: #fca5a5; background: #fef2f2; color: #991b1b; box-shadow: 0 3px 0 #fca5a5; }
+/* szótagolás */
+.sylrow { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; row-gap: 10px; margin: 14px auto 6px; max-width: 100%; }
+.sylcell { display: inline-flex; align-items: center; }
+.sylch { font-size: clamp(26px, 8vw, 40px); font-weight: 900; line-height: 1.2; min-width: .62em; text-align: center; }
+.showv .sylch.v { color: #dc2626; text-decoration: underline; }
+.sylgap { width: clamp(18px, 5.2vw, 26px); height: 56px; margin: 0 1px; padding: 0; border: 0; border-left: 2px dashed #cbd5e1; border-right: 2px dashed transparent; background: transparent; font: inherit; font-size: 34px; font-weight: 900; color: #7c3aed; line-height: 1; cursor: pointer; border-radius: 8px; touch-action: manipulation; }
+.sylgap:hover:not(:disabled) { background: #ede9fe; }
+.sylgap.on { border-left-color: transparent; background: #ede9fe; }
+.sylgap.lock { border-left-color: transparent; background: #dcfce7; color: #16a34a; cursor: default; }
+/* szókártya-album */
+.wgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-top: 10px; }
+.wcard { border-radius: 14px; padding: 10px 6px; text-align: center; min-height: 68px; display: flex; flex-direction: column; justify-content: center; gap: 2px; font-weight: 800; border: 2px solid var(--line); background: #f8fafc; color: #94a3b8; }
+.wcard b { font-size: 18px; word-break: break-word; }
+.wcard small { font-size: 11px; }
+.wcard.got { background: linear-gradient(135deg, #fef9c3, #fde68a); border-color: #f59e0b; color: #78350f; }
+.wcard.learn { background: #f0fdf4; border-color: #86efac; color: #166534; }
+@media (max-width: 640px) { .word-display { font-size: 32px; } .word-opts .opt { font-size: 20px; } }
