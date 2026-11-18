@@ -1,6 +1,7 @@
 // ===== Helyesírás csomag: a Helyesírás Kaland feladatai a közös vázhoz =====
 // A váz (js/shell) csak ezen az objektumon keresztül éri el a feladatokat (lásd a Matek repó docs/terv-kozos-vaz.md).
-import { el, escHtml } from "../core/dom.js";
+import { el, btn, escHtml, toast } from "../core/dom.js";
+import { RANKS, rankOf } from "../game/ranks.js";
 import { M_UNIQUE, JLY_LIST, JLY_MAP, ALL_UNIQUE_WORDS, PAIR_TASKS, PAIR_WHY, analyzeWord, analyzeJlyWord, getSynonymsForWord, explainWord,
   extraVariant, extraFragment, jlyOptions, shuffle, sylItems, sylState, sylExplain, sylChoices, sylGaps, SYL_LVL_NAMES } from "./lang.js";
 import { optionsUI, typingUI, tilesUI, sylUI } from "./ui.js";
@@ -119,6 +120,7 @@ export const PACK = {
     box.append(el("div", null, `<table class="tmap">${rows}</table><p class="legend">A „Rövid vagy hosszú?” és a „Betűpótló” közös statisztikát használ (hosszú mássalhangzók).</p>`));
     const S = sylState(u);
     box.append(el("h4", "psub", "🃏 Szókártyák és szótagolás"), el("div", "pstrip", `<span>🃏 Elsajátított szó: <b>${masteredCount(u)} / ${ALL_UNIQUE_WORDS.size}</b></span><span>📚 Gyakorolt: <b>${(u.practiced || []).length}</b></span><span>✂️ Szótagolás: <b>${S.lvl}. szint</b> (${SYL_LVL_NAMES[S.lvl]})</span>`));
+    ptsAdjust(box, u);
     const miss = Object.entries(u.srs || {}).filter(([, r]) => r.miss).sort((a, b) => b[1].miss - a[1].miss).slice(0, 15);
     box.append(el("h4", "psub", "Legtöbbet hibázott szavak"), el("p", null, miss.length ? miss.map(([w, r]) => `<span class="sc ${isMastered(r) ? "green" : "red"}">${escHtml(w)} · ${r.miss}×</span>`).join(" ") : `<span class="soft">Még nincs hibázott szó. 🙂</span>`));
   },
@@ -146,6 +148,42 @@ export const PACK = {
   }],
 };
 let cardTab = "hosszu";
+
+// ---- ⚖️ Pontok igazítása a megtanult szavakhoz (⚙️ Témák fül, a szülői ablak PIN-nel védett) ----
+// Arány: a legfelső rang pontja = az összes szó elsajátítva → 1 elsajátított szó ≈ 9000 / szószám pont.
+// A rang a pontból adódik; a ranghoz kötött tárgyak a váz look() függvénye miatt maguktól visszaállnak egy kinyitottra.
+export const PTS_PER_WORD = RANKS[RANKS.length - 1].pts / ALL_UNIQUE_WORDS.size;
+export const suggestedPts = u => Math.round(masteredCount(u) * PTS_PER_WORD);
+const rankTxt = p => { const r = rankOf(p); return `${r.n}. ${r.name}`; };
+function ptsAdjust(box, u) {
+  const sug = suggestedPts(u), m = masteredCount(u);
+  box.append(el("h4", "psub", "⚖️ Pontok igazítása a megtanult szavakhoz"));
+  const strip = el("div", "pstrip"), draw = () => {
+    strip.innerHTML = `<span>⭐ Most: <b>${u.pts}</b> pont · ${escHtml(rankTxt(u.pts))}</span>`
+      + `<span>🃏 ${m} elsajátított szó → javasolt: <b>${sug}</b> pont · ${escHtml(rankTxt(sug))}</span>`;
+  };
+  draw();
+  box.append(strip, el("p", "legend", `Arány: a legfelső rang (${RANKS[RANKS.length - 1].pts} pont) = mind a ${ALL_UNIQUE_WORDS.size} szó elsajátítva, azaz 1 szó ≈ ${PTS_PER_WORD.toFixed(1)} pont. `
+    + (u.pts > sug ? `A mostani pontszám ${u.pts - sug} ponttal magasabb a javasoltnál.` : "A mostani pontszám nem magasabb a javasoltnál.")
+    + " Átírás után a rang és a ranghoz kötött tárgyak is ehhez igazodnak; a jelvények, a saját tárgyak és az ajándékok megmaradnak."));
+  const row = el("div", "form-row"), inp = el("input");
+  inp.type = "number"; inp.min = "0"; inp.step = "1"; inp.value = String(Math.min(u.pts, sug)); inp.setAttribute("aria-label", "Új pontszám");
+  const hint = el("span", "soft small"), upd = () => { const v = Math.max(0, Math.round(+inp.value || 0)); hint.textContent = `→ ${rankTxt(v)}`; };
+  inp.addEventListener("input", upd); upd();
+  row.append(inp, hint, btn("secondary", `↺ Javasolt (${sug})`, () => { inp.value = String(sug); upd(); }), btn("primary", "💾 Mentés", async () => {
+    const v = Math.max(0, Math.round(+inp.value || 0));
+    if (v === u.pts) { toast("A pontszám nem változott."); return; }
+    // a modal és a mentés csak böngészőben töltődik be (a csomag tesztjei DOM nélkül futnak)
+    const [{ ask }, { saveUser }] = await Promise.all([import("../core/modal.js"), import("../shell/ctx.js")]);
+    const ok = await ask({ title: "Pontok átírása", text: `${escHtml(u.name)}: ${u.pts} → ${v} pont (${escHtml(rankTxt(u.pts))} → ${escHtml(rankTxt(v))}). Biztosan átírod?`, ok: "Igen, átírom" });
+    if (!ok) return;
+    const from = u.pts; u.pts = v;
+    u.ptsAdj = [...(Array.isArray(u.ptsAdj) ? u.ptsAdj : []), { d: new Date().toISOString().slice(0, 10), from, to: v }].slice(-10);
+    saveUser(u); draw(); toast(`✅ ${u.name}: ${from} → ${v} pont`);
+  }));
+  box.append(row);
+  if (Array.isArray(u.ptsAdj) && u.ptsAdj.length) box.append(el("p", "legend", "Korábbi igazítások: " + u.ptsAdj.slice(-3).map(x => `${x.d}: ${x.from} → ${x.to}`).join(" · ")));
+}
 
 // --- Jelentéskülönbség: melyik szó illik a mondatba? ---
 function pairTask(p, T) {
