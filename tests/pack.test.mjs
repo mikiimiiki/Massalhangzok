@@ -9,7 +9,6 @@ const { migrateFamily, migrateUser } = await import("../js/game/migrate.js");
 const { isMastered } = await import("../js/pack/progress.js");
 const { setToday, keyToDay } = await import("../js/core/dates.js");
 const { score } = await import("../js/core/scoring.js");
-const { readFileSync, readdirSync } = await import("fs");
 
 let fails = 0;
 const ok = (c, msg) => { console.log((c ? "✓ " : "✗ ") + msg); if (!c) fails++; };
@@ -64,16 +63,7 @@ ok(score({ r: 1, level: 1, helps: 1 }).pts === 7 && score({ r: 2, level: 1, help
 }
 // --- a beállítások: a csomag saját beállításai a Gyakorlás csoportban
 ok(SETTINGS.some(d => d.key === "level" && d.group === "play") && GAME.defaults.bigGoal === 100, "szint és évfolyam a beállítások között; napi nagy cél: 100");
-// --- a közös váz és keret azonos a Matek Űrkalandéval (ha a Matek repó a szomszéd mappában van)
-{
-  const other = new URL("../../Felvételi_matek/js/", import.meta.url), diff = [];
-  try {
-    ["core", "shell"].forEach(d => readdirSync(new URL(`../js/${d}/`, import.meta.url)).forEach(f => {
-      if (readFileSync(new URL(`../js/${d}/${f}`, import.meta.url), "utf8") !== readFileSync(new URL(`${d}/${f}`, other), "utf8")) diff.push(`${d}/${f}`);
-    }));
-    ok(!diff.length, "a js/core és js/shell megegyezik a Matek Űrkalandéval" + (diff.length ? ": " + diff.join(", ") : ""));
-  } catch { console.log("– a Matek repó nincs a szomszéd mappában, az összevetés kimarad"); }
-}
+// (a közös keret másolatának érintetlenségét a tests/keret.test.mjs ellenőrzi)
 
 console.log(fails ? `\n✗ ${fails} hiba` : "\n✓ Minden teszt rendben");
 process.exit(fails ? 1 : 0);

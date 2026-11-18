@@ -7,7 +7,7 @@ A program a **Matek Űrkalanddal közös vázon** fut (`js/core`, `js/shell`); e
 ## Felépítés
 
 - `js/main.js`: indítás – `startShell({ game: GAME, pack: PACK })`.
-- `js/core/`, `js/shell/`: a közös váz (azonos a Matek Űrkalandéval – a `tests/pack.test.mjs` ellenőrzi).
+- `js/core/`, `js/shell/`, `css/style.css`: a közös váz – forrása az `urkaland-keret` repó (`../urkaland-keret`); itt nem szerkesztjük, onnan másolja a `node tools/keret-masolas.mjs ../Massalhangzok`. A `KERET_VERZIO` rögzíti a verziót, a `tests/keret.test.mjs` jelzi a kézi eltérést.
 - `js/game/`: a Helyesírás Kaland paraméterei – világos téma, 🦉, ⭐ pont (`config.js`), 12 rang (`ranks.js`), tárgyak (`cosmetics-catalog.js`, a régi jutalmakból), ünnepek (`events.js`), ajándékdobozok (`gifts.js`), adatátállás a régi formátumból (`migrate.js`), Firebase (`firebase-config.js`).
 - `js/pack/`: a feladatcsomag – szóadatok (`words.js`), szóelemzés, tippek, szótagolás (`lang.js`), válaszadó felületek (`ui.js`), szókártyák, statisztika, jelvények, küldetésterv (`progress.js`), a csomag (`index.js`).
 - `css/style.css` a közös váz stílusa, `css/pack.css` a feladatok és a világos téma.
@@ -21,6 +21,7 @@ A program a **Matek Űrkalanddal közös vázon** fut (`js/core`, `js/shell`); e
 ```bash
 node tests/pack.test.mjs
 node tests/events.test.mjs
+node tests/keret.test.mjs
 node --test tests/firebase-keys.test.mjs
 ```
 
