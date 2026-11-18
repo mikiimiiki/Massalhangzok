@@ -23,6 +23,7 @@ const HINT_JLY = "A j és az ly hangja egyforma – ezt nem lehet kiejtésből e
 
 export const PACK = {
   id: "helyesiras",
+  retype: true, // hibás válasz után a helyes alakot be kell írni (a szótagolás kivételével)
   topics: TOPICS,
   levels: { count: 3, mode: "manual" },
   settings: [
@@ -61,7 +62,7 @@ export const PACK = {
     const T = topicById(topic);
     if (topic === "pair") return pairTask(PAIR_TASKS.find(p => p.s === w) || shuffle(PAIR_TASKS)[0], T);
     if (topic === "szotag") return sylTask(u, w, T);
-    const L = item.level || effLevel(u, w), base = { topic, sub: w, word: w, level: L, viz: "", solution: w, correctText: w, answerText: v => String(v), why: () => null, plainQ: "" };
+    const L = item.level || effLevel(u, w), base = { topic, sub: w, word: w, retype: w, level: L, viz: "", solution: w, correctText: w, answerText: v => String(v), why: () => null, plainQ: "" };
     const meta = `${T.icon} ${T.name} · ${LVL[L]}`, syn = escHtml(getSynonymsForWord(w));
     const steps = [escHtml(explainWord(w)), `Jelentése: ${escHtml(getSynonymsForWord(w, true))}`, `A helyes alak: <b class="big-word">${escHtml(w)}</b>`];
     const check = v => ({ ok: v === w });
@@ -188,7 +189,7 @@ function ptsAdjust(box, u) {
 // --- Jelentéskülönbség: melyik szó illik a mondatba? ---
 function pairTask(p, T) {
   const [a, b] = p.s.split("___"), o = shuffle([p.ok, p.bad]);
-  return { topic: "pair", sub: p.s, word: p.ok, solution: p.ok, level: 1, meta: `${T.icon} ${T.name}`, viz: "",
+  return { topic: "pair", sub: p.s, word: p.ok, retype: p.ok, solution: p.ok, level: 1, meta: `${T.icon} ${T.name}`, viz: "",
     q: `<b>Melyik szó illik a mondatba?</b> <span class="soft">(${escHtml(p.hint)})</span><div class="sentence-display">${escHtml(a)}<span class="gap">?</span>${escHtml(b || "")}</div>`,
     render(box, io) { const ui = optionsUI(box, o, p.ok, io, f => { const g = document.querySelector("#task-q .gap"); if (g) g.textContent = f; }); const sc = ui.showCorrect; ui.showCorrect = () => { sc(); const g = document.querySelector("#task-q .gap"); if (g) g.textContent = p.ok; }; return ui; },
     check: v => ({ ok: v === p.ok }), hint: escHtml(p.hint), steps: [escHtml(PAIR_WHY[p.ok] || p.hint), `A helyes mondat: <b>${escHtml(a + p.ok + (b || ""))}</b>`],
