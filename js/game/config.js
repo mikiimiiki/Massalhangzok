@@ -28,7 +28,9 @@ export const GAME = {
     start: "🚀 Vegyes kaland", cont: "🚀 Folytatás", again: "🚀 Még egy kör", mission: "🚀 Vegyes kaland", plus: "🚀 Plusz kör",
     explainTitle: "Nézzük meg együtt! 🦉", sideIcon: "🦉", helpTitle: "❓ Milyen feladatok vannak?",
     homeTip: "✏️ Tipp: a hibás szavakat írd le egyszer a füzetedbe is – így jobban megmaradnak.", playTip: "",
+    wardrobe: "Gyűjteményem", wardrobeIn: "a gyűjteményedben", collectionTitle: "",
   },
+  cloudIcons: { "✅": "📡" }, // online kapcsolatnál 📡 a felhőjelzőn
   legendLine: "Te vagy a Helyesírás Legendája! 🌟",
   defaults: { goalTasks: 10, goalMin: 15, bigGoal: 100, freeTasks: 10 },
   speechLang: "hu-HU",
