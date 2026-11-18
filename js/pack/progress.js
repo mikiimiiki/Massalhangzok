@@ -55,13 +55,12 @@ export function planMix(u, n, allowed) {
 // task: { topic, word (szó vagy szótagolt alak), level, syl }
 export function recordWord(u, task, r, t = dayNum()) {
   const key = dateKey(t), tp = task.topic === "gap" ? "hosszu" : task.topic;
-  u.stats = u.stats || {}; u.srs = u.srs || {}; u.practiced = u.practiced || []; u.mistakes = u.mistakes || [];
+  u.stats = u.stats || {}; u.srs = u.srs || {}; u.mistakes = u.mistakes || [];
   const st = (u.stats[tp] = u.stats[tp] || { ok: 0, n: 0 });
   st.n++; if (r === 1) st.ok++;
   const out = [];
   const w = task.word;
   if (!task.syl && ALL_UNIQUE_WORDS.has(w)) {
-    if (!u.practiced.includes(w)) u.practiced.push(w);
     const s = (u.srs[w] = u.srs[w] || { b: 0, days: 0, strong: 0, last: "", due: t });
     const wasM = isMastered(s), strong = task.level >= 2 || tp === "tiles"; // találgatással nem lehet elsajátítani
     if (r === 1) {

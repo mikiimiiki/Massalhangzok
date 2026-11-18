@@ -33,11 +33,12 @@ export const PACK = {
   ],
 
   // ---- a gyerek csomag-saját adatai ----
-  newUser: () => ({ srs: {}, practiced: [], mistakes: [], stats: {} }),
+  newUser: () => ({ srs: {}, mistakes: [], stats: {} }),
   normUser(u) {
     const arr = x => Array.isArray(x) ? x : Object.values(x || {});
     u.srs = u.srs || {}; u.stats = u.stats || {};
-    u.practiced = arr(u.practiced); u.mistakes = arr(u.mistakes);
+    u.mistakes = arr(u.mistakes);
+    delete u.practiced; // régi, a szókártyákkal (srs) azonos lista: a felhőben is törlődik, a „Gyakorolt” szám az srs-ből jön
     if (u.syl) { u.syl.lvl = Math.min(5, Math.max(1, +u.syl.lvl || 1)); ["hist", "recent", "miss"].forEach(k => { u.syl[k] = arr(u.syl[k]); }); }
     else if ((u.prefs || {}).grade == 4) u.syl = { lvl: 2, hist: [], recent: [], miss: [] };
     return u;
@@ -120,7 +121,7 @@ export const PACK = {
     const rows = TOPICS.map(T => { const st = (u.stats || {})[T.id === "gap" ? "hosszu" : T.id]; const p = st && st.n ? Math.round(st.ok / st.n * 100) : null; return `<tr><td><b>${T.icon} ${escHtml(T.name)}</b></td><td>${st ? `${st.ok}/${st.n} jó` : "–"}</td><td><span class="sc ${p == null ? "grey" : p >= 90 ? "green" : p >= 70 ? "yellow" : "red"}">${p == null ? "még nem próbálta" : p + "%"}</span></td></tr>`; }).join("");
     box.append(el("div", null, `<table class="tmap">${rows}</table><p class="legend">A „Rövid vagy hosszú?” és a „Betűpótló” közös statisztikát használ (hosszú mássalhangzók).</p>`));
     const S = sylState(u);
-    box.append(el("h4", "psub", "🃏 Szókártyák és szótagolás"), el("div", "pstrip", `<span>🃏 Elsajátított szó: <b>${masteredCount(u)} / ${ALL_UNIQUE_WORDS.size}</b></span><span>📚 Gyakorolt: <b>${(u.practiced || []).length}</b></span><span>✂️ Szótagolás: <b>${S.lvl}. szint</b> (${SYL_LVL_NAMES[S.lvl]})</span>`));
+    box.append(el("h4", "psub", "🃏 Szókártyák és szótagolás"), el("div", "pstrip", `<span>🃏 Elsajátított szó: <b>${masteredCount(u)} / ${ALL_UNIQUE_WORDS.size}</b></span><span>📚 Gyakorolt: <b>${Object.keys(u.srs || {}).filter(w => ALL_UNIQUE_WORDS.has(w)).length}</b></span><span>✂️ Szótagolás: <b>${S.lvl}. szint</b> (${SYL_LVL_NAMES[S.lvl]})</span>`));
     ptsAdjust(box, u);
     const miss = Object.entries(u.srs || {}).filter(([, r]) => r.miss).sort((a, b) => b[1].miss - a[1].miss).slice(0, 15);
     box.append(el("h4", "psub", "Legtöbbet hibázott szavak"), el("p", null, miss.length ? miss.map(([w, r]) => `<span class="sc ${isMastered(r) ? "green" : "red"}">${escHtml(w)} · ${r.miss}×</span>`).join(" ") : `<span class="soft">Még nincs hibázott szó. 🙂</span>`));
