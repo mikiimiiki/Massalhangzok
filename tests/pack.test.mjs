@@ -63,6 +63,13 @@ ok(score({ r: 1, level: 1, helps: 1 }).pts === 7 && score({ r: 2, level: 1, help
 }
 // --- a beállítások: a csomag saját beállításai a Gyakorlás csoportban
 ok(SETTINGS.some(d => d.key === "level" && d.group === "play") && GAME.defaults.bigGoal === 100, "szint és évfolyam a beállítások között; napi nagy cél: 100");
+// jelentéskülönbség: csak 16 mondat van – ha mind szerepelt a legutóbbiak között, se ugyanaz ne jöjjön mindig
+{
+  const { pickItem } = await import("../js/pack/progress.js"), { PAIR_TASKS } = await import("../js/pack/lang.js");
+  const pu = { srs: {}, mistakes: [], stats: {} }, seq = Array.from({ length: PAIR_TASKS.length * 4 }, () => pickItem(pu, "pair"));
+  const cnt = {}; seq.forEach(s => { cnt[s] = (cnt[s] || 0) + 1; });
+  ok(Object.keys(cnt).length === PAIR_TASKS.length && Math.max(...Object.values(cnt)) === 4, `jelentéskülönbség: ${seq.length} választásból mind a ${PAIR_TASKS.length} mondat egyenletesen jön (nem ragad le az elsőn)`);
+}
 // (a közös keret másolatának érintetlenségét a tests/keret.test.mjs ellenőrzi)
 
 console.log(fails ? `\n✗ ${fails} hiba` : "\n✓ Minden teszt rendben");

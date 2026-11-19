@@ -25,13 +25,17 @@ export function pickWords(list, n, u) {
   const due = new Set(dueWords(u)), seen = new Set(recent);
   const order = [...shuffle(list.filter(w => due.has(w) && !seen.has(w))), ...shuffle(list.filter(w => !due.has(w) && !seen.has(w))), ...shuffle(list.filter(w => seen.has(w)))];
   const out = order.slice(0, n);
-  recent.push(...out); if (recent.length > 40) recent.splice(0, recent.length - 40);
+  recent.push(...out); trim();
   return out;
 }
+function trim() { if (recent.length > 40) recent.splice(0, recent.length - 40); }
 // Egy feladat a témából (szabad gyakorlás, feladatonként választva)
+// A legrégebben kérdezett elem (amit még nem kérdeztünk, az elöl; egyenlőségnél véletlenszerű).
+// Ha minden elem szerepel a legutóbbiak között (pl. csak 16 jelentéskülönbség-mondat van), nem az első jön mindig.
+const leastRecent = (items, key) => shuffle(items).map(x => [x, recent.lastIndexOf(key(x))]).sort((a, b) => a[1] - b[1])[0][0];
 export function pickItem(u, topic) {
-  if (topic === "pair") { const p = shuffle(PAIR_TASKS).find(x => !recent.includes(x.s)) || PAIR_TASKS[0]; recent.push(p.s); return p.s; }
-  if (topic === "szotag") { const it = sylQueue(u).find(i => !recent.includes(i.word)) || sylQueue(u)[0]; recent.push(it.word); return it.word; }
+  if (topic === "pair") { const p = leastRecent(PAIR_TASKS, x => x.s); recent.push(p.s); trim(); return p.s; }
+  if (topic === "szotag") { const it = leastRecent(sylQueue(u), i => i.word); recent.push(it.word); trim(); return it.word; }
   if (topic === "jly") return pickWords(JLY_LIST.map(x => x.w), 1, u)[0];
   return pickWords(M_UNIQUE, 1, u)[0];
 }
