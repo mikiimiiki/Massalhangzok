@@ -5,7 +5,7 @@ import { RANKS, rankOf } from "../game/ranks.js";
 import { M_UNIQUE, JLY_LIST, JLY_MAP, ALL_UNIQUE_WORDS, PAIR_TASKS, PAIR_WHY, analyzeWord, analyzeJlyWord, getSynonymsForWord, explainWord,
   extraVariant, extraFragment, jlyOptions, shuffle, sylItems, sylState, sylExplain, sylChoices, sylGaps, SYL_LVL_NAMES } from "./lang.js";
 import { optionsUI, typingUI, tilesUI, sylUI } from "./ui.js";
-import { isMastered, masteredCount, effLevel, pickItem, planMix, recordWord, okOf, PACK_BADGES } from "./progress.js";
+import { isMastered, masteredCount, effLevel, pickItem, planMix, planReview, dueWords, recordWord, okOf, PACK_BADGES } from "./progress.js";
 
 const TOPICS = [
   { id: "hosszu", name: "Rövid vagy hosszú?", icon: "🎯", color: "#2563eb", place: "Rövid vagy hosszú?", sub: "Válaszd ki a helyes mássalhangzót!" },
@@ -94,6 +94,8 @@ export const PACK = {
       render: (box, io) => tilesUI(box, w, io, getSynonymsForWord(w)), check, hint: "Nézd meg a jelentését (💡), és mondd ki a szót hangosan! A jó betűk zölden maradtak.", steps, speech: "Rakd ki a szót! Jelentése: " + getSynonymsForWord(w) };
   },
   record: (u, task, r) => recordWord(u, task, r),
+  // 🩹 Ismétlő kör: a hibás és ismétlésre esedékes szavakból (a kör hossza a keret beállításából jön)
+  review: { unit: "szó", count: u => dueWords(u).length, plan: (u, n, rng, allowed) => planReview(u, n, allowed) },
   speechText: html => String(html).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
 
   // ---- jelvények és jutalom-mérőszámok ----

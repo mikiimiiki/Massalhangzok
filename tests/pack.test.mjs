@@ -70,6 +70,16 @@ ok(SETTINGS.some(d => d.key === "level" && d.group === "play") && GAME.defaults.
   const cnt = {}; seq.forEach(s => { cnt[s] = (cnt[s] || 0) + 1; });
   ok(Object.keys(cnt).length === PAIR_TASKS.length && Math.max(...Object.values(cnt)) === 4, `jelentéskülönbség: ${seq.length} választásból mind a ${PAIR_TASKS.length} mondat egyenletesen jön (nem ragad le az elsőn)`);
 }
+// 🩹 Ismétlő kör: a hibás szó bekerül, az ismétlő kör azt kérdezi, elsőre jó válasz után lekerül
+{
+  const ru = { srs: {}, mistakes: [], stats: {}, prefs: {} }, w = "kassza";
+  PACK.record(ru, { topic: "hosszu", word: w, level: 1 }, 0);
+  const plan = PACK.review.plan(ru, 10, null, null);
+  ok(PACK.review.count(ru) >= 1 && plan.some(x => x.sub === w && x.topic === "hosszu"), "ismétlő kör: a hibás szó benne van, „Rövid vagy hosszú?” feladatként");
+  ok(PACK.review.plan(ru, 10, null, ["tiles"]).every(x => x.topic === "tiles"), "ismétlő kör: lezárt feladattípus helyett nyitott rokon típus jön");
+  PACK.record(ru, { topic: "hosszu", word: w, level: 1 }, 1);
+  ok(!PACK.review.plan(ru, 10, null, null).some(x => x.sub === w), "ismétlő kör: elsőre jó válasz után lekerül");
+}
 // (a közös keret másolatának érintetlenségét a tests/keret.test.mjs ellenőrzi)
 
 console.log(fails ? `\n✗ ${fails} hiba` : "\n✓ Minden teszt rendben");
