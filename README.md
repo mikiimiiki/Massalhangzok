@@ -28,13 +28,11 @@ A lépésenkénti súgót **nem** kéri (a helyesírási lépések már az elej�
 node tests/pack.test.mjs
 node tests/events.test.mjs
 node tests/keret.test.mjs
-node --test tests/firebase-keys.test.mjs
 ```
 
 ## Egyéb fájlok
 
 - `szotagolas_ellenorzes.txt`: a szótagolás szólistája ellenőrzéshez; `tools/mta_check.py` a helyesiras.mta.hu elválasztójával veti össze (`python tools/mta_check.py szotagolas_ellenorzes.txt mta.json`).
-- `database.rules.json`: a Firebase adatbázis-szabályai; `FIREBASE.md`: a felhős mentés beállítása (a váz előtti időből – a mostani belépés csak Google-fiókkal megy).
-- `cloudkeys.js` és `tests/firebase-keys.test.mjs`: a váz előtti változatból maradt kulcstisztító és a tesztje; a váz a saját kulcstisztítását használja (`js/core/cloud.js`), az app ezt a fájlt már nem tölti be.
+- `database.rules.json`: a Firebase adatbázis-szabályai; [FIREBASE.md](FIREBASE.md): a felhős mentés adatszerkezete, újrabeállítása és biztonsága.
 
 Dátum szimulálása (külön tesztadatokkal, felhő nélkül): `index.html?nap=2026-12-06#debug`.
