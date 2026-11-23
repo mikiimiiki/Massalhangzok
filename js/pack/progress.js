@@ -74,6 +74,7 @@ export function recordWord(u, task, r, t = dayNum()) {
   const st = (u.stats[tp] = u.stats[tp] || { ok: 0, n: 0 });
   st.n++; if (r === 1) st.ok++;
   const out = [];
+  let cards = 0;
   const w = task.word;
   if (!task.syl && ALL_UNIQUE_WORDS.has(w)) {
     const s = (u.srs[w] = u.srs[w] || { b: 0, days: 0, strong: 0, last: "", due: t });
@@ -84,7 +85,7 @@ export function recordWord(u, task, r, t = dayNum()) {
         if (s.last !== key) { s.days++; s.b = Math.min(s.b + 1, 4); }
         s.last = key; if (strong) s.strong = (s.strong || 0) + 1;
         s.due = t + INTERVALS[s.b];
-        if (isMastered(s)) { s.rf = 0; s.due = t + REFRESH[0]; out.push("🃏 Új szókártya a Gyűjteményben!"); }
+        if (isMastered(s)) { s.rf = 0; s.due = t + REFRESH[0]; cards++; }
         else if (s.days >= 3) s.due = t + 1; // még egy nehezebb feladat kell
       }
       u.mistakes = u.mistakes.filter(x => x !== w);
@@ -105,7 +106,8 @@ export function recordWord(u, task, r, t = dayNum()) {
       if (d) out.push(d > 0 ? `✂️ Szótagolás: új szint – ${S.lvl}. (${SYL_LVL_NAMES[S.lvl]})` : `✂️ Szótagolás: könnyebb szint – ${S.lvl}.`);
     }
   }
-  return out.length ? { text: out.join(" "), confetti: out.some(x => x.startsWith("🃏")) } : null;
+  // az új szókártyát a váz a kör végén összesítve jelzi (gatherText.card)
+  return out.length || cards ? { text: out.join(" "), gather: cards ? { key: "card", n: cards } : null } : null;
 }
 
 const total = u => Object.values(u.stats || {}).reduce((a, s) => a + (s.ok || 0), 0);

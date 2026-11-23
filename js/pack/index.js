@@ -94,6 +94,7 @@ export const PACK = {
       render: (box, io) => tilesUI(box, w, io, getSynonymsForWord(w)), check, hint: "Nézd meg a jelentését (💡), és mondd ki a szót hangosan! A jó betűk zölden maradtak.", steps, speech: "Rakd ki a szót! Jelentése: " + getSynonymsForWord(w) };
   },
   record: (u, task, r) => recordWord(u, task, r),
+  gatherText: { card: n => n === 1 ? "🃏 Új szókártya a Gyűjteményben!" : `🃏 ${n} új szókártya a Gyűjteményben!` },
   // 🩹 Ismétlő kör: a hibás és ismétlésre esedékes szavakból (a kör hossza a keret beállításából jön)
   review: { unit: "szó", count: u => dueWords(u).length, plan: (u, n, rng, allowed) => planReview(u, n, allowed) },
   speechText: html => String(html).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
