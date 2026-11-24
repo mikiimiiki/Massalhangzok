@@ -22,6 +22,9 @@ const HINT_LONG = "Mondd ki hangosan, lassan! A hosszú mássalhangzót hosszabb
 const HINT_JLY = "A j és az ly hangja egyforma – ezt nem lehet kiejtésből eldönteni. Gondolj a szócsaládra, vagy arra, hol láttad leírva!";
 
 export const PACK = {
+  contractVersion: 1,
+  version: "1.0.0",
+  topicFallbacks: { hosszu: ["tiles"], gap: ["tiles"], jly: ["tiles"] },
   id: "helyesiras",
   retype: true, // hibás válasz után a helyes alakot be kell írni (a szótagolás kivételével)
   topics: TOPICS,
