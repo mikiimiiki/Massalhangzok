@@ -22,7 +22,6 @@ body.theme-light { --ink: #1e293b; --sky: #334155; color: var(--ink); }
 /* ---------- Feladatok ---------- */
 .word-display { font-size: 40px; font-weight: 900; line-height: 1.3; margin: 10px 0; letter-spacing: 1px; text-align: center; }
 .sentence-display { font-size: 24px; font-weight: 800; line-height: 1.4; margin: 10px 0; }
-.clue-box { background: #fef9c3; border: 2px solid #fde047; border-radius: 18px; padding: 10px 14px; font-size: 18px; font-weight: 800; color: #854d0e; margin: 10px 0 6px; line-height: 1.35; }
 .gap { display: inline-block; min-width: 60px; border-bottom: 5px dashed var(--pri2); color: var(--pri); padding: 0 6px; text-align: center; }
 .word-opts { grid-template-columns: 1fr 1fr; }
 .word-opts .opt { font-size: 24px; padding: 14px 12px; }
@@ -33,19 +32,6 @@ body.theme-light { --ink: #1e293b; --sky: #334155; color: var(--ink); }
 .typeinp.right { border-color: var(--ok); background: var(--okbg); }
 @keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
 /* betűkirakó */
-.slotrow { display: flex; flex-wrap: wrap; gap: 8px; min-height: 70px; padding: 12px; margin-top: 14px; border-radius: 20px; background: #f8fafc; border: 3px dashed var(--line); justify-content: center; align-items: center; }
-.slot-empty { width: 48px; height: 54px; border-radius: 14px; border: 3px dashed #cbd5e1; background: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; color: #cbd5e1; font-weight: 800; }
-.tiles { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 16px; justify-content: center; }
-.tile { border: 3px solid #ddd6fe; background: #f5f3ff; border-radius: 15px; padding: 10px 14px; font-size: 26px; font-weight: 900; box-shadow: 0 4px 0 #ddd6fe; min-width: 48px; height: 54px; display: inline-flex; align-items: center; justify-content: center; }
-.tile:active { transform: translateY(3px); box-shadow: 0 2px 0 #ddd6fe; }
-.tile.used { visibility: hidden; }
-.tile.placed { background: #fff; border-color: var(--pri2); box-shadow: 0 4px 0 var(--pri2); }
-.tile.locked { background: #dcfce7; border-color: #22c55e; color: #15803d; box-shadow: 0 4px 0 #86efac; cursor: default; }
-.tiles-reset { margin-top: 12px; text-align: center; }
-.help-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 16px; }
-.help-btn { border: 2px solid #fde047; background: #fefce8; color: #854d0e; border-radius: 14px; padding: 8px 14px; font-size: 15px; font-weight: 800; box-shadow: 0 3px 0 #fde047; }
-.help-btn:disabled { opacity: .45; cursor: default; box-shadow: none; }
-.help-btn.pay { border-color: #fca5a5; background: #fef2f2; color: #991b1b; box-shadow: 0 3px 0 #fca5a5; }
 /* szótagolás */
 .sylrow { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; row-gap: 10px; margin: 14px auto 6px; max-width: 100%; }
 .sylcell { display: inline-flex; align-items: center; }
