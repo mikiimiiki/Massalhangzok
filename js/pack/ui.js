@@ -40,7 +40,7 @@ export function sylUI(box, word, want, io) {
   paint();
   const hint = el("div", "clue-box"); hint.style.display = "none";
   const bar = el("div", "help-bar");
-  const h1 = btn("help-btn", "🔢 Hány szótag?", () => { hint.textContent = `💡 Ahány magánhangzó, annyi szótag. Itt ${want.size + 1} szótag van, tehát ${want.size} vágás kell.`; hint.style.display = "block"; h1.disabled = true; });
+  const h1 = btn("help-btn", "🔢 Hány szótag?", () => { if (!io.answering()) return; io.useLearningAid?.(); hint.textContent = `💡 Ahány magánhangzó, annyi szótag. Itt ${want.size + 1} szótag van, tehát ${want.size} vágás kell.`; hint.style.display = "block"; h1.disabled = true; });
   const h2 = btn("help-btn pay", "🅰️ Magánhangzók", () => { if (!io.answering()) return; io.useHelp(); row.classList.add("showv"); h2.disabled = true; });
   bar.append(h1, h2);
   box.append(row, hint, bar);

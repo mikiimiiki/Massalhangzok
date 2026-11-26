@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+import { PACK } from "../js/pack/index.js";
+import { normalizePack } from "../js/core/pack-contract.js";
+import { makeRng } from "../js/core/rng.js";
+import { learningKey, noteLearning } from "../js/core/learning-feedback.js";
+import { JLY_LIST, analyzeWord, analyzeJlyWord, M_UNIQUE } from "../js/pack/lang.js";
+const pack = normalizePack(PACK), u=pack.newUser(), rng=makeRng(21);
+const jly=JLY_LIST.find(x=>analyzeJlyWord(x.w)).w;
+u.mistakes=[jly];
+assert.equal(pack.review.count(u,["pair","szotag"]),0);
+assert.equal(pack.review.count(u,["jly"]),1);
+assert.equal(pack.review.count(u,["tiles"]),1);
+assert.deepEqual(pack.review.plan(u,4,rng,["pair","szotag"]),[]);
+const word = M_UNIQUE.find(w=>analyzeWord(w)), item = {topic:"hosszu",sub:word,level:1};
+// a fejlődésjelzésnél a SZÓ számít: más szinten vagy más feladattípusban (betűpótló, betűkirakó) visszajőve is
+const a=pack.makeTask(item,rng,u), b=pack.makeTask({...item,topic:"gap"},rng,u), c=pack.makeTask({...item,level:3},rng,u), k=learningKey(pack,a);
+const other=pack.makeTask({...item,sub:M_UNIQUE.find(w=>w!==word&&analyzeWord(w))},rng,u);
+assert.ok(k); assert.equal(learningKey(pack,b),k); assert.equal(learningKey(pack,c),k); assert.notEqual(learningKey(pack,other),k);
+assert.notEqual(learningKey(pack,{topic:"szotag",sub:word,plainWord:word}),k);
+assert.equal(noteLearning(u,k,2,false),false);
+assert.equal(noteLearning(u,learningKey(pack,other),1,false),false);
+assert.equal(noteLearning(u,learningKey(pack,b),1,false),true);
+console.log("Helyesírás: a szó számít (szinttől és feladattípustól függetlenül), témalezárás.");

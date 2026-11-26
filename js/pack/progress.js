@@ -58,12 +58,14 @@ export function planMix(u, n, allowed) {
 // 🩹 Ismétlő kör: a hibás és ismétlésre esedékes szavak (dueWords); j/ly szó j/ly feladatként, a többi „Rövid vagy hosszú?”.
 // Ha az a feladattípus le van zárva, egy nyitott rokon típust kap (betűpótló / betűkirakó).
 const REVIEW_ALT = { jly: ["jly", "tiles"], hosszu: ["hosszu", "gap", "tiles"] };
+const reviewCandidates = (u, allowed) => dueWords(u).map(w => {
+  const tp = REVIEW_ALT[(JLY_MAP[w] && analyzeJlyWord(w)) ? "jly" : "hosszu"].find(t => !allowed || allowed.includes(t));
+  return tp ? { topic: tp, sub: w } : null;
+}).filter(Boolean);
+// a nyitott témákban ténylegesen ismételhető szavak száma (a kezdőlapi javító küldetéshez)
+export const reviewCount = (u, allowed) => (allowed ? reviewCandidates(u, allowed).length : dueWords(u).length);
 export function planReview(u, n, allowed) {
-  const ok = t => !allowed || allowed.includes(t);
-  return shuffle(dueWords(u)).map(w => {
-    const tp = REVIEW_ALT[(JLY_MAP[w] && analyzeJlyWord(w)) ? "jly" : "hosszu"].find(ok);
-    return tp ? { topic: tp, sub: w } : null;
-  }).filter(Boolean).slice(0, n);
+  return shuffle(reviewCandidates(u, allowed)).slice(0, n);
 }
 
 // A csomag saját haladásának rögzítése. r: 1 elsőre jó · 2 tipp után jó · 0 hibás
