@@ -9,3 +9,14 @@ for (const word of ['méh','puha','héja','új','lila','nini']) {
   assert.ok(task.check(word).ok); assert.ok(!task.check(word+'x').ok);
 }
 console.log('OK: 6/6 magyar tartalekag');
+// Ikerfeladat: másik szó, ugyanarra a szabályra (pl. ugyanaz a hosszú betűkapcsolat)
+import { analyzeWord } from '../js/pack/lang.js';
+let same = 0, n = 0;
+for (const topic of ['gap', 'hosszu', 'jly', 'tiles']) for (let s = 1; s <= 40; s++) {
+  const t = pack.makeTask({ topic, sub: null }, makeRng(s), { words: {}, prefs: {} });
+  const it = pack.twin(t, { topic }, makeRng(s + 1), {}), t2 = pack.makeTask(it, makeRng(s + 2), { words: {}, prefs: {} });
+  n++; if (t2.sub === t.sub) same++;
+  if (topic === 'gap' && t.topic === 'gap') assert.equal(analyzeWord(t2.sub).longPart.toLowerCase(), analyzeWord(t.sub).longPart.toLowerCase(), t.sub + ' → ' + t2.sub);
+}
+assert.ok(same <= 2, `ikerfeladat ugyanaz a szó: ${same}/${n}`);
+console.log(`OK: ikerfeladat másik szó (${n - same}/${n})`);

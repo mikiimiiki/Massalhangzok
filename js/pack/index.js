@@ -96,6 +96,8 @@ export const PACK = {
     return { ...base, topic: "tiles", meta: `${topicById("tiles").icon} Betűkirakó`, q: `<b>Rakd ki a szót!</b> <span class="soft small">(A jelentés ingyenes; a magánhangzók vagy az első–utolsó betű segítség – kevesebb pontot ér.)</span>`,
       render: (box, io) => tilesUI(box, w, io, getSynonymsForWord(w)), check, hint: "Nézd meg a jelentését (💡), és mondd ki a szót hangosan! A jó betűk zölden maradtak.", steps, speech: "Rakd ki a szót! Jelentése: " + getSynonymsForWord(w) };
   },
+  // 🔁 „Próbáld ki egy hasonlóval!”: ugyanarra a szabályra egy MÁSIK szó (nem az elrontott)
+  twin(task, item, rng) { const w = similarWord(task, rng); return w ? { topic: item.topic, sub: w, level: task.level } : null; },
   record: (u, task, r) => recordWord(u, task, r),
   gatherText: { card: n => n === 1 ? "🃏 Új szókártya a Gyűjteményben!" : `🃏 ${n} új szókártya a Gyűjteményben!` },
   // 🩹 Ismétlő kör: a hibás és ismétlésre esedékes szavakból (a kör hossza a keret beállításából jön)
@@ -194,6 +196,21 @@ function ptsAdjust(box, u) {
 }
 
 // --- Jelentéskülönbség: melyik szó illik a mondatba? ---
+// Hasonló szó az ikerfeladathoz: betűpótló / hosszú mássalhangzó → ugyanaz a betűkapcsolat (pl. ssz),
+// j/ly → ugyanaz az írásmód (j, ly, jj, lly), betűkirakó → hasonló hossz, szótagolás → ugyanannyi szótag
+const gapKey = w => { const i = analyzeWord(w); return i ? `${i.hasLong ? "L" : "S"}:${i.longPart.toLowerCase()}` : null; };
+const jlyKey = w => { const l = w.toLowerCase(); return ["lly", "jj", "ly", "j"].find(t => l.includes(t)) || null; };
+function similarWord(task, rng) {
+  const w = task.sub, len = s => [...s].length;
+  let pool;
+  if (task.topic === "pair") pool = PAIR_TASKS.map(p => p.s);
+  else if (task.topic === "szotag") { const n = String(task.word).split("-").length; pool = sylItems().filter(i => i.syl.split("-").length === n).map(i => i.w); }
+  else if (task.topic === "jly") { const k = jlyKey(w); pool = JLY_LIST.map(x => x.w).filter(x => jlyKey(x) === k); }
+  else if (task.topic === "tiles") pool = M_UNIQUE.filter(x => Math.abs(len(x) - len(w)) <= 1);
+  else { const k = gapKey(w); pool = M_UNIQUE.filter(x => gapKey(x) === k); }
+  pool = pool.filter(x => x !== w);
+  return pool.length ? rng.pick(pool) : null;
+}
 function pairTask(p, T) {
   const [a, b] = p.s.split("___"), o = shuffle([p.ok, p.bad]);
   return { topic: "pair", sub: p.s, word: p.ok, retype: p.ok, solution: p.ok, level: 1, meta: `${T.icon} ${T.name}`, viz: "",
