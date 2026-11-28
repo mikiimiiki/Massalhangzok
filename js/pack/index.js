@@ -1,4 +1,4 @@
-import { RULES, RULE_WORDS, CATALOG, ruleItem } from "./active-words.js";
+import { RULES, RULE_WORDS, CATALOG, ruleItem, VOWEL_GROUPS, VOWEL_WORDS, vowelItem, vowelItemFromSub, OLD_VOWEL_TOPICS } from "./active-words.js";
 import { HUNGARIAN_KEYS } from "../core/answer-spec.js";
 // ===== Helyesírás csomag: a Helyesírás Kaland feladatai a közös vázhoz =====
 // A váz (js/shell) csak ezen az objektumon keresztül éri el a feladatokat (lásd a Matek repó docs/terv-kozos-vaz.md).
@@ -10,13 +10,14 @@ import { optionsUI, typingUI, tilesUI, sylUI } from "./ui.js";
 import { isMastered, masteredCount, effLevel, pickItem, planMix, planReview, reviewCount, recordWord, okOf, PACK_BADGES } from "./progress.js";
 
 const TOPICS = [
-  { id: "hosszu", name: "Rövid vagy hosszú?", icon: "🎯", color: "#2563eb", place: "Rövid vagy hosszú?", sub: "Válaszd ki a helyes mássalhangzót!" },
-  { id: "gap", name: "Betűpótló", icon: "🧩", color: "#ca8a04", place: "Betűpótló", sub: "Pótold a hiányzó mássalhangzót!" },
-  { id: "jly", name: "j vagy ly", icon: "✍️", color: "#ea580c", place: "j vagy ly", sub: "Döntsd el: pontos j vagy ly!" },
-  { id: "tiles", name: "Betűkirakó", icon: "🔤", color: "#0d9488", place: "Betűkirakó", sub: "Rakd ki a szót!" },
-  { id: "pair", name: "Jelentéskülönbség", icon: "⚖️", color: "#db2777", place: "Jelentéskülönbség", sub: "fejjel–fejel, hal–hall…" },
-  ...Object.entries(RULES).map(([id, r]) => ({ id, ...r, icon: "✏️", color: "#7c3aed", place: r.name })),
-  { id: "szotag", name: "Szótagolás", icon: "✂️", color: "#0891b2", place: "Szótagolás", sub: "Vágd szótagokra a szavakat!" },
+  // place: a kártya címe · tagline: a kártya alcíme (mit kell csinálni) · name: teljes név (súgó, szülői nézet)
+  { id: "hosszu", name: "Mássalhangzók: rövid vagy hosszú?", icon: "🎯", color: "#2563eb", place: "Mássalhangzók", tagline: "rövid vagy hosszú? (kassza)", sub: "Válaszd ki a helyes mássalhangzót!" },
+  { id: "vowel", name: RULES.vowel.name, icon: "🅰️", color: "#7c3aed", place: "Magánhangzók", tagline: "hosszú vagy rövid? (bútor, ujj)", sub: RULES.vowel.sub, example: RULES.vowel.example },
+  { id: "gap", name: "Betűpótló", icon: "🧩", color: "#ca8a04", place: "Betűpótló", tagline: "melyik betű hiányzik?", sub: "Pótold a hiányzó mássalhangzót!" },
+  { id: "jly", name: "j vagy ly", icon: "✍️", color: "#ea580c", place: "j vagy ly?", tagline: "melyik írásmód a helyes?", sub: "Döntsd el: pontos j vagy ly!" },
+  { id: "tiles", name: "Betűkirakó", icon: "🔤", color: "#0d9488", place: "Betűkirakó", tagline: "rakd ki a szót!", sub: "Rakd ki a szót!" },
+  { id: "pair", name: "Jelentéskülönbség", icon: "⚖️", color: "#db2777", place: "Melyik szó illik?", tagline: "mondatba illő szó", sub: "fejjel–fejel, hal–hall…" },
+  { id: "szotag", name: "Szótagolás", icon: "✂️", color: "#0891b2", place: "Szótagolás", tagline: "bontsd szótagokra!", sub: "Vágd szótagokra a szavakat!" },
 ];
 const topicById = id => TOPICS.find(t => t.id === id) || TOPICS[0];
 const LVL = ["", "Kezdő", "Haladó", "Mester"];
@@ -63,6 +64,9 @@ export const PACK = {
   plan: (u, n, rng, allowed) => planMix(u, n, allowed),
   makeTask(item, rng, u) {
     let topic = item.topic, w = item.sub;
+    // az öt régi magánhangzó-téma helyett egy összevont téma (régi azonosító: biztonsági átirányítás)
+    if (OLD_VOWEL_TOPICS.includes(topic)) topic = "vowel";
+    if (topic === "vowel") return vowelTask(item, u);
     if (topic === "pair" ? !PAIR_TASKS.some(p => p.s === w) : !ALL_UNIQUE_WORDS.has(w)) w = pickItem(u, topic);
     if (RULE_WORDS[topic] && !RULE_WORDS[topic].includes(w)) w = pickItem(u, topic);
     if (topic === "jly" && !JLY_MAP[w]) w = pickItem(u, topic);
@@ -80,20 +84,6 @@ export const PACK = {
     const meta = `${T.icon} ${T.name} · ${LVL[L]}`, syn = escHtml(getSynonymsForWord(w));
     const steps = [escHtml(explainWord(w)), `Jelentése: ${escHtml(getSynonymsForWord(w, true))}`, `A helyes alak: <b class="big-word">${escHtml(w)}</b>`];
     const check = v => ({ ok: v === w });
-    // Új szabálytémák (hosszú magánhangzó, -ó/-ő, -u/-ü/-ú/-ű, -ít, -ul/-ül): a keret „hiányzó rész” felülete
-    // (answer kind: "gap"); kezdő: 2 lehetőség, haladó: 3, mester: beírás ékezetes gombsorral. A jelentés mindig látszik.
-    if (RULES[topic]) {
-      const { part, other, mask, tip } = ruleItem(topic, w), start = mask.indexOf("_");
-      const third = thirdOption(topic, part, other);
-      const opts = shuffle(L === 2 && third ? [part, other, third] : [part, other]);
-      const full = v => w.slice(0, start) + v + w.slice(start + part.length);
-      return { ...base, meta, solution: part, correctText: w,
-        q: `<b>Pótold a hiányzó részt!</b>${clue("Jelentése: " + syn)}${L === 3 ? `<p class="soft small">Írd be a hiányzó betű(ke)t: ${escHtml([part, other].sort().join(" vagy "))}?</p>` : ""}`,
-        answer: L === 3 ? { kind: "gap", word: w, start, part, input: "text", extraKeys: HUNGARIAN_KEYS } : { kind: "gap", word: w, start, part, options: opts },
-        answerText: v => full(String(v)), hint: tip,
-        steps: [escHtml(tip), `Jelentése: ${escHtml(getSynonymsForWord(w, true))}`, `A helyes alak: <b class="big-word">${escHtml(w)}</b>`],
-        speech: `Pótold a hiányzó részt! Jelentése: ${getSynonymsForWord(w)}`, plainQ: mask };
-    }
     if (topic === "jly") {
       const opts = shuffle(jlyOptions(w, analyzeJlyWord(w).wrongWord, L));
       return { ...base, meta, q: `<b>Válaszd ki a helyesen írt alakot!</b>${clue("Jelentése: " + syn)}`, render: (box, io) => optionsUI(box, opts, w, io), check, hint: HINT_JLY, steps, speech: "Válaszd ki a helyesen írt alakot! Jelentése: " + getSynonymsForWord(w) };
@@ -167,7 +157,7 @@ export const PACK = {
     render(box, { user: u, redraw }) {
       const all = [...ALL_UNIQUE_WORDS], got = all.filter(w => isMastered(u.srs[w])).length;
       box.append(el("div", "pstrip", `<span>🃏 <b>${got} / ${all.length}</b> szókártya</span>`), el("p", "soft small", "Egy szó akkor lesz kártya, ha 3 különböző napon helyesen válaszoltál rá, és legalább egyszer nehezebb feladatban is (3 opció, gépelés vagy betűkirakó). Ha 30 nap múlva is tudod, ⭐ kerül rá."));
-      const sets = { ...Object.fromEntries(Object.entries(RULE_WORDS).map(([id, words]) => [id, [RULES[id].name, words]])), hosszu: ["Hosszú mássalhangzók", M_UNIQUE], jly: ["j / ly", JLY_LIST.map(x => x.w)] };
+      const sets = { hosszu: ["Hosszú mássalhangzók", M_UNIQUE], vowel: ["Magánhangzók", VOWEL_WORDS], jly: ["j / ly", JLY_LIST.map(x => x.w)] };
       const archivedCards = Object.keys(u.srs || {}).filter(w => !ALL_UNIQUE_WORDS.has(w) && isMastered(u.srs[w]));
       if (archivedCards.length || cardTab === "archive") sets.archive = ["Korábban megszerzett", archivedCards];
       const seg = el("div", "segs");
@@ -231,13 +221,34 @@ const jlyKey = w => { const l = w.toLowerCase(); return ["lly", "jj", "ly", "j"]
 // Haladó szinten a harmadik, hihető hibás lehetőség (ugyanabból a hangcsaládból)
 const THIRD = { vowel: { á: "é", é: "á", í: "é", ó: "ő", ő: "ó", ú: "ű", ű: "ú" }, endoo: { ó: "ő", ő: "ó" }, enduu: { u: "ü", ü: "u", ú: "ű", ű: "ú" }, endit: { ít: "ét" }, endul: { ul: "ül", ül: "ul" } };
 function thirdOption(topic, part, other) { const t = (THIRD[topic] || {})[part]; return t && t !== part && t !== other ? t : null; }
+const THIRD_SHORT = { a: "e", e: "a", i: "e", o: "ö", ö: "o", u: "ü", ü: "u" };
+function vowelThird(it) {
+  const t = it.group === "stemShort" ? THIRD_SHORT[it.part] : (THIRD[it.group === "stemLong" ? "vowel" : it.group.startsWith("enduu") ? "enduu" : it.group] || {})[it.part];
+  return t && t !== it.part && t !== it.other ? t : null;
+}
+// 🅰️ Magánhangzók: hosszú vagy rövid? – a keret „hiányzó rész” felülete; a „miért” címke a tippben, a magyarázatban és jó válasz után
+function vowelTask(item, u) {
+  const it = vowelItemFromSub(item.sub) || vowelItemFromSub(pickItem(u, "vowel"));
+  const T = topicById("vowel"), w = it.word, L = item.level || effLevel(u, w);
+  const third = vowelThird(it), opts = shuffle(L === 2 && third ? [it.part, it.other, third] : [it.part, it.other]);
+  const full = v => w.slice(0, it.start) + v + w.slice(it.start + it.part.length);
+  const syn = escHtml(getSynonymsForWord(w));
+  return { topic: "vowel", sub: `${it.group}|${w}`, word: w, retype: w, level: L, viz: "", meta: `${T.icon} ${T.name} · ${LVL[L]}`,
+    solution: it.part, correctText: w, answerText: v => full(String(v)), why: () => null, rule: escHtml(it.why),
+    q: `<b>Hosszú vagy rövid? Pótold a hiányzó magánhangzót!</b>${clue("Jelentése: " + syn)}${L === 3 ? `<p class="soft small">Írd be: ${escHtml([it.part, it.other].sort().join(" vagy "))}?</p>` : ""}`,
+    answer: L === 3 ? { kind: "gap", word: w, start: it.start, part: it.part, input: "text", extraKeys: HUNGARIAN_KEYS } : { kind: "gap", word: w, start: it.start, part: it.part, options: opts },
+    hint: escHtml(it.why), steps: [escHtml(it.why), `Jelentése: ${escHtml(getSynonymsForWord(w, true))}`, `A helyes alak: <b class="big-word">${escHtml(w)}</b>`],
+    speech: `Hosszú vagy rövid? Jelentése: ${getSynonymsForWord(w)}`, plainQ: full("_") };
+}
 function similarWord(task, rng) {
   const w = task.sub, len = s => [...s].length;
   let pool;
-  if (RULE_WORDS[task.topic]) {
-    // ugyanaz a szabály: ugyanaz a pótolandó rész (pl. ú, -ít, -ül), a -u/-ü témánál a kivétel csak kivétellel jön
-    const key = x => { const r = ruleItem(task.topic, x); return `${r && r.part}|${CATALOG.shortuu.includes(x)}`; }, k = key(w);
-    pool = RULE_WORDS[task.topic].filter(x => key(x) === k);
+  if (task.topic === "vowel") {
+    // ugyanaz a csoport (szótő hosszú / rövid, -ó/-ő, -ú/-ű, kivétel, -ít, -ul/-ül), a szótőnél ugyanaz a magánhangzó is
+    const it = vowelItemFromSub(w); if (!it) return null;
+    const same = VOWEL_GROUPS[it.group].filter(x => x !== it.word && (!it.group.startsWith("stem") || vowelItem(it.group, x).part === it.part));
+    const list = same.length ? same : VOWEL_GROUPS[it.group].filter(x => x !== it.word);
+    return list.length ? `${it.group}|${rng.pick(list)}` : null;
   }
   else if (task.topic === "pair") pool = PAIR_TASKS.map(p => p.s);
   else if (task.topic === "szotag") { const n = String(task.word).split("-").length; pool = sylItems().filter(i => i.syl.split("-").length === n).map(i => i.w); }

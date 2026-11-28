@@ -16,7 +16,7 @@ export const CATALOG = {
   jv: ["ájul", "befejez", "bújik", "bujkál", "fáj", "fejel", "felejt", "fúj", "hajladozik", "hajol", "ijed", "jajgat", "jár", "játszik", "javít", "jegyzetel", "jelent", "jön", "rajzol", "nyújtózkodik", "tájékoztat", "zajong", "zsivajog"],
 };
 export const RULES = {
-  vowel: { name: "Hosszú magánhangzó", sub: "Rövid vagy hosszú magánhangzó illik a hiány helyére?", example: "b_tor: u vagy ú" },
+  vowel: { name: "Magánhangzók: hosszú vagy rövid?", sub: "Hosszú vagy rövid magánhangzó illik a hiány helyére?", example: "b_tor → ú · _jj → u · kap_ → u · tan_t → í · rep_l → ü" },
   endoo: { name: "Főnevek: -ó, -ő", sub: "Pótold a szóvégi ó vagy ő betűt!", example: "ajt_: o vagy ó" },
   enduu: { name: "Főnevek: -u, -ü, -ú, -ű", sub: "Figyelj a hosszú szóvégre és a rövid kivételekre!", example: "kap_: u vagy ú" },
   endit: { name: "Igék: -ít", sub: "Pótold az -ít végződést!", example: "tan__: it vagy ít" },
@@ -48,3 +48,64 @@ export function ruleItem(topic, word) {
     topic === "enduu" ? "Ennek a főnévnek a vége hosszú ú vagy ű." : "Figyeld meg a magánhangzó hosszúságát!";
   return { part, other, mask, tip };
 }
+
+// ===== Összevont téma: „Magánhangzók – hosszú vagy rövid?” (7 csoport, kb. 40% rövid helyes válasz) =====
+// Rövid magánhangzós ellenpéldák az aktív listáról: itt a rövid a helyes (a gyerekek gyakran hosszúnak írják).
+// part: a kitakart rövid magánhangzó; at: hányadik előfordulása (alapból az első).
+export const SHORT_STEM = [
+  { w: "ujj", part: "u" }, { w: "ujjong", part: "u" }, { w: "ünnep", part: "ü" }, { w: "ünnepel", part: "ü" }, { w: "ünnepély", part: "ü" },
+  { w: "uzsonna", part: "u" }, { w: "illat", part: "i" }, { w: "illatozik", part: "i" }, { w: "csillag", part: "i" }, { w: "hullám", part: "u" },
+  { w: "furulya", part: "u" }, { w: "bujkál", part: "u" }, { w: "szivattyú", part: "i" }, { w: "sirály", part: "i" }, { w: "ibolya", part: "i" },
+  { w: "fiók", part: "i" }, { w: "fióka", part: "i" }, { w: "dió", part: "i" }, { w: "fiú", part: "i" }, { w: "rigó", part: "i" },
+  { w: "kunyhó", part: "u" }, { w: "pulóver", part: "u" }, { w: "papír", part: "a" }, { w: "radír", part: "a" }, { w: "boríték", part: "o" },
+  { w: "kerítés", part: "e" }, { w: "múzeum", part: "e" }, { w: "tojás", part: "o" }, { w: "juhász", part: "u" }, { w: "gurul", part: "u" },
+];
+const SHORT_OF = { á: "a", é: "e", í: "i", ó: "o", ő: "ö", ú: "u", ű: "ü" };
+const LONG_OF = Object.fromEntries(Object.entries(SHORT_OF).map(([l, s]) => [s, l]));
+const isShortUU = w => CATALOG.shortuu.includes(w);
+// csoport → szavak
+export const VOWEL_GROUPS = {
+  stemLong: RULE_WORDS.vowel,
+  stemShort: SHORT_STEM.map(x => x.w),
+  endoo: CATALOG.endoo,
+  enduuLong: CATALOG.enduu,
+  enduuShort: CATALOG.shortuu,
+  endit: CATALOG.endit,
+  endul: CATALOG.endul,
+};
+export const VOWEL_WORDS = [...new Set(Object.values(VOWEL_GROUPS).flat())];
+// Egy feladatelem: { group, word, start, part, other, kind: "rule" | "exception" | "memo", why }
+export function vowelItem(group, word) {
+  if (!VOWEL_GROUPS[group] || !VOWEL_GROUPS[group].includes(word)) return null;
+  let part, start;
+  if (group === "stemShort") {
+    part = SHORT_STEM.find(x => x.w === word).part; start = word.indexOf(part);
+  } else {
+    const r = ruleItem(group === "stemLong" ? "vowel" : group.startsWith("enduu") ? "enduu" : group, word);
+    part = r.part; start = r.mask.indexOf("_");
+  }
+  const other = group === "endit" ? "it" : group === "endul" ? (part === "ul" ? "úl" : "űl") : (SHORT_OF[part] || LONG_OF[part]);
+  if (start < 0 || !other) throw new Error(`Hiányos magánhangzó-elem: ${group}/${word}`);
+  const q = s => `„${s}”`;
+  const why = {
+    stemLong: `🧠 Meg kell jegyezni: a szótőben nincs szabály a hosszúságra – a(z) ${q(word)} szóban hosszú ${part} van. Mondd ki lassan, és jegyezd meg!`,
+    stemShort: `🧠 Meg kell jegyezni: a(z) ${q(word)} szóban itt rövid ${part} van, nem nyújtjuk. Mondd ki lassan, és jegyezd meg!`,
+    endoo: "📏 Szabály: a főnevek végén az ó és az ő mindig hosszú (ajtó, cipő, erdő).",
+    enduuLong: "📏 Szabály: a főnevek végén az ú és az ű hosszú (betű, kesztyű, varjú) – csak néhány kivétel rövid (kapu, falu, menü).",
+    enduuShort: `⚠️ Kivétel: a(z) ${q(word)} azon kevés főnév közé tartozik, amelynek a végén rövid u vagy ü van (alku, falu, kapu, menü…).`,
+    endit: "📏 Szabály: az -ít végű igékben mindig hosszú í van (tanít, épít, segít).",
+    endul: "📏 Szabály: az -ul, -ül végű igékben az u és az ü mindig rövid (tanul, repül, gurul).",
+  }[group];
+  const kind = group === "enduuShort" ? "exception" : group.startsWith("stem") ? "memo" : "rule";
+  return { group, word, start, part, other, kind, why };
+}
+// sub: „csoport|szó”; régi / sima szó esetén az első illő csoport (pl. ismétlésből jövő szó)
+export function vowelItemFromSub(sub) {
+  const s = String(sub || ""), i = s.indexOf("|");
+  if (i > 0) { const it = vowelItem(s.slice(0, i), s.slice(i + 1)); if (it) return it; }
+  const w = i > 0 ? s.slice(i + 1) : s;
+  for (const g of ["endit", "endul", "endoo", "enduuShort", "enduuLong", "stemShort", "stemLong"]) { const it = vowelItem(g, w); if (it) return it; }
+  return null;
+}
+// a régi öt téma azonosítója → az összevont téma (félbehagyott kör, lezárás, ismétlés biztonsága)
+export const OLD_VOWEL_TOPICS = ["endoo", "enduu", "endit", "endul"];

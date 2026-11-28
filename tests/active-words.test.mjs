@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { PACK } from '../js/pack/index.js';
-import { ACTIVE_WORDS, CATALOG, LONG_WORDS, JLY_WORDS, RULE_WORDS, ruleItem } from '../js/pack/active-words.js';
+import { ACTIVE_WORDS, CATALOG, LONG_WORDS, JLY_WORDS, RULE_WORDS, ruleItem, VOWEL_GROUPS, vowelItem } from '../js/pack/active-words.js';
 import { PAIR_TASKS, analyzeWord, sylItems } from '../js/pack/lang.js';
 import { M_LIST, WORD_SYNONYMS } from '../js/pack/words.js';
 import { makeRng } from '../js/core/rng.js';
@@ -17,7 +17,7 @@ function check(topic, sub, level) {
   assert.equal(task.topic, topic, `${topic}: ${sub}`);
   assert.equal(task.sub, sub);
   assert.ok(task.check(task.solution).ok && !task.check('@@@').ok);
-  covered.add(sub);
+  covered.add(String(sub).split('|').pop());
   return task;
 }
 for (const level of [1, 2, 3]) {
@@ -26,11 +26,12 @@ for (const level of [1, 2, 3]) {
     check('hosszu', w, level); check('gap', w, level);
   }
   for (const w of JLY_WORDS) check('jly', w, level);
-  for (const [topic, words] of Object.entries(RULE_WORDS)) for (const w of words) {
-    const r = ruleItem(topic, w), t = check(topic, w, level);
-    assert.equal(r.mask.replace(/_+/u, r.part), w);
-    assert.equal(t.retype, w);
-    assert.ok(!t.check(r.other).ok);
+  // összevont magánhangzó-téma: minden csoport minden szava, csoport|szó alakú sub-bal
+  for (const [g, words] of Object.entries(VOWEL_GROUPS)) for (const w of words) {
+    const it = vowelItem(g, w), t = check('vowel', `${g}|${w}`, level);
+    assert.equal(w.slice(it.start, it.start + it.part.length), it.part);
+    assert.equal(t.retype, w); assert.ok(t.rule);
+    assert.ok(!t.check(it.other).ok);
   }
 }
 assert.deepEqual(covered, ACTIVE_WORDS);
@@ -51,7 +52,7 @@ for (const i of mixed) {
 assert.equal(pack.plan(u, 5, rng, []).length, 0);
 const review = pack.review.plan(u, 10, rng);
 assert.ok(review.some(i => i.sub === 'bútor' && i.topic === 'vowel'));
-assert.ok(review.some(i => i.sub === 'tanít' && i.topic === 'endit'));
+assert.ok(review.some(i => i.sub === 'tanít' && i.topic === 'vowel'), 'az -ít ige az összevont magánhangzó-témában ismétlődik');
 assert.ok(review.every(i => ACTIVE_WORDS.has(i.sub)));
 assert.ok(ACTIVE_WORDS.has(pack.makeTask({ topic: 'tiles', sub: 'kassza' }, rng, u).word));
 assert.deepEqual(u.srs, snapshot);
