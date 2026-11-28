@@ -1,3 +1,4 @@
+import { RULE_WORDS } from "./active-words.js";
 // ===== Helyesírás csomag: szókártyák (Leitner + elsajátítás), témastatisztika, jelvények, küldetésterv =====
 // DOM nélkül. Az általános részek (pont, napi összesítő, sorozat, napi cél) a közös keretben vannak.
 import { dayNum, dateKey } from "../core/dates.js";
@@ -37,30 +38,31 @@ export function pickItem(u, topic) {
   if (topic === "pair") { const p = leastRecent(PAIR_TASKS, x => x.s); recent.push(p.s); trim(); return p.s; }
   if (topic === "szotag") { const it = leastRecent(sylQueue(u), i => i.word); recent.push(it.word); trim(); return it.word; }
   if (topic === "jly") return pickWords(JLY_LIST.map(x => x.w), 1, u)[0];
-  return pickWords(M_UNIQUE, 1, u)[0];
+  return pickWords(topic === "tiles" ? [...ALL_UNIQUE_WORDS] : RULE_WORDS[topic] || M_UNIQUE, 1, u)[0];
 }
 // Napi küldetés („Vegyes kaland”): hosszú mássalhangzó, j/ly, betűpótló és betűkirakó vegyesen, az esedékes szavak elöl
 export function planMix(u, n, allowed) {
   const ok = t => !allowed || allowed.includes(t);
-  const m = pickWords(M_UNIQUE, n, u), j = pickWords(JLY_LIST.map(x => x.w), Math.ceil(n * 0.3), u);
-  const pattern = ["hosszu", "jly", "gap", "tiles", "jly", "hosszu", "gap", "jly", "tiles", "hosszu"].filter(ok);
-  const pool = pattern.length ? pattern : (allowed && allowed.length ? allowed : ["hosszu"]);
+  const pattern = ["hosszu", "jly", "gap", "vowel", "tiles", "endoo", "enduu", "endit", "endul", "pair", "szotag"].filter(ok);
   const plan = [];
-  for (let i = 0, mi = 0, ji = 0; plan.length < n; i++) {
-    const topic = pool[i % pool.length];
-    if (topic === "jly") plan.push({ topic, sub: j[ji++ % j.length] });
-    else if (topic === "pair" || topic === "szotag") plan.push({ topic, sub: null });
-    else plan.push({ topic, sub: m[mi++ % m.length] });
+  for (let i = 0; pattern.length && i < n; i++) {
+    const topic = pattern[i % pattern.length];
+    plan.push({ topic, sub: pickItem(u, topic) });
   }
   return shuffle(plan);
 }
 
 // 🩹 Ismétlő kör: a hibás és ismétlésre esedékes szavak (dueWords); j/ly szó j/ly feladatként, a többi „Rövid vagy hosszú?”.
 // Ha az a feladattípus le van zárva, egy nyitott rokon típust kap (betűpótló / betűkirakó).
-const REVIEW_ALT = { jly: ["jly", "tiles"], hosszu: ["hosszu", "gap", "tiles"] };
 const reviewCandidates = (u, allowed) => dueWords(u).map(w => {
-  const tp = REVIEW_ALT[(JLY_MAP[w] && analyzeJlyWord(w)) ? "jly" : "hosszu"].find(t => !allowed || allowed.includes(t));
-  return tp ? { topic: tp, sub: w } : null;
+  const categories = Object.keys(RULE_WORDS).filter(t => RULE_WORDS[t].includes(w));
+  const options = [
+    ...(JLY_MAP[w] && analyzeJlyWord(w) ? ["jly"] : []),
+    ...(M_UNIQUE.includes(w) ? ["hosszu", "gap"] : []),
+    ...categories, "tiles",
+  ];
+  const topic = options.find(t => !allowed || allowed.includes(t));
+  return topic ? { topic, sub: w } : null;
 }).filter(Boolean);
 // a nyitott témákban ténylegesen ismételhető szavak száma (a kezdőlapi javító küldetéshez)
 export const reviewCount = (u, allowed) => (allowed ? reviewCandidates(u, allowed).length : dueWords(u).length);

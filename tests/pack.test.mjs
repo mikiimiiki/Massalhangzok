@@ -2,6 +2,7 @@
 // Futtatás: node tests/pack.test.mjs
 globalThis.document = { querySelector: () => null };
 const { PACK } = await import("../js/pack/index.js");
+const { normalizePack } = await import("../js/core/pack-contract.js");
 const { makeRng } = await import("../js/core/rng.js");
 const { newUser, normUser } = await import("../js/shell/user.js");
 const { GAME, SETTINGS } = await import("../js/game/config.js");
@@ -18,8 +19,8 @@ const rng = makeRng(7);
 for (const L of [1, 2, 3]) {
   const u = PACK.normUser(newUser("A", "🦉", PACK)); u.prefs = { level: L };
   let bad = [];
-  PACK.topics.forEach(T => { for (let i = 0; i < 250; i++) { const t = PACK.makeTask({ topic: T.id, sub: null }, rng, u); if (!t.check(t.solution).ok || !t.hint || !t.steps.length || !t.q || t.check("@@@").ok) bad.push(`${T.id}:${t.sub}`); } });
-  ok(!bad.length, `${L}. szint: 6 téma × 250 feladat – mind elfogadja a jó választ, és elutasítja a rosszat` + (bad.length ? " " + bad.slice(0, 5) : ""));
+  const NP = normalizePack(PACK); PACK.topics.forEach(T => { for (let i = 0; i < 250; i++) { const t = NP.makeTask({ topic: T.id, sub: null }, rng, u); if (!t.check(t.solution).ok || !t.hint || !t.steps.length || !t.q || t.check("@@@").ok) bad.push(`${T.id}:${t.sub}`); } });
+  ok(!bad.length, `${L}. szint: ${PACK.topics.length} téma × 250 feladat – mind elfogadja a jó választ, és elutasítja a rosszat` + (bad.length ? " " + bad.slice(0, 5) : ""));
 }
 // --- küldetésterv és témazár
 {
@@ -32,11 +33,11 @@ for (const L of [1, 2, 3]) {
 // --- szókártya: 3 különböző napon jó, legalább egyszer nehezebb feladatban → elsajátítva
 {
   const u = PACK.normUser(newUser("C", "🦉", PACK));
-  ["2026-11-01", "2026-11-03", "2026-11-05"].forEach((d, i) => { setToday(keyToDay(d)); PACK.record(u, { topic: i === 2 ? "tiles" : "hosszu", word: "kassza", level: 1 }, 1); });
+  ["2026-11-01", "2026-11-03", "2026-11-05"].forEach((d, i) => { setToday(keyToDay(d)); PACK.record(u, { topic: i === 2 ? "tiles" : "hosszu", word: "dunna", level: 1 }, 1); });
   setToday(null);
-  ok(isMastered(u.srs.kassza) && u.stats.hosszu.ok === 2 && u.stats.tiles.ok === 1, "kassza: 3 nap, betűkirakóval is → szókártya");
-  PACK.record(u, { topic: "hosszu", word: "kassza", level: 1 }, 0);
-  ok(!isMastered(u.srs.kassza) && u.mistakes.includes("kassza") && u.srs.kassza.miss === 1, "hibás válasz: visszaesik, a hibás szavak közé kerül");
+  ok(isMastered(u.srs.dunna) && u.stats.hosszu.ok === 2 && u.stats.tiles.ok === 1, "dunna: 3 nap, betűkirakóval is → szókártya");
+  PACK.record(u, { topic: "hosszu", word: "dunna", level: 1 }, 0);
+  ok(!isMastered(u.srs.dunna) && u.mistakes.includes("dunna") && u.srs.dunna.miss === 1, "hibás válasz: visszaesik, a hibás szavak közé kerül");
 }
 // --- egységes pontozás a betűkirakónál (segítség −3, de legalább 2)
 ok(score({ r: 1, level: 1, helps: 1 }).pts === 7 && score({ r: 2, level: 1, helps: 2 }).pts === 2, "betűkirakó segítséggel: kevesebb pont, de legalább 2");
@@ -72,7 +73,7 @@ ok(SETTINGS.some(d => d.key === "level" && d.group === "play") && GAME.defaults.
 }
 // 🩹 Ismétlő kör: a hibás szó bekerül, az ismétlő kör azt kérdezi, elsőre jó válasz után lekerül
 {
-  const ru = { srs: {}, mistakes: [], stats: {}, prefs: {} }, w = "kassza";
+  const ru = { srs: {}, mistakes: [], stats: {}, prefs: {} }, w = "dunna";
   PACK.record(ru, { topic: "hosszu", word: w, level: 1 }, 0);
   const plan = PACK.review.plan(ru, 10, null, null);
   ok(PACK.review.count(ru) >= 1 && plan.some(x => x.sub === w && x.topic === "hosszu"), "ismétlő kör: a hibás szó benne van, „Rövid vagy hosszú?” feladatként");

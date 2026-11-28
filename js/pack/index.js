@@ -1,8 +1,10 @@
+import { RULES, RULE_WORDS, CATALOG, ruleItem } from "./active-words.js";
+import { HUNGARIAN_KEYS } from "../core/answer-spec.js";
 // ===== Helyesírás csomag: a Helyesírás Kaland feladatai a közös vázhoz =====
 // A váz (js/shell) csak ezen az objektumon keresztül éri el a feladatokat (lásd a Matek repó docs/terv-kozos-vaz.md).
 import { el, btn, escHtml, toast } from "../core/dom.js";
 import { RANKS, rankOf } from "../game/ranks.js";
-import { M_UNIQUE, JLY_LIST, JLY_MAP, ALL_UNIQUE_WORDS, PAIR_TASKS, PAIR_WHY, analyzeWord, analyzeJlyWord, getSynonymsForWord, explainWord,
+import { M_UNIQUE, JLY_LIST, JLY_MAP, ALL_UNIQUE_WORDS, LEGACY_WORD_COUNT, PAIR_TASKS, PAIR_WHY, analyzeWord, analyzeJlyWord, getSynonymsForWord, explainWord,
   extraVariant, extraFragment, jlyOptions, shuffle, sylItems, sylState, sylExplain, sylChoices, sylGaps, SYL_LVL_NAMES } from "./lang.js";
 import { optionsUI, typingUI, tilesUI, sylUI } from "./ui.js";
 import { isMastered, masteredCount, effLevel, pickItem, planMix, planReview, reviewCount, recordWord, okOf, PACK_BADGES } from "./progress.js";
@@ -13,6 +15,7 @@ const TOPICS = [
   { id: "jly", name: "j vagy ly", icon: "✍️", color: "#ea580c", place: "j vagy ly", sub: "Döntsd el: pontos j vagy ly!" },
   { id: "tiles", name: "Betűkirakó", icon: "🔤", color: "#0d9488", place: "Betűkirakó", sub: "Rakd ki a szót!" },
   { id: "pair", name: "Jelentéskülönbség", icon: "⚖️", color: "#db2777", place: "Jelentéskülönbség", sub: "fejjel–fejel, hal–hall…" },
+  ...Object.entries(RULES).map(([id, r]) => ({ id, ...r, icon: "✏️", color: "#7c3aed", place: r.name })),
   { id: "szotag", name: "Szótagolás", icon: "✂️", color: "#0891b2", place: "Szótagolás", sub: "Vágd szótagokra a szavakat!" },
 ];
 const topicById = id => TOPICS.find(t => t.id === id) || TOPICS[0];
@@ -59,7 +62,14 @@ export const PACK = {
   // ---- feladatok ----
   plan: (u, n, rng, allowed) => planMix(u, n, allowed),
   makeTask(item, rng, u) {
-    let topic = item.topic, w = item.sub || pickItem(u, topic);
+    let topic = item.topic, w = item.sub;
+    if (topic === "pair" ? !PAIR_TASKS.some(p => p.s === w) : !ALL_UNIQUE_WORDS.has(w)) w = pickItem(u, topic);
+    if (RULE_WORDS[topic] && !RULE_WORDS[topic].includes(w)) w = pickItem(u, topic);
+    if (topic === "jly" && !JLY_MAP[w]) w = pickItem(u, topic);
+    if ((topic === "hosszu" || topic === "gap") && !M_UNIQUE.includes(w)) {
+      if (item.sub && ALL_UNIQUE_WORDS.has(item.sub)) topic = "tiles";
+      else w = pickItem(u, topic);
+    }
     // ha a szót nem lehet az adott módon kérdezni, betűkirakó lesz belőle
     if (topic === "jly" && !(JLY_MAP[w] && analyzeJlyWord(w))) topic = "tiles";
     if ((topic === "hosszu" || topic === "gap") && !analyzeWord(w)) topic = "tiles";
@@ -70,6 +80,20 @@ export const PACK = {
     const meta = `${T.icon} ${T.name} · ${LVL[L]}`, syn = escHtml(getSynonymsForWord(w));
     const steps = [escHtml(explainWord(w)), `Jelentése: ${escHtml(getSynonymsForWord(w, true))}`, `A helyes alak: <b class="big-word">${escHtml(w)}</b>`];
     const check = v => ({ ok: v === w });
+    // Új szabálytémák (hosszú magánhangzó, -ó/-ő, -u/-ü/-ú/-ű, -ít, -ul/-ül): a keret „hiányzó rész” felülete
+    // (answer kind: "gap"); kezdő: 2 lehetőség, haladó: 3, mester: beírás ékezetes gombsorral. A jelentés mindig látszik.
+    if (RULES[topic]) {
+      const { part, other, mask, tip } = ruleItem(topic, w), start = mask.indexOf("_");
+      const third = thirdOption(topic, part, other);
+      const opts = shuffle(L === 2 && third ? [part, other, third] : [part, other]);
+      const full = v => w.slice(0, start) + v + w.slice(start + part.length);
+      return { ...base, meta, solution: part, correctText: w,
+        q: `<b>Pótold a hiányzó részt!</b>${clue("Jelentése: " + syn)}${L === 3 ? `<p class="soft small">Írd be a hiányzó betű(ke)t: ${escHtml([part, other].sort().join(" vagy "))}?</p>` : ""}`,
+        answer: L === 3 ? { kind: "gap", word: w, start, part, input: "text", extraKeys: HUNGARIAN_KEYS } : { kind: "gap", word: w, start, part, options: opts },
+        answerText: v => full(String(v)), hint: tip,
+        steps: [escHtml(tip), `Jelentése: ${escHtml(getSynonymsForWord(w, true))}`, `A helyes alak: <b class="big-word">${escHtml(w)}</b>`],
+        speech: `Pótold a hiányzó részt! Jelentése: ${getSynonymsForWord(w)}`, plainQ: mask };
+    }
     if (topic === "jly") {
       const opts = shuffle(jlyOptions(w, analyzeJlyWord(w).wrongWord, L));
       return { ...base, meta, q: `<b>Válaszd ki a helyesen írt alakot!</b>${clue("Jelentése: " + syn)}`, render: (box, io) => optionsUI(box, opts, w, io), check, hint: HINT_JLY, steps, speech: "Válaszd ki a helyesen írt alakot! Jelentése: " + getSynonymsForWord(w) };
@@ -113,7 +137,7 @@ export const PACK = {
   // ---- súgó (F1) ----
   help(id) {
     const T = topicById(id);
-    const H = {
+    const H = RULES[id] ? [T.sub, RULES[id].example, "Nézd meg a hiány helyét, és mondd ki a szót!"] : {
       hosszu: ["Két alak közül (vagy beírva) a helyes írásmódot keresed: rövid vagy hosszú mássalhangzó?", "kasza – kassza", "Mondd ki lassan: a hosszú hangot tovább ejtjük."],
       gap: ["A szóból hiányzik egy betűkapcsolat: rövid vagy hosszú mássalhangzó kell a helyére?", "ka__a → ssz", "Gondolj a jelentésére, és mondd ki hangosan!"],
       jly: ["A j és az ly ugyanúgy hangzik – meg kell jegyezni, melyik szóban melyik van.", "folyó, hely, fejjel", "Gondolj a szócsaládra: hely → helyes, helyi."],
@@ -131,7 +155,7 @@ export const PACK = {
     const rows = TOPICS.map(T => { const st = (u.stats || {})[T.id === "gap" ? "hosszu" : T.id]; const p = st && st.n ? Math.round(st.ok / st.n * 100) : null; return `<tr><td><b>${T.icon} ${escHtml(T.name)}</b></td><td>${st ? `${st.ok}/${st.n} jó` : "–"}</td><td><span class="sc ${p == null ? "grey" : p >= 90 ? "green" : p >= 70 ? "yellow" : "red"}">${p == null ? "még nem próbálta" : p + "%"}</span></td></tr>`; }).join("");
     box.append(el("div", null, `<table class="tmap">${rows}</table><p class="legend">A „Rövid vagy hosszú?” és a „Betűpótló” közös statisztikát használ (hosszú mássalhangzók).</p>`));
     const S = sylState(u);
-    box.append(el("h4", "psub", "🃏 Szókártyák és szótagolás"), el("div", "pstrip", `<span>🃏 Elsajátított szó: <b>${masteredCount(u)} / ${ALL_UNIQUE_WORDS.size}</b></span><span>📚 Gyakorolt: <b>${Object.keys(u.srs || {}).filter(w => ALL_UNIQUE_WORDS.has(w)).length}</b></span><span>✂️ Szótagolás: <b>${S.lvl}. szint</b> (${SYL_LVL_NAMES[S.lvl]})</span>`));
+    box.append(el("h4", "psub", "🃏 Szókártyák és szótagolás"), el("div", "pstrip", `<span>🃏 Elsajátított szó: <b>${[...ALL_UNIQUE_WORDS].filter(w => isMastered((u.srs || {})[w])).length} / ${ALL_UNIQUE_WORDS.size}</b></span><span>📚 Gyakorolt: <b>${Object.keys(u.srs || {}).filter(w => ALL_UNIQUE_WORDS.has(w)).length}</b></span><span>✂️ Szótagolás: <b>${S.lvl}. szint</b> (${SYL_LVL_NAMES[S.lvl]})</span>`));
     ptsAdjust(box, u);
     const miss = Object.entries(u.srs || {}).filter(([, r]) => r.miss).sort((a, b) => b[1].miss - a[1].miss).slice(0, 15);
     box.append(el("h4", "psub", "Legtöbbet hibázott szavak"), el("p", null, miss.length ? miss.map(([w, r]) => `<span class="sc ${isMastered(r) ? "green" : "red"}">${escHtml(w)} · ${r.miss}×</span>`).join(" ") : `<span class="soft">Még nincs hibázott szó. 🙂</span>`));
@@ -143,7 +167,9 @@ export const PACK = {
     render(box, { user: u, redraw }) {
       const all = [...ALL_UNIQUE_WORDS], got = all.filter(w => isMastered(u.srs[w])).length;
       box.append(el("div", "pstrip", `<span>🃏 <b>${got} / ${all.length}</b> szókártya</span>`), el("p", "soft small", "Egy szó akkor lesz kártya, ha 3 különböző napon helyesen válaszoltál rá, és legalább egyszer nehezebb feladatban is (3 opció, gépelés vagy betűkirakó). Ha 30 nap múlva is tudod, ⭐ kerül rá."));
-      const sets = { hosszu: ["Hosszú mássalhangzók", M_UNIQUE], jly: ["j / ly", JLY_LIST.map(x => x.w)] };
+      const sets = { ...Object.fromEntries(Object.entries(RULE_WORDS).map(([id, words]) => [id, [RULES[id].name, words]])), hosszu: ["Hosszú mássalhangzók", M_UNIQUE], jly: ["j / ly", JLY_LIST.map(x => x.w)] };
+      const archivedCards = Object.keys(u.srs || {}).filter(w => !ALL_UNIQUE_WORDS.has(w) && isMastered(u.srs[w]));
+      if (archivedCards.length || cardTab === "archive") sets.archive = ["Korábban megszerzett", archivedCards];
       const seg = el("div", "segs");
       Object.entries(sets).forEach(([k, [label]]) => { const b = el("button", "seg" + (k === cardTab ? " on" : ""), label); b.type = "button"; b.addEventListener("click", () => { cardTab = k; redraw(); }); seg.append(b); });
       box.append(seg);
@@ -164,7 +190,7 @@ let cardTab = "hosszu";
 // ---- ⚖️ Pontok igazítása a megtanult szavakhoz (⚙️ Témák fül, a szülői ablak PIN-nel védett) ----
 // Arány: a legfelső rang pontja = az összes szó elsajátítva → 1 elsajátított szó ≈ 9000 / szószám pont.
 // A rang a pontból adódik; a ranghoz kötött tárgyak a váz look() függvénye miatt maguktól visszaállnak egy kinyitottra.
-export const PTS_PER_WORD = RANKS[RANKS.length - 1].pts / ALL_UNIQUE_WORDS.size;
+export const PTS_PER_WORD = RANKS[RANKS.length - 1].pts / LEGACY_WORD_COUNT;
 export const suggestedPts = u => Math.round(masteredCount(u) * PTS_PER_WORD);
 const rankTxt = p => { const r = rankOf(p); return `${r.n}. ${r.name}`; };
 function ptsAdjust(box, u) {
@@ -202,13 +228,21 @@ function ptsAdjust(box, u) {
 // j/ly → ugyanaz az írásmód (j, ly, jj, lly), betűkirakó → hasonló hossz, szótagolás → ugyanannyi szótag
 const gapKey = w => { const i = analyzeWord(w); return i ? `${i.hasLong ? "L" : "S"}:${i.longPart.toLowerCase()}` : null; };
 const jlyKey = w => { const l = w.toLowerCase(); return ["lly", "jj", "ly", "j"].find(t => l.includes(t)) || null; };
+// Haladó szinten a harmadik, hihető hibás lehetőség (ugyanabból a hangcsaládból)
+const THIRD = { vowel: { á: "é", é: "á", í: "é", ó: "ő", ő: "ó", ú: "ű", ű: "ú" }, endoo: { ó: "ő", ő: "ó" }, enduu: { u: "ü", ü: "u", ú: "ű", ű: "ú" }, endit: { ít: "ét" }, endul: { ul: "ül", ül: "ul" } };
+function thirdOption(topic, part, other) { const t = (THIRD[topic] || {})[part]; return t && t !== part && t !== other ? t : null; }
 function similarWord(task, rng) {
   const w = task.sub, len = s => [...s].length;
   let pool;
-  if (task.topic === "pair") pool = PAIR_TASKS.map(p => p.s);
+  if (RULE_WORDS[task.topic]) {
+    // ugyanaz a szabály: ugyanaz a pótolandó rész (pl. ú, -ít, -ül), a -u/-ü témánál a kivétel csak kivétellel jön
+    const key = x => { const r = ruleItem(task.topic, x); return `${r && r.part}|${CATALOG.shortuu.includes(x)}`; }, k = key(w);
+    pool = RULE_WORDS[task.topic].filter(x => key(x) === k);
+  }
+  else if (task.topic === "pair") pool = PAIR_TASKS.map(p => p.s);
   else if (task.topic === "szotag") { const n = String(task.word).split("-").length; pool = sylItems().filter(i => i.syl.split("-").length === n).map(i => i.w); }
   else if (task.topic === "jly") { const k = jlyKey(w); pool = JLY_LIST.map(x => x.w).filter(x => jlyKey(x) === k); }
-  else if (task.topic === "tiles") pool = M_UNIQUE.filter(x => Math.abs(len(x) - len(w)) <= 1);
+  else if (task.topic === "tiles") pool = [...ALL_UNIQUE_WORDS].filter(x => Math.abs(len(x) - len(w)) <= 1);
   else { const k = gapKey(w); pool = M_UNIQUE.filter(x => gapKey(x) === k); }
   pool = pool.filter(x => x !== w);
   return pool.length ? rng.pick(pool) : null;

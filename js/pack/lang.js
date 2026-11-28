@@ -1,16 +1,21 @@
 // ===== Helyesírás csomag: nyelvi segédek (DOM nélkül, Node-ban is tesztelhető) =====
 // Szóelemzés (hosszú/rövid mássalhangzó, j/ly), tippek, magyarázat, hihető hibás alakok, szótagolás.
-import { WORD_SYNONYMS, M_LIST, JLY_RAW, PAIR_TASKS } from "./words.js";
+import { WORD_SYNONYMS, M_LIST, JLY_RAW, PAIR_TASKS as ARCHIVED_PAIRS } from "./words.js";
 import { dateKey, dayNum } from "../core/dates.js";
-export { PAIR_TASKS };
+import { ACTIVE_WORDS, LONG_WORDS, JLY_WORDS } from "./active-words.js";
+import { MEANINGS } from "./meanings.js";
+import { EXTRA_PAIRS, EXTRA_WHY, PAIR_HINT_FIX } from "./pairs.js";
+// a régi mondatpárok közül az aktív szavasak + az új párok (a helyes válasz mindig aktív szó); a választ eláruló régi súgók cserélve
+export const PAIR_TASKS = [...ARCHIVED_PAIRS, ...EXTRA_PAIRS].filter(p => ACTIVE_WORDS.has(p.ok)).map(p => (PAIR_HINT_FIX[p.ok] ? { ...p, hint: PAIR_HINT_FIX[p.ok] } : p));
 const todayKey = () => dateKey(dayNum());
 export const shuffle = arr => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 // ---------- 2. Szótárak ----------
-export const JLY_LIST = JLY_RAW.map(x => ({ w: x[0], hint: x[1] }));
+export const JLY_LIST = JLY_WORDS.map(w => ({ w, hint: MEANINGS[w] || JLY_RAW.find(x => x[0] === w)?.[1] || "" }));
 export const JLY_MAP = Object.fromEntries(JLY_LIST.map(x => [x.w, x]));
-export const M_UNIQUE = [...new Set(M_LIST)];
-export const ALL_UNIQUE_WORDS = new Set([...M_UNIQUE, ...JLY_LIST.map(x => x.w)]);
+export const M_UNIQUE = LONG_WORDS;
+export const ALL_UNIQUE_WORDS = ACTIVE_WORDS;
+export const LEGACY_WORD_COUNT = new Set([...M_LIST, ...JLY_RAW.map(x => x[0])]).size;
 
 export const PAIR_WHY = {
   fejjel: "fej + -vel → a v hasonul a j-hez: fejjel (eszközhatározó).",
@@ -30,6 +35,7 @@ export const PAIR_WHY = {
   helység: "A helység település (város, falu).",
   helyiség: "A helyiség épületrész (szoba, terem)."
 };
+Object.assign(PAIR_WHY, EXTRA_WHY);
 
 export const LONG_PATTERNS = [
   { long: "ccs", short: "cs" }, { long: "ggy", short: "gy" }, { long: "lly", short: "ly" },
@@ -117,7 +123,8 @@ const hintCache = {};
 
 // raw = true: a teljes szöveg (csak válasz UTÁN, vagy az albumban használjuk)
 export function getSynonymsForWord(word, raw = false) {
-  const src = WORD_SYNONYMS[word] || (JLY_MAP[word] && JLY_MAP[word].hint) || "";
+  // a meanings.js az erősebb (új szavak és javított tippek), utána a régi adatbázis
+  const src = MEANINGS[word] || WORD_SYNONYMS[word] || (JLY_MAP[word] && JLY_MAP[word].hint) || "";
   if (!src) return "Keresd meg a betűkből összeálló magyar szót!";
   if (raw) return src;
   return hintCache[word] || (hintCache[word] = cleanHint(word, src));
@@ -304,4 +311,3 @@ export function sylChoices(it) { // hosszú kettős betűs szavak: melyik a hely
   for (let g = x.s; g < x.e; g++) { if (g > 0) wrong.push(build([...others, g])); }
   return shuffle([it.syl, ...shuffle([...new Set(wrong)].filter(s => s !== it.syl)).slice(0, 2)]);
 }
-
