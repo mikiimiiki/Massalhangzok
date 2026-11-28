@@ -133,7 +133,7 @@ export function getSynonymsForWord(word, raw = false) {
 
 // Hibás válasz utáni, mondatos magyarázat
 export function explainWord(w) {
-  if (JLY_MAP[w]) return `${aAz(w, true)} „${w}” j/ly szó: ezt nem lehet kiejtésből eldönteni, meg kell jegyezni. Jelentése: ${getSynonymsForWord(w, true)}.`;
+  if (JLY_MAP[w]) return `${aAz(w, true)} „${w}” j/ly szó: ezt nem lehet kiejtésből eldönteni, meg kell jegyezni.`;   // a jelentés a következő lépésben jön (ne ismétlődjön)
   const i = analyzeWord(w);
   if (i) return i.hasLong
     ? `${aAz(w, true)} „${w}” szóban hosszú mássalhangzó van: „${i.longPart}”. Mondd ki hangosan, a hosszú hangot hosszabban ejtjük.`
