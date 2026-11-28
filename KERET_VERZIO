@@ -1,9 +1,9 @@
 {
   "keret": "keretrendszer",
-  "verzio": "1.16.1",
-  "commit": "234fa76",
+  "verzio": "1.19.0",
+  "commit": "edb242e",
   "datum": "2026-11-28",
-  "ujjlenyomat": "87e361a94723a99fe5211d7afd26437b7e009613f2546b4dde63202eca171329",
+  "ujjlenyomat": "90112abdb9be40fe5b15a2417af73c8bf39d44a056f465578b9e8897b442c9af",
   "fajlok": [
     "js/core/answer-spec.js",
     "js/core/answer-ui.js",
@@ -14,11 +14,14 @@
     "js/core/cosmetics.js",
     "js/core/dailygoal.js",
     "js/core/dates.js",
+    "js/core/dedupe.js",
     "js/core/device.js",
     "js/core/dom.js",
     "js/core/events.js",
+    "js/core/firebase-learn.js",
     "js/core/gap-ui.js",
     "js/core/keys.js",
+    "js/core/lang.js",
     "js/core/learning-feedback.js",
     "js/core/local-save.js",
     "js/core/modal.js",
@@ -58,6 +61,7 @@
     "js/shell/voice-ui.js",
     "js/shell/weekly-ui.js",
     "css/style.css",
-    "tests/keret.test.mjs"
+    "tests/keret.test.mjs",
+    "database.rules.json"
   ]
 }

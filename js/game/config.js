@@ -13,7 +13,8 @@ export const GAME = {
   title: "Helyesírás Kaland",
   settingsTitle: "⚙️ Szülői beállítások",
   storeKey: "helyesiras_kaland_v4", simKey: "helyesiras_kaland_sim",
-  firebase: FIREBASE_CONFIG,
+  firebase: FIREBASE_CONFIG,      // közös learn-projekt (FIREBASE.md)
+  cloudApp: "helyesiras",              // a játék saját ága a felhőben: families/{család}/apps/helyesiras – ne változtasd meg
   // téma és szavak
   bodyClass: "theme-light",
   logo: "🦉", mascot: "🦉",
