@@ -1,6 +1,6 @@
 // ===== Felhő: élő állapot, eseménynapló, belépés, család (☁️ kis ablak és a ⚙️ Felhő fül) =====
 import { $, el, btn, escHtml as esc } from "../core/dom.js";
-import { modal } from "../core/modal.js";
+import { modal, ask } from "../core/modal.js";
 import { C } from "./ctx.js";
 import { openGear } from "./players.js";
 
@@ -35,7 +35,7 @@ export function renderCloudInto(c) {
         ml.innerHTML = "Családtagok:";
         ms.forEach(m => {
           const row = el("div", "rw-item", `<span>${esc(m)}${cloud.user && m === (cloud.user.email || "").toLowerCase() ? " <span class='soft small'>(te)</span>" : ""}</span>`);
-          if (cloud.removeMember && m !== (cloud.user.email || "").toLowerCase()) row.append(btn("ghost danger", "Eltávolítás", () => cloud.removeMember(m)));
+          if (cloud.removeMember && m !== (cloud.user.email || "").toLowerCase()) row.append(btn("ghost danger", "Eltávolítás", async () => { if (await ask({ title: "Családtag eltávolítása", text: `Biztosan eltávolítod: <b>${esc(m)}</b>? Ezzel a Google-fiókkal már nem látja a család adatait egyik gyakorlóban sem. Később újra hozzáadhatod.`, ok: "Eltávolítás" })) cloud.removeMember(m); }));
           ml.append(row);
         });
       });

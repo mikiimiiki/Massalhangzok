@@ -270,6 +270,20 @@ export function createCloud(api) {
     } catch (e) { note = "❌ " + errText(e); log("❌", "Családtag hozzáadása sikertelen: " + errText(e), true); }
     laterOffline(); api.refresh();
   }
+  // Családtag eltávolítása (⚙️ Felhő fül, szülői PIN mögött). Saját magát senki nem távolíthatja el.
+  async function removeMember(em) {
+    em = (em || "").trim().toLowerCase();
+    if (!ready() || !em) return false;
+    if (em === ((user && user.email) || "").toLowerCase()) { note = "❌ Saját magadat nem távolíthatod el a családból."; api.refresh(); return false; }
+    try {
+      await ensureOnline();
+      await fb.remove(fb.ref(db, `memberOf/${emailKey(em)}/${fam()}`));   // előbb a mutató (ehhez még tagnak kell lennünk)…
+      await fb.remove(fb.ref(db, `families/${fam()}/members/${emailKey(em)}`)); // …utána a tagság
+      note = `✅ ${em} eltávolítva a családból. Ezzel a fiókkal már nem látja a család adatait.`; log("➖", `Családtag eltávolítva: ${em}`);
+      return true;
+    } catch (e) { note = "❌ " + errText(e); log("❌", "Családtag eltávolítása sikertelen: " + errText(e), true); return false; }
+    finally { laterOffline(); api.refresh(); }
+  }
   async function members() {
     if (!ready()) return [];
     try { await ensureOnline(); const v = (await fb.get(fb.ref(db, `families/${fam()}/members`))).val() || {}; countDown(v); return Object.keys(v).map(k => k.replace(/,/g, ".")); }
@@ -555,7 +569,7 @@ export function createCloud(api) {
   }
 
   return {
-    init, signIn, signOut, createFamily, addMember, members, queue, flush, pushSettings, pushParent, fetchParent, markDeleted, reconnect, status,
+    init, signIn, signOut, createFamily, addMember, removeMember, members, queue, flush, pushSettings, pushParent, fetchParent, markDeleted, reconnect, status,
     checkpoint, setMode, fetchLogs, fetchDevices, updateDevice, removeDevice, pushDevice, storageEstimate,
     get mode() { return mode(); }, get paused() { return paused; },
     get events() { return events.slice(); }, get pendingCount() { return pending.size; }, get familyCode() { return fam(); },
