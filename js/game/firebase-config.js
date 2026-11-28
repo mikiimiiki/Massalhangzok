@@ -1,10 +1,5 @@
-// ===== A helyesiras-kaland Firebase-projekt webalkalmazásának adatai (az apiKey nem titkos; a hozzáférést a database.rules.json védi) =====
-export const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBqtbV2-nWHwllriImtc9hYLhVnsgaXoCc",
-  authDomain: "helyesiras-kaland.firebaseapp.com",
-  databaseURL: "https://helyesiras-kaland-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "helyesiras-kaland",
-  storageBucket: "helyesiras-kaland.firebasestorage.app",
-  messagingSenderId: "346262937393",
-  appId: "1:346262937393:web:b256094d9a777aa6d69a10"
-};
+// ===== Firebase: a közös „learn” projekt (keret 1.19.0) – az adatok a keretben vannak (js/core/firebase-learn.js) =====
+// A játék adatai a families/{család}/apps/{cloudApp} ág alá kerülnek; a cloudApp a config.js-ben van.
+// Lépésenkénti leírás: FIREBASE.md
+import { LEARN_FIREBASE } from "../core/firebase-learn.js";
+export const FIREBASE_CONFIG = LEARN_FIREBASE;
