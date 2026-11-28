@@ -1,4 +1,5 @@
 // A megadott szókészlet; az eredeti adatbázis változatlan marad.
+import { aAz } from "../core/dom.js";
 export const CATALOG = {
   long1n: ["állat", "állomás", "befőtt", "billentyű", "bükkfa", "csillag", "csillagász", "dallam", "dunna", "ellenség", "forrás", "futballista", "függöny", "holló", "hullám", "illat", "kakukk", "kanna", "kotta", "makk", "megálló", "mellény", "olló", "orr", "orvosság", "pikkely", "pillanat", "pillangó", "puttony", "szalonna", "szappan", "szempilla", "szökkenés", "toll", "töltőtoll", "ujj", "uzsonna", "ünnep", "váll", "villa", "villamos", "vízcsepp"],
   long2n: ["asszony", "bosszú", "dinnye", "gally", "hattyú", "könny", "meggy", "menyasszony", "mennydörgés", "mennyezet", "összeg", "szivattyú", "vessző"],
@@ -88,11 +89,11 @@ export function vowelItem(group, word) {
   if (start < 0 || !other) throw new Error(`Hiányos magánhangzó-elem: ${group}/${word}`);
   const q = s => `„${s}”`;
   const why = {
-    stemLong: `🧠 Meg kell jegyezni: a szótőben nincs szabály a hosszúságra – a(z) ${q(word)} szóban hosszú ${part} van. Mondd ki lassan, és jegyezd meg!`,
-    stemShort: `🧠 Meg kell jegyezni: a(z) ${q(word)} szóban itt rövid ${part} van, nem nyújtjuk. Mondd ki lassan, és jegyezd meg!`,
+    stemLong: `🧠 Meg kell jegyezni: a szótőben nincs szabály a hosszúságra – ${aAz(q(word))} ${q(word)} szóban hosszú ${part} van. Mondd ki lassan, és jegyezd meg!`,
+    stemShort: `🧠 Meg kell jegyezni: ${aAz(q(word))} ${q(word)} szóban itt rövid ${part} van, nem nyújtjuk. Mondd ki lassan, és jegyezd meg!`,
     endoo: "📏 Szabály: a főnevek végén az ó és az ő mindig hosszú (ajtó, cipő, erdő).",
     enduuLong: "📏 Szabály: a főnevek végén az ú és az ű hosszú (betű, kesztyű, varjú) – csak néhány kivétel rövid (kapu, falu, menü).",
-    enduuShort: `⚠️ Kivétel: a(z) ${q(word)} azon kevés főnév közé tartozik, amelynek a végén rövid u vagy ü van (alku, falu, kapu, menü…).`,
+    enduuShort: `⚠️ Kivétel: ${aAz(q(word))} ${q(word)} azon kevés főnév közé tartozik, amelynek a végén rövid u vagy ü van (alku, falu, kapu, menü…).`,
     endit: "📏 Szabály: az -ít végű igékben mindig hosszú í van (tanít, épít, segít).",
     endul: "📏 Szabály: az -ul, -ül végű igékben az u és az ü mindig rövid (tanul, repül, gurul).",
   }[group];

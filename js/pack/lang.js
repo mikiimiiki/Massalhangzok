@@ -1,5 +1,6 @@
 // ===== Helyesírás csomag: nyelvi segédek (DOM nélkül, Node-ban is tesztelhető) =====
 // Szóelemzés (hosszú/rövid mássalhangzó, j/ly), tippek, magyarázat, hihető hibás alakok, szótagolás.
+import { aAz } from "../core/dom.js";
 import { WORD_SYNONYMS, M_LIST, JLY_RAW, PAIR_TASKS as ARCHIVED_PAIRS } from "./words.js";
 import { dateKey, dayNum } from "../core/dates.js";
 import { ACTIVE_WORDS, LONG_WORDS, JLY_WORDS } from "./active-words.js";
@@ -132,11 +133,11 @@ export function getSynonymsForWord(word, raw = false) {
 
 // Hibás válasz utáni, mondatos magyarázat
 export function explainWord(w) {
-  if (JLY_MAP[w]) return `A(z) „${w}” j/ly szó: ezt nem lehet kiejtésből eldönteni, meg kell jegyezni. Jelentése: ${getSynonymsForWord(w, true)}.`;
+  if (JLY_MAP[w]) return `${aAz(w, true)} „${w}” j/ly szó: ezt nem lehet kiejtésből eldönteni, meg kell jegyezni. Jelentése: ${getSynonymsForWord(w, true)}.`;
   const i = analyzeWord(w);
   if (i) return i.hasLong
-    ? `A(z) „${w}” szóban hosszú mássalhangzó van: „${i.longPart}”. Mondd ki hangosan, a hosszú hangot hosszabban ejtjük.`
-    : `A(z) „${w}” szóban rövid „${i.shortPart}” van, nem „${i.longPart}”.`;
+    ? `${aAz(w, true)} „${w}” szóban hosszú mássalhangzó van: „${i.longPart}”. Mondd ki hangosan, a hosszú hangot hosszabban ejtjük.`
+    : `${aAz(w, true)} „${w}” szóban rövid „${i.shortPart}” van, nem „${i.longPart}”.`;
   return `Nézd meg még egyszer a szót: ${w}.`;
 }
 

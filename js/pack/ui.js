@@ -3,7 +3,7 @@
 // io: { submit, answering, toast, useHelp }
 import { choiceUI, textUI } from "../core/answer-ui.js";
 import { tilesUI as sharedTilesUI } from "../core/tile-ui.js";
-import { el, btn } from "../core/dom.js";
+import { el, btn, aAz } from "../core/dom.js";
 import { shuffle, SYL_V } from "./lang.js";
 
 export const optionsUI = (box, options, correct, io, onPick) =>
@@ -31,7 +31,7 @@ export function sylUI(box, word, want, io) {
     cell.append(el("span", "sylch" + (SYL_V.includes(ch.toLowerCase()) ? " v" : ""), ch));
     if (i < letters.length - 1) {
       const g = i + 1, b = btn("sylgap", "", () => { if (!io.answering() || lock.has(g)) return; if (on.has(g)) on.delete(g); else on.add(g); paint(); });
-      b.setAttribute("aria-label", `Vágás a(z) ${i + 1}. és ${i + 2}. betű között`);
+      b.setAttribute("aria-label", `Vágás ${aAz(i + 1)} ${i + 1}. és ${i + 2}. betű között`);
       gapBtns.set(g, b); cell.append(b);
     }
     row.append(cell);
